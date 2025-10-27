@@ -1,0 +1,351 @@
+/* Basic Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  background: #f4f4f4;
+}
+
+/* Sidebar */
+/* Assuming global styles handle the .ai-sidebar */
+
+/* Main Content */
+.main {
+  margin-left: 230px; /* Adjust if your global sidebar width is different */
+  width: calc(100% - 230px); /* Adjust if your global sidebar width is different */
+  padding: 30px;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.header-icon {
+  width: 60px;
+  height: 50px;
+  background: #16a34a; /* Green for Excel */
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  border-radius: 10px;
+  font-size: 0.9em; /* Adjust font size if needed */
+}
+
+.header h1 {
+  font-size: 1.8rem; /* Adjusted */
+  margin: 0;
+}
+
+.header p {
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Content Grid */
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+/* Card */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* File Upload */
+.file-upload .uploade-area { /* Specific class for Excel */
+  border: 2px dashed #16a34a; /* Green */
+  padding: 25px;
+  border-radius: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.file-upload .uploade-area:hover {
+    background-color: #f0fdf4; /* Light green hover */
+}
+
+.file-upload .uploade-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  color: #16a34a;
+}
+
+.file-upload .browse {
+  color: #16a34a;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.file-upload .file-input {
+  display: none;
+}
+
+.file-upload p { /* Style for text inside upload area */
+    color: #555;
+    font-size: 0.9rem;
+}
+.file-upload p strong { /* Style for file name */
+    color: #333;
+}
+
+/* Features Grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+  margin-bottom: 20px; /* Added margin */
+}
+
+.feature-card {
+  padding: 15px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.feature-card h4 {
+    font-size: 1rem;
+    margin-bottom: 5px;
+}
+.feature-card p {
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+/* Removed i selector as h4 used instead */
+
+.feature-card.charts {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.feature-card.tables {
+  background: #dbebff;
+  color: #1e3a8a;
+  border: 1px solid #3b82f6;
+}
+
+/* Customize Grid */
+.checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.checkbox-grid label {
+  display: flex;
+  gap: 6px;
+  font-size: 0.9rem;
+  align-items: center; /* Vertically align checkbox and text */
+}
+/* Style checkbox */
+.checkbox-grid input[type="checkbox"] {
+    accent-color: #16a34a; /* Green checkbox */
+}
+
+
+.customize-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.input-group label {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.input-group input[type="range"],
+.input-group select {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 0.9rem; /* Added font size */
+}
+.input-group span { /* Style for slide count text */
+    text-align: right;
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 4px;
+    display: block;
+}
+
+
+/* --- MODIFIED: CONVERT BUTTON --- */
+.convert-btn {
+  background: #16a34a;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  transition: background-color 0.2s; /* Added transition */
+  /* Added for progress bar */
+  min-height: 50px; /* Adjust height as needed */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+/* --- END MODIFIED --- */
+
+
+.convert-btn:hover {
+  background: #15803d;
+}
+/* Disable style */
+.convert-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* --- ADDED: Style for Edit Button (using existing class) --- */
+.edit-preview-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5; /* Using blue from other pages */
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  /* Added margin-top to match structure */
+  margin-top: 15px;
+  width: 100%; /* Make it full width like convert button */
+}
+
+.edit-preview-btn:hover {
+  background-color: #4338ca;
+  transform: scale(1.02); /* Slight scale */
+}
+/* --- END ADDED --- */
+
+/* Right Sidebar */
+.right-sidebar .card {
+  margin-bottom: 20px;
+}
+/* Resetting margin for last card */
+.right-sidebar .card:last-child {
+  margin-bottom: 0;
+}
+
+.right-sidebar h3 {
+  margin-bottom: 10px;
+  font-size: 1.1rem; /* Adjusted */
+}
+
+.right-sidebar ul {
+  list-style: none; /* Removed default bullets */
+  padding: 0; /* Removed default padding */
+}
+
+.right-sidebar li {
+  margin-bottom: 8px; /* Spacing */
+  font-size: 0.9rem; /* Adjusted */
+  color: #555; /* Adjusted */
+  position: relative; /* For custom bullets */
+  padding-left: 18px; /* Space for custom bullet */
+}
+/* Custom bullet */
+.right-sidebar li::before {
+    content: '✔';
+    position: absolute;
+    left: 0;
+    color: #16a34a; /* Green checkmark */
+    font-weight: bold;
+}
+
+.processing-time {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #16a34a;
+}
+
+.small-text {
+  font-size: 0.85rem;
+  color: #15803d; /* Darker green */
+  margin-top: 4px; /* Added spacing */
+}
+
+/* --- ADDED: STYLES FOR PROGRESS BAR (GREEN THEME) --- */
+
+.convert-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; /* Make bar a bit taller */
+  background-color: #14532d; /* Darker green for the track */
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; /* Needed for the text and bar */
+
+  /* Center the text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.convert-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; /* Sit on top of the bar */
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Makes text more readable */
+}
+
+.convert-btn .progress-bar-indeterminate {
+  width: 60%;
+  height: 100%;
+  background-color: #16a34a; /* Your theme color */
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+
+  /* The animation */
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+/* This animation is used by all progress bars */
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; /* Start off-screen left */
+  }
+  100% {
+    left: 100%; /* End off-screen right */
+  }
+}
+
+/* --- END ADDED STYLES --- */

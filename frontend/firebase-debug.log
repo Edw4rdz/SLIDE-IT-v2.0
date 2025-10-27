@@ -1,0 +1,80 @@
+[debug] [2025-10-12T17:47:31.134Z] ----------------------------------------------------------------------
+[debug] [2025-10-12T17:47:31.139Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\franc\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init
+[debug] [2025-10-12T17:47:31.139Z] CLI Version:   14.19.1
+[debug] [2025-10-12T17:47:31.139Z] Platform:      win32
+[debug] [2025-10-12T17:47:31.139Z] Node Version:  v22.19.0
+[debug] [2025-10-12T17:47:31.140Z] Time:          Mon Oct 13 2025 01:47:31 GMT+0800 (Taiwan Standard Time)
+[debug] [2025-10-12T17:47:31.140Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-12T17:47:31.143Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  D:\School Files\Capstone1
+
+[debug] [2025-10-12T17:47:31.938Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2025-10-12T17:47:31.938Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2025-10-12T17:49:05.654Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-12T17:49:05.654Z] > authorizing via signed-in user (retuyabaldwinandrei@gmail.com)
+[debug] [2025-10-12T17:49:05.656Z] Checked if tokens are valid: false, expires at: 1759859476044
+[debug] [2025-10-12T17:49:05.656Z] Checked if tokens are valid: false, expires at: 1759859476044
+[debug] [2025-10-12T17:49:05.656Z] > refreshing access token with scopes: []
+[debug] [2025-10-12T17:49:05.657Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-12T17:49:05.657Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-12T17:49:06.482Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-12T17:49:06.482Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-12T17:49:06.496Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=100
+[debug] [2025-10-12T17:49:07.984Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2025-10-12T17:49:07.985Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] 
+=== Dataconnect Setup
+[debug] [2025-10-12T17:49:13.993Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:13.993Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:13.993Z] >>> [apiv2][query] GET https://cloudbilling.googleapis.com/v1/projects/slide-it-9cbd2/billingInfo [none]
+[debug] [2025-10-12T17:49:14.932Z] <<< [apiv2][status] GET https://cloudbilling.googleapis.com/v1/projects/slide-it-9cbd2/billingInfo 200
+[debug] [2025-10-12T17:49:14.933Z] <<< [apiv2][body] GET https://cloudbilling.googleapis.com/v1/projects/slide-it-9cbd2/billingInfo {"name":"projects/slide-it-9cbd2/billingInfo","projectId":"slide-it-9cbd2","billingAccountName":"","billingEnabled":false}
+[info] i  dataconnect: ensuring required API firebasedataconnect.googleapis.com is enabled... 
+[debug] [2025-10-12T17:49:14.935Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:14.935Z] Checked if tokens are valid: true, expires at: 1760294945482
+[info] i  dataconnect: ensuring required API sqladmin.googleapis.com is enabled... 
+[debug] [2025-10-12T17:49:14.938Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:14.938Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:14.939Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/firebasedataconnect.googleapis.com [none]
+[debug] [2025-10-12T17:49:14.939Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/firebasedataconnect.googleapis.com x-goog-quota-user=projects/slide-it-9cbd2
+[debug] [2025-10-12T17:49:14.941Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/sqladmin.googleapis.com [none]
+[debug] [2025-10-12T17:49:14.941Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/sqladmin.googleapis.com x-goog-quota-user=projects/slide-it-9cbd2
+[debug] [2025-10-12T17:49:16.803Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/firebasedataconnect.googleapis.com 200
+[debug] [2025-10-12T17:49:16.804Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/firebasedataconnect.googleapis.com [omitted]
+[warn] !  dataconnect: missing required API firebasedataconnect.googleapis.com. Enabling now... 
+[debug] [2025-10-12T17:49:16.806Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:16.806Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:16.806Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/firebasedataconnect.googleapis.com:enable [none]
+[debug] [2025-10-12T17:49:16.806Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/firebasedataconnect.googleapis.com:enable x-goog-quota-user=projects/slide-it-9cbd2
+[debug] [2025-10-12T17:49:16.810Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/sqladmin.googleapis.com 200
+[debug] [2025-10-12T17:49:16.811Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/sqladmin.googleapis.com [omitted]
+[warn] !  dataconnect: missing required API sqladmin.googleapis.com. Enabling now... 
+[debug] [2025-10-12T17:49:16.811Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:16.812Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:16.812Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/sqladmin.googleapis.com:enable [none]
+[debug] [2025-10-12T17:49:16.812Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/sqladmin.googleapis.com:enable x-goog-quota-user=projects/slide-it-9cbd2
+[debug] [2025-10-12T17:49:17.468Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/sqladmin.googleapis.com:enable 200
+[debug] [2025-10-12T17:49:17.469Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/sqladmin.googleapis.com:enable [omitted]
+[debug] [2025-10-12T17:49:18.227Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/firebasedataconnect.googleapis.com:enable 200
+[debug] [2025-10-12T17:49:18.227Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/slide-it-9cbd2/services/firebasedataconnect.googleapis.com:enable [omitted]
+[debug] [2025-10-12T17:49:28.249Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:28.250Z] Checked if tokens are valid: true, expires at: 1760294945482
+[debug] [2025-10-12T17:49:28.250Z] >>> [apiv2][query] GET https://firebasedataconnect.googleapis.com/v1/projects/slide-it-9cbd2/locations/-/services [none]
+[debug] [2025-10-12T17:49:30.738Z] <<< [apiv2][status] GET https://firebasedataconnect.googleapis.com/v1/projects/slide-it-9cbd2/locations/-/services 200
+[debug] [2025-10-12T17:49:30.739Z] <<< [apiv2][body] GET https://firebasedataconnect.googleapis.com/v1/projects/slide-it-9cbd2/locations/-/services {}

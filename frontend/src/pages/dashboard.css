@@ -1,0 +1,240 @@
+/* Global reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  width: 100vw;
+}
+
+.dashboard {
+  font-family: "Poppins", sans-serif;
+  display: flex;
+  min-height: 100vh;
+  background-color: #f7f8fa;
+}
+
+/* Sidebar */
+.dashboard .sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 230px;
+  height: 100vh;
+  background: #6D4FC2;
+  color: #fff;
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+}
+
+/* Upload Template Button */
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  color: white;
+  text-decoration: none;
+  margin-top: 10px;
+  transition: background-color 0.2s;
+}
+
+.dashboard .sidebar .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  margin-bottom: 30px;
+}
+
+/* ✅ Logo image styling */
+.slideit-logo {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dashboard .sidebar nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  color: #d1d5db;
+  text-decoration: none;
+  transition: background 0.3s, color 0.3s;
+}
+
+.dashboard .sidebar nav a:hover,
+.dashboard .sidebar nav a.active {
+  background: #aa729d;
+  border-left: 4px solid #3b5673;
+  color: #fff;
+}
+
+/* Logout Button */
+.bottom-links {
+  margin-top: auto;
+  text-align: center;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  color: #d1d5db;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s;
+}
+
+.logout-btn:hover {
+  background: #aa729d;
+  color: #fff;
+}
+
+.logout-btn .icon {
+  margin-right: 8px;
+}
+
+.logout-btn .spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Main Content */
+.dashboard .main {
+  margin-left: 230px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: calc(100vw - 230px);
+  overflow-x: hidden;
+}
+
+/* Content */
+.dashboard .content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  padding: 20px;
+}
+
+/* Header */
+.dashboard .header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.dashboard .header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.dashboard .header h1 span {
+  color: #945adb;
+}
+
+.dashboard .header p {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Tools Grid */
+.dashboard .tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+/* Tool Card Link */
+.dashboard .tool-card-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Tool Cards */
+.dashboard .tool-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  height: 100%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.dashboard .tool-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+}
+
+/* Tool Icon Circle */
+.dashboard .tool-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 26px;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+/* Circle Hover Animation */
+.dashboard .tool-card:hover .tool-icon {
+  transform: scale(1.1);
+  filter: brightness(1.1);
+}
+
+/* Individual circle background colors */
+.dashboard .tool-icon.plus { background: #8b5cf6; }   /* Purple for AI */
+.dashboard .tool-icon.pdf { background: #ef4444; }    /* Red for PDF */
+.dashboard .tool-icon.word { background: #2563eb; }   /* Blue for Word */
+.dashboard .tool-icon.text { background: #e9eb7b; }   /* Yellow for Text */
+.dashboard .tool-icon.excel { background: #22c55e; }  /* Bright green for Excel */
+
+.dashboard .tool-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dashboard .tool-desc {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.dashboard .tool-arrow {
+  margin-top: auto;
+  font-size: 14px;
+  color: #666;
+}

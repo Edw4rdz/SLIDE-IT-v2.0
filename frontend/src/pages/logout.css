@@ -1,0 +1,63 @@
+/* Sidebar full height */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* full viewport height */
+  padding: 20px;
+  background-color: #1f2937; /* optional dark sidebar background */
+  color: white;
+}
+
+/* Sidebar links container */
+.sidebar-links {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Top links */
+.top-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Push logout to bottom */
+.bottom-links {
+  margin-top: auto;
+}
+
+/* Logout button */
+.logout-btn {
+  padding: 20px;
+  color: #f87171;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover {
+  background-color: rgba(255, 0, 0, 0.2);
+}
+
+.logout-btn .icon {
+  margin-right: 8px;
+}
+
+/* Spinner for logout */
+.spinner-small {
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top: 3px solid white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  margin-left: 10px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

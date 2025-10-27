@@ -1,0 +1,130 @@
+/* Layout */
+.settings-main {
+  margin-left: 230px;
+  padding: 30px 40px;
+  width: calc(100% - 230px);
+  background: #f7f8fa;
+  min-height: 100vh;
+}
+
+.settings-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.settings-header {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.settings-header .header-icon {
+  width: 50px;
+  height: 50px;
+  background: #6d4fc2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 1.5rem;
+}
+
+/* Settings Grid */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+}
+
+.settings-card {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease;
+}
+
+.settings-card:hover {
+  transform: translateY(-3px);
+}
+
+.settings-card h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Form Controls */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  font-weight: 500;
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+  color: #555;
+}
+
+.form-group input,
+.form-group select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #6d4fc2;
+  outline: none;
+}
+
+/* Readonly Info Box */
+.form-group.readonly .readonly-box {
+  display: flex;
+  align-items: center;
+  background: #f2f0fb;
+  border-radius: 10px;
+  padding: 10px;
+  gap: 8px;
+  color: #5a49a2;
+}
+
+.readonly-box .icon {
+  font-size: 1.2rem;
+}
+
+/* Checkbox group */
+.form-group.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.save-btn {
+  margin-top: 10px;
+  background-color: #6d4fc2;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.save-btn:hover {
+  background-color: #5537a6;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}

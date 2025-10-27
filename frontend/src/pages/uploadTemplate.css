@@ -1,0 +1,116 @@
+/* Upload section */
+.upload-template-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+.upload-card {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.upload-card h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.upload-card .subtitle {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.upload-card input[type="file"] {
+  margin: 1rem 0;
+}
+
+.upload-card button {
+  background: #4a90e2;
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1.2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.upload-card button:hover {
+  background: #357abd;
+}
+
+.message {
+  margin-top: 1rem;
+  font-weight: 500;
+}
+
+/* Prebuilt section */
+.prebuilt-section {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.prebuilt-section h3 {
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+/* Grid layout */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Template card */
+.template-card {
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+
+.template-card img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.template-card p {
+  padding: 0.8rem;
+  font-weight: 500;
+  color: #333;
+  flex-grow: 1;
+}
+
+.template-card button {
+  margin: 0.5rem 1rem 1rem;
+  padding: 0.5rem;
+  background: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.template-card button:hover {
+  background: #357abd;
+}

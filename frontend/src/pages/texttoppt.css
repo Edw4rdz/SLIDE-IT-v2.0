@@ -1,0 +1,389 @@
+/* Basic Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f4f4f4;
+  display: flex;
+}
+
+/* Left Sidebar */
+/* These styles might be overridden by your global Dashboard.css */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 230px;
+  height: 100vh;
+  background: #1f2937; /* Using a placeholder color */
+  color: #fff;
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+}
+
+.sidebar .logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 40px;
+  padding: 0 20px; /* Added padding like other sidebars */
+}
+
+.sidebar .logo i {
+  font-size: 1.8rem;
+  color: orange; /* Example color */
+}
+
+/* Assuming logo-text structure from other files */
+.sidebar .logo .logo-text h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+.sidebar .logo .logo-text p {
+  font-size: 0.8rem;
+  color: #d1d5db;
+  margin: 0;
+}
+
+
+.sidebar nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 22px;
+  color: #e5e7eb;
+  text-decoration: none;
+  font-size: 0.95rem;
+  border-left: 4px solid transparent;
+  transition: 0.3s;
+}
+
+.sidebar nav a:hover,
+.sidebar nav a.active { background: #374151; border-left: 4px solid #f59e0b; color: #fff; }
+
+/* Main Content */
+.main {
+  margin-left: 230px; /* Adjusted to match sidebar width */
+  padding: 30px;
+  width: calc(100% - 230px); /* Adjusted */
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Header */
+.headert {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.headert-icon {
+  width: 50px;
+  height: 50px;
+  background: orange;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  border-radius: 10px;
+}
+
+/* Using h1/p directly inside header */
+.headert h1 {
+  font-size: 1.8rem; /* Adjusted */
+  margin: 0;
+}
+
+.headert p {
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Content Grid */
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+/* Card */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.uploadt-area {
+  border: 2px dashed #f97316;
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+  cursor: pointer; /* Added cursor */
+}
+
+.uploadt-icon {
+  font-size: 32px;
+  color: #f97316;
+  margin-bottom: 12px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 150px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 12px;
+  font-size: 1rem;
+  margin-top: 10px;
+  resize: vertical;
+}
+
+.examples {
+  margin-top: 12px;
+}
+
+.examples button {
+  background: #fed7aa;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  margin-right: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.browset {
+  background: none;
+  border: none;
+  color: #f97316;
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
+  padding: 0; /* Removed padding */
+  font-size: inherit; /* Inherit font size */
+}
+
+/* Making h2 inside button normal weight */
+.browset h2 {
+  font-weight: normal;
+  font-size: inherit;
+  display: inline;
+}
+
+
+.checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.checkbox-grid label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.customize-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.customize-grid .input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.customize-grid .input-group label {
+  font-weight: 500;
+  margin-bottom: 6px;
+  font-size: 0.9rem; /* Added */
+  color: #666; /* Added */
+}
+
+/* Added styles for range input */
+.customize-grid .input-group input[type="range"] {
+  width: 100%;
+  margin-bottom: 5px;
+}
+.customize-grid .input-group span {
+  text-align: right;
+  font-size: 0.9rem;
+  color: #666;
+}
+/* Added styles for select */
+.customize-grid .input-group select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+
+/* --- MODIFIED: CONVERT BUTTON --- */
+.convertt-btn {
+  background: #f97316;
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  /* Added for progress bar */
+  min-height: 53px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s; /* Added transition */
+}
+/* --- END MODIFIED --- */
+
+.convertt-btn:hover { /* Fixed class name */
+  background: #ea580c;
+}
+
+/* Right Sidebar */
+.right-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.right-sidebar ul {
+  list-style: disc;
+  padding-left: 20px;
+  color: #1f2937;
+  font-size: 0.95rem; /* Added consistency */
+}
+
+/* Added style for list items */
+.right-sidebar li {
+    margin-bottom: 6px;
+}
+
+.paste-btn {
+  background: #d1d5db;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* --- Added Styles from other components for consistency --- */
+.card h2, .card h3 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+}
+
+.after-convert-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.edit-preview-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-preview-btn:hover {
+  background-color: #4338ca;
+  transform: scale(1.05);
+}
+
+/* --- END ADDED --- */
+
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main {
+    margin-left: 0;
+    width: 100%;
+  }
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+  }
+}
+
+/* --- ADDED: STYLES FOR PROGRESS BAR (ORANGE THEME) --- */
+
+.convertt-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; /* Make bar a bit taller */
+  background-color: #c2410c; /* Darker orange for the track */
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; /* Needed for the text and bar */
+
+  /* Center the text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.convertt-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; /* Sit on top of the bar */
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Makes text more readable */
+}
+
+.convertt-btn .progress-bar-indeterminate {
+  width: 60%;
+  height: 100%;
+  background-color: #f97316; /* Your theme color */
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+
+  /* The animation */
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+/* This animation is used by all progress bars */
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; /* Start off-screen left */
+  }
+  100% {
+    left: 100%; /* End off-screen right */
+  }
+}
+
+/* --- END ADDED STYLES --- */

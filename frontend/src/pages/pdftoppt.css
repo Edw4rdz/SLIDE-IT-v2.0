@@ -1,0 +1,440 @@
+/* Global reset - Ensure consistency with dashboard */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  width: 100vw;
+}
+
+/* Main Container */
+.ai-dashboard {
+  font-family: "Poppins", sans-serif;
+  display: flex;
+  min-height: 100vh;
+  background-color: #f7f8fa;
+}
+
+/* Sidebar */
+.ai-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 230px;
+  height: 100vh;
+  background: #6D4FC2;
+  color: #fff;
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+}
+
+.ai-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  margin-bottom: 30px;
+}
+
+.ai-logo i {
+  font-size: 1.8rem;
+  color: rgb(222, 221, 218);
+}
+
+.ai-logo .logo-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-logo h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.ai-logo p {
+  font-size: 0.8rem;
+  color: #d1d5db;
+  margin: 0;
+}
+
+.ai-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ai-nav .top-links,
+.ai-nav .bottom-links {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  color: #d1d5db;
+  text-decoration: none;
+  transition: background 0.3s, color 0.3s;
+}
+
+.ai-nav a.active,
+.ai-nav a:hover {
+  background: #aa729d;
+  border-left: 4px solid #3b5673;
+  color: #fff;
+}
+
+/* This rule was duplicated, using the second, more specific one */
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 6px;
+  color: white;
+  text-decoration: none;
+  margin-top: 10px;
+  transition: background-color 0.2s;
+}
+
+.upload-btn .icon {
+  margin-right: 8px;
+}
+
+/* Logout Button */
+.bottom-links {
+  margin-top: auto;
+  text-align: center;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  color: #d1d5db;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s;
+}
+
+.logout-btn:hover {
+  background: #aa729d;
+  color: #fff;
+}
+
+.logout-btn .icon {
+  margin-right: 8px;
+}
+
+.logout-btn .spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Main Content */
+.ai-main {
+  margin-left: 230px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: calc(100vw - 230px);
+  overflow-x: hidden;
+  padding: 30px;
+}
+
+/* Container */
+.ai-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+}
+
+/* Header */
+.headerp {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.headerp-icon {
+  width: 50px;
+  height: 50px;
+  background: #ef4444;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  border-radius: 10px;
+}
+
+/* Content */
+.ai-content {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+}
+
+/* Left Column */
+.ai-left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Card */
+.ai-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.ai-card-top {
+  margin-bottom: 20px;
+}
+
+.ai-card h2 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+}
+
+.ai-card h4 {
+  font-size: 1rem;
+  margin-bottom: 15px;
+}
+
+.ai-section-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.uploadp-area {
+  border: 2px dashed #ef4444; 
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center;
+  position: relative;
+  transition: background 0.3s;
+}
+
+.uploadp-area:hover {
+  background: #fee2e2;
+}
+
+.uploadp-icon {
+  font-size: 2rem;
+  color: #ef4444;
+  margin-bottom: 10px;
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.browsep {   
+  color: #ef4444;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.file-name {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* --- MODIFIED --- */
+.uploadp-btn {
+  display: flex; /* Changed from 'block' */
+  justify-content: center; /* Added */
+  align-items: center; /* Added */
+  width: 100%;
+  padding: 10px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: background 0.3s;
+  min-height: 45px; /* Added */
+  font-weight: 600; /* Added for consistency */
+}
+/* --- END MODIFIED --- */
+
+.uploadp-btn:hover {
+  background: #dc2626;
+}
+
+.ai-slider-section {
+  margin-bottom: 20px;
+}
+
+.ai-slider-section label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ai-slider-section input[type="range"] {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+#slide-count {
+  display: block;
+  text-align: right;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Right Column */
+.ai-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Info Box */
+.ai-info-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.ai-info-box h3 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+}
+
+.ai-info-box ol,
+.ai-info-box ul {
+  list-style-position: inside;
+  padding-left: 0;
+}
+
+.ai-info-box li {
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.ai-features li {
+  position: relative;
+  padding-left: 15px;
+}
+
+.ai-features li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  color: #22c55e;
+}
+
+.after-convert-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.edit-preview-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-preview-btn:hover {
+  background-color: #4338ca;
+  transform: scale(1.05);
+}
+
+/* --- ADDED: STYLES FOR PROGRESS BAR (RED THEME) --- */
+
+.uploadp-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; /* Make bar a bit taller */
+  background-color: #b91c1c; /* Darker red for the track */
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; /* Needed for the text and bar */
+  
+  /* Center the text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.uploadp-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; /* Sit on top of the bar */
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Makes text more readable */
+}
+
+.uploadp-btn .progress-bar-indeterminate {
+  width: 60%; 
+  height: 100%;
+  background-color: #ef4444; /* Your theme color */
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+  
+  /* The animation */
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; /* Start off-screen left */
+  }
+  100% {
+    left: 100%; /* End off-screen right */
+  }
+}
+
+/* --- END ADDED STYLES --- */

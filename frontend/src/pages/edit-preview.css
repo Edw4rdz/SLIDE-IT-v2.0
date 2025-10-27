@@ -1,0 +1,380 @@
+/* --- Overall Layout --- */
+.edit-preview-wrapper {
+	display: flex;
+	height: 100vh; /* Use height for flex children */
+	overflow: hidden; /* Prevent scrolling on the main wrapper */
+	background: linear-gradient(135deg, #eef1ff, #dee7ff);
+	font-family: 'Inter', sans-serif;
+}
+
+.loading-message,
+.no-slides-message {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100vh;
+	font-size: 1.2rem;
+	color: #555;
+	width: 100%; /* Ensure it takes full width if wrapper fails */
+}
+
+/* --- Sidebar --- */
+.sidebar-glass {
+	width: 280px;
+	background: rgba(65, 80, 255, 0.85); /* Your blue sidebar */
+	backdrop-filter: blur(14px);
+	color: #fff;
+	padding: 25px;
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0; /* Prevent sidebar from shrinking */
+	height: 100%; /* Ensure full height */
+	overflow-y: auto; /* Allow sidebar scrolling */
+	box-shadow: 2px 0px 15px rgba(0, 0, 0, 0.1);
+	border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-glass h2 {
+	font-size: 1.3rem;
+	margin-bottom: 20px; /* Increased margin */
+	text-align: center;
+	flex-shrink: 0; /* Keep header size fixed */
+}
+
+.template-gallery {
+	display: flex; /* Changed back to flex column */
+	flex-direction: column;
+	gap: 15px;
+	overflow-y: auto; /* Allow gallery scrolling within sidebar */
+	padding-right: 5px; /* Prevent scrollbar overlap */
+	flex-grow: 1; /* Allow gallery to take remaining space */
+}
+
+.template-item {
+	background: rgba(255, 255, 255, 0.15);
+	border-radius: 12px;
+	padding: 10px;
+	cursor: pointer;
+	transition: all 0.25s ease;
+	text-align: center;
+}
+
+.template-item img {
+	width: 100%;
+	height: 100px; /* Adjusted height */
+	object-fit: cover;
+	border-radius: 8px;
+	display: block; /* Remove extra space below image */
+}
+
+.template-item p {
+	margin-top: 8px;
+	font-size: 0.9rem;
+	color: #f0f0f0; /* Lighter text for contrast */
+}
+
+.template-item .template-error-text {
+	font-size: 0.8rem;
+	color: #ffdddd; /* Light red error text */
+	margin-top: 8px;
+}
+
+.template-item:hover {
+	background: rgba(255, 255, 255, 0.25);
+	transform: scale(1.03);
+}
+
+.template-item.selected {
+	border: 2px solid #fff;
+	box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+}
+
+.loading {
+	text-align: center;
+	color: #eee; /* Light color for dark sidebar */
+}
+
+/* --- Main Content Area --- */
+.main-content {
+	flex-grow: 1; /* Take remaining space */
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden; /* Prevent scrolling here, handle in slides-grid */
+}
+
+/* --- Header --- */
+.header-glass {
+	background: rgba(255, 255, 255, 0.7);
+	backdrop-filter: blur(12px);
+	display: flex;
+	/* justify-content: space-between; <-- REMOVED */
+	align-items: center;
+	padding: 15px 30px; /* Slightly reduced padding */
+	border-bottom: 1px solid rgba(200, 210, 255, 0.5); /* Subtle border */
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); /* Softer shadow */
+	flex-shrink: 0; /* Prevent header shrinking */
+	position: relative;
+	z-index: 10;
+}
+
+.header-glass h1 {
+	color: #28307a;
+	font-weight: 600;
+	font-size: 1.4rem;
+	margin: 0; /* Reset margin */
+	/* --- ADDED FOR CENTERING --- */
+	flex-grow: 1; /* Allow title to take space */
+	text-align: center; /* Center text within the h1 */
+	padding: 0 20px; /* Add padding instead of margin */
+	/* --- END ADD --- */
+}
+
+.header-actions {
+	display: flex;
+	align-items: center;
+	gap: 15px; /* Space between items */
+	flex-shrink: 0; /* Prevent actions container from shrinking */
+}
+
+.topic-edit-input {
+	font-size: 1rem;
+	padding: 8px 12px;
+	border: 1.5px solid #d4d8ff;
+	border-radius: 10px;
+	background: #f7f9ff;
+	color: #333;
+	min-width: 200px; /* Adjusted width */
+	width: auto; /* Allow shrinking */
+	outline: none;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.topic-edit-input:focus {
+	border-color: #6578ff;
+	box-shadow: 0 0 8px rgba(101, 120, 255, 0.3);
+}
+
+.btn-back,
+.btn-download {
+	border: none;
+	padding: 10px 18px; /* Slightly more padding */
+	border-radius: 10px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: flex;
+	align-items: center;
+	gap: 8px; /* Space icon and text */
+	font-size: 0.9rem;
+}
+
+.btn-back {
+	background: #e8ebf8; /* Light background */
+	color: #4a59a7; /* Darker blue text */
+}
+.btn-back:hover {
+	background: #dbe1f4;
+}
+
+.btn-download {
+	background: linear-gradient(90deg, #6578ff, #8a5cff);
+	color: #fff;
+	box-shadow: 0 2px 5px rgba(101, 120, 255, 0.4);
+}
+
+.btn-download:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 8px rgba(101, 120, 255, 0.5);
+}
+.btn-download:disabled {
+	background: #b0b8d8;
+	cursor: not-allowed;
+	box-shadow: none;
+	transform: none;
+}
+.btn-back:active,
+.btn-download:active {
+	transform: scale(0.98); /* Click effect */
+}
+
+/* --- Slide Grid (FIX #1: Maximize Space) --- */
+.slides-grid {
+	flex-grow: 1; /* Take remaining vertical space */
+	overflow-y: auto; /* Allow scrolling ONLY for the slides grid */
+	padding: 30px;
+	display: grid; /* <-- THIS is the fix for maximizing space */
+	grid-template-columns: repeat(
+		auto-fit,
+		minmax(550px, 1fr)
+	); /* Responsive columns */
+	gap: 30px; /* Space between grid items */
+	align-content: start; /* Align items to the top */
+}
+
+.slide-editor {
+	background: #ffffff; /* Solid white background */
+	border-radius: 18px;
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+	display: grid;
+	grid-template-columns: 1fr 1fr; /* <-- 50/50 split */
+	overflow: hidden;
+	border: 1px solid #e0e5f5;
+	min-height: 420px; /* Increased min-height */
+}
+
+/* --- Edit Area --- */
+.edit-section {
+	padding: 25px;
+	display: flex;
+	flex-direction: column;
+	border-right: 1px solid #e8ebf8;
+}
+
+.edit-section h4 {
+	margin: 0 0 15px 0;
+	color: #555;
+	font-size: 0.9rem;
+	text-transform: uppercase;
+	border-bottom: 1px solid #eee;
+	padding-bottom: 5px;
+}
+
+.edit-section label {
+	font-weight: 600;
+	color: #3643a2;
+	font-size: 0.9rem;
+	display: block;
+	margin-bottom: 6px;
+	margin-top: 12px;
+}
+
+.edit-section input[type='text'],
+.edit-section textarea {
+	width: 100%;
+	border: 1.5px solid #d4d8ff;
+	background: #f7f9ff;
+	padding: 12px;
+	border-radius: 10px;
+	margin-bottom: 15px;
+	outline: none;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+	font-size: 0.95rem;
+	box-sizing: border-box;
+}
+
+.edit-section textarea {
+	min-height: 120px;
+	resize: vertical;
+}
+
+.edit-section input[type='text']:focus,
+.edit-section textarea:focus {
+	border-color: #6578ff;
+	box-shadow: 0 0 10px rgba(101, 120, 255, 0.3);
+}
+
+.edit-section input[type='file'] {
+	margin-top: 5px;
+	font-size: 0.9rem;
+}
+
+/* --- Preview Area --- */
+.preview-section {
+	padding: 25px;
+	background-color: #f8f9fc;
+	display: flex;
+	flex-direction: column;
+}
+
+.preview-section h4 {
+	margin: 0 0 15px 0;
+	color: #555;
+	font-size: 0.9rem;
+	text-transform: uppercase;
+	border-bottom: 1px solid #eee;
+	padding-bottom: 5px;
+}
+
+.preview-slide {
+	background: #ffffff;
+	border: 1px solid #e0e5f5;
+	border-radius: 12px;
+	padding: 20px;
+	width: 100%;
+	height: 100%; /* Fill the preview section */
+	box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.preview-slide h3 {
+	color: #2f3fa6;
+	font-size: 1.1rem;
+	margin: 0 0 10px 0;
+	text-align: left;
+	flex-shrink: 0;
+	max-height: 3em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	word-wrap: break-word;
+}
+
+.preview-slide ul {
+	list-style: disc;
+	text-align: left;
+	margin: 0 0 15px 0;
+	padding-left: 25px;
+	font-size: 0.9rem;
+	color: #444;
+	flex-grow: 1;
+	overflow-y: auto;
+	max-height: 100px;
+}
+
+.preview-slide li {
+	margin-bottom: 6px;
+}
+
+/* --- Image Preview Styling (FIX #2: Clarity) --- */
+.image-preview-container {
+	margin-top: auto;
+	width: 100%;
+	height: 200px; /* <-- INCREASED HEIGHT */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: #eef1f5;
+	border-radius: 8px;
+	overflow: hidden;
+	border: 1px solid #dce1ec;
+	flex-shrink: 0;
+	position: relative;
+}
+
+.preview-image {
+	display: block;
+	width: 100%;   /* <-- ADDED */
+	height: 100%;  /* <-- ADDED */
+	object-fit: contain; /* This prevents stretching/blurring */
+	opacity: 0;
+	transition: opacity 0.5s ease-in-out;
+    /* REMOVED image-rendering: crisp-edges; to prefer smooth scaling */
+}
+
+.image-preview-container .loading-text,
+.image-preview-container .no-image-text,
+.image-preview-container .error-text {
+	font-size: 0.9em;
+	color: #888;
+	text-align: center;
+	padding: 10px;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 90%;
+}
+.image-preview-container .error-text {
+	color: #c00;
+}

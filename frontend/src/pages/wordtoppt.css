@@ -1,0 +1,469 @@
+/* Global reset - Ensure consistency with dashboard */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  width: 100vw;
+  font-family: "Poppins", sans-serif;
+  background-color: #f7f8fa;
+}
+
+/* Main Container */
+.ai-dashboard {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.ai-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 230px;
+  height: 100vh;
+  background: #6d4fc2;
+  color: #fff;
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+}
+
+.ai-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  margin-bottom: 30px;
+}
+
+.ai-logo i {
+  font-size: 1.8rem;
+  color: rgb(222, 221, 218);
+}
+
+.ai-logo .logo-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-logo h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.ai-logo p {
+  font-size: 0.8rem;
+  color: #d1d5db;
+  margin: 0;
+}
+
+.ai-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ai-nav .top-links,
+.ai-nav .bottom-links {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  color: #d1d5db;
+  text-decoration: none;
+  transition: background 0.3s, color 0.3s;
+}
+
+.ai-nav a.active,
+.ai-nav a:hover {
+  background: #aa729d;
+  border-left: 4px solid #3b5673;
+  color: #fff;
+}
+
+/* Upload Template Button */
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 6px;
+  color: white;
+  text-decoration: none;
+  margin-top: 10px;
+  transition: background-color 0.2s;
+}
+
+.upload-btn .icon {
+  margin-right: 8px;
+}
+
+/* Logout Button */
+.bottom-links {
+  margin-top: auto;
+  text-align: center;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  color: #d1d5db;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s;
+}
+
+.logout-btn:hover {
+  background: #aa729d;
+  color: #fff;
+}
+
+.logout-btn .icon {
+  margin-right: 8px;
+}
+
+.logout-btn .spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Main Content */
+.mainw {
+  margin-left: 230px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: calc(100vw - 230px);
+  overflow-x: hidden;
+  padding: 30px;
+}
+
+.containerw {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.headerw-icon {
+  width: 60px;
+  height: 50px;
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  border-radius: 10px;
+}
+
+/* Content */
+.contentw-grid {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  width: 100%;
+}
+
+/* Left Column */
+.ai-left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Card */
+.ai-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ai-card-top {
+  margin-bottom: 20px;
+}
+
+.ai-card h2,
+.ai-card h3,
+.ai-card h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.ai-card ul {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.ai-card ul li {
+  margin-bottom: 6px;
+}
+
+.uploadw-area {
+  border: 2px dashed #3b82f6; 
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.uploadw-area:hover {
+  background: #94b2e2; 
+}
+
+.uploadw-icon {
+  font-size: 32px;
+  color: #3b82f6; 
+  margin-bottom: 12px;
+}
+
+.browsew {
+  background: none;
+  border: none;
+  color: #3b82f6; 
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-name {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Grid 2 Columns */
+.ai-slider-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ai-slider-section label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ai-slider-section input[type="range"] {
+  width: 100%;
+}
+
+.ai-slider-section span {
+  text-align: right;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.ai-style-box {
+  margin-top: 15px;
+}
+
+.ai-style-box label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ai-style-box select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+/* Right Column */
+.ai-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Info Box */
+.ai-info-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ai-info-box h3 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+}
+
+.ai-info-box ul {
+  padding-left: 16px;
+  margin: 0;
+}
+
+.ai-info-box ul li {
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.ai-info-box div {
+  margin-bottom: 10px;
+}
+
+.ai-info-box h4 {
+  font-size: 1rem;
+  margin-bottom: 5px;
+}
+
+.ai-info-box p {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* --- MODIFIED --- */
+.convertw-btn {
+  display: flex; /* Changed from 'block' */
+  justify-content: center; /* Added */
+  align-items: center; /* Added */
+  width: 100%;
+  padding: 10px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: background 0.3s;
+  min-height: 45px; /* Added */
+  font-weight: 600; /* Added */
+}
+/* --- END MODIFIED --- */
+
+.convertw-btn:hover {
+  background: #94b2e2;
+}
+
+/* --- ADDED: Styles for Edit Button --- */
+.after-convert-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.edit-preview-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-preview-btn:hover {
+  background-color: #4338ca;
+  transform: scale(1.05);
+}
+/* --- END ADDED --- */
+
+/* --- ADDED: STYLES FOR PROGRESS BAR (BLUE THEME) --- */
+
+.convertw-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; /* Make bar a bit taller */
+  background-color: #2563eb; /* Darker blue for the track */
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; /* Needed for the text and bar */
+  
+  /* Center the text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.convertw-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; /* Sit on top of the bar */
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Makes text more readable */
+}
+
+.convertw-btn .progress-bar-indeterminate {
+  width: 60%; 
+  height: 100%;
+  background-color: #3b82f6; /* Your theme color */
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+  
+  /* The animation */
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+/* This animation is used by all progress bars */
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; /* Start off-screen left */
+  }
+  100% {
+    left: 100%; /* End off-screen right */
+  }
+}
+
+/* --- END ADDED STYLES --- */
