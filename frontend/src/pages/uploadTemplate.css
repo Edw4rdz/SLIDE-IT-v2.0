@@ -1,116 +1,288 @@
-/* Upload section */
-.upload-template-page {
+/* --- Styles for frontend/src/pages/uploadTemplate.css --- */
+
+/* Main layout adjustments for this page */
+.main-upload-template {
+  padding: 30px;
+  background-color: #f4f7fc; /* Light background for content area */
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 2rem;
+  gap: 30px; /* Space between sections */
 }
 
-.upload-card {
-  background: #fff;
-  padding: 1.5rem;
+.page-title {
+    color: #333;
+    margin-bottom: 10px; /* Reduced margin */
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 10px;
+}
+
+/* --- New Upload Section --- */
+.upload-section-new {
+  background-color: #fff;
+  padding: 25px;
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
 
-.upload-card h2 {
-  margin-bottom: 0.5rem;
-  font-size: 1.5rem;
-  font-weight: 600;
+.upload-section-new h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.2em;
+  color: #444;
 }
 
-.upload-card .subtitle {
-  color: #666;
-  margin-bottom: 1rem;
+.upload-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
-.upload-card input[type="file"] {
-  margin: 1rem 0;
+.file-input-label {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #e9ecef;
+  color: #495057;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px; /* Limit width */
 }
 
-.upload-card button {
-  background: #4a90e2;
+.file-input-label:hover {
+  background-color: #dee2e6;
+}
+
+.upload-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(90deg, #6578ff, #8a5cff);
   color: #fff;
   border: none;
-  padding: 0.7rem 1.2rem;
   border-radius: 8px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.upload-card button:hover {
-  background: #357abd;
-}
-
-.message {
-  margin-top: 1rem;
-  font-weight: 500;
-}
-
-/* Prebuilt section */
-.prebuilt-section {
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-}
-
-.prebuilt-section h3 {
-  margin-bottom: 1rem;
-  font-size: 1.3rem;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(101, 120, 255, 0.4);
 }
 
-/* Grid layout */
+.upload-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(101, 120, 255, 0.5);
+}
+
+.upload-button:disabled {
+  background: #cdd2e4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.upload-message {
+  margin-top: 15px;
+  font-size: 0.9em;
+}
+.upload-message.success {
+  color: #28a745; /* Green */
+}
+.upload-message.error {
+  color: #dc3545; /* Red */
+}
+
+
+/* --- Templates Section & Tabs --- */
+.templates-section {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 25px;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 500;
+  color: #6c757d;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.tab-button::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; /* Align with the bottom border */
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #6578ff;
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.tab-button.active {
+  color: #6578ff; /* Active tab color */
+}
+.tab-button.active::after {
+   transform: scaleX(1); /* Underline active tab */
+}
+
+/* --- Template Grid --- */
 .template-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 25px;
 }
 
-/* Template card */
+/* --- Template Card Base --- */
 .template-card {
-  background: #fafafa;
-  border: 1px solid #e5e7eb;
+  position: relative; /* Needed for overlay */
   border-radius: 10px;
-  overflow: hidden;
-  text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
-  display: flex;
+  overflow: hidden; /* Keep overlay contained */
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-color: #f8f9fa; /* Light background */
+  border: 1px solid #e9ecef;
+  min-height: 180px; /* Ensure cards have some height */
+  display: flex; /* Helps center icon/image */
   flex-direction: column;
 }
 
 .template-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
-.template-card img {
+.template-card.selected {
+  outline: 3px solid #6578ff;
+  box-shadow: 0 8px 20px rgba(101, 120, 255, 0.3);
+}
+
+/* Prebuilt Card Image */
+.prebuilt-card img {
   width: 100%;
-  height: 150px;
+  height: 130px; /* Fixed height for image area */
   object-fit: cover;
-  border-bottom: 1px solid #e5e7eb;
+  display: block;
 }
 
-.template-card p {
-  padding: 0.8rem;
-  font-weight: 500;
+/* Uploaded Card Icon */
+.uploaded-card .template-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 130px; /* Match image height */
+  background-color: #e9ecef;
+  color: #adb5bd;
+}
+
+/* Card Overlay (Shows on Hover) */
+.card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7); /* Dark semi-transparent */
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  text-align: center;
+}
+
+.template-card:hover .card-overlay {
+  opacity: 1;
+}
+
+.card-overlay p {
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  font-size: 0.9em;
+  /* Handle overflow */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90%;
+}
+
+.use-button-overlay {
+  padding: 6px 14px;
+  background-color: #fff;
   color: #333;
-  flex-grow: 1;
-}
-
-.template-card button {
-  margin: 0.5rem 1rem 1rem;
-  padding: 0.5rem;
-  background: #4a90e2;
-  color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 5px;
+  font-size: 0.8em;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 0.2s ease;
+}
+.use-button-overlay:hover {
+    background-color: #eee;
 }
 
-.template-card button:hover {
-  background: #357abd;
+/* Specific Actions for Uploaded Card Overlay */
+.uploaded-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.remove-button-overlay {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  background-color: #dc3545; /* Red */
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.8em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.remove-button-overlay:hover {
+  background-color: #c82333; /* Darker red */
+}
+
+
+/* Error text inside card (if image fails) */
+.template-card .template-error-text {
+   position: absolute; /* Position over where image would be */
+   top: 10px; left: 10px; right: 10px;
+   font-size: 0.8rem;
+   color: #dc3545;
+   background-color: rgba(255,255,255,0.8);
+   padding: 5px;
+   border-radius: 4px;
+   text-align: center;
+}
+
+/* Inherit styles from dashboard.css for sidebar if needed */
+/* Ensure dashboard layout works with this main content */
+.dashboard {
+    display: flex;
+    height: 100vh;
+}
+.main {
+    flex-grow: 1;
+    overflow-y: auto; /* Allow scrolling in main content */
 }

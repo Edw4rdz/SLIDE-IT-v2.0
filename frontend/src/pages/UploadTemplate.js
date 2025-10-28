@@ -1,106 +1,143 @@
-import React, { useState, useEffect } from "react";
-// import axios from "axios"; // <-- 1. REMOVED
-import { Link } from "react-router-dom";
-import { FaSignOutAlt, FaUpload } from "react-icons/fa";
-import { getTemplates, uploadTemplate } from "../api"; // <-- 2. ADDED
-import "./uploadTemplate.css";
-import "./dashboard.css";
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { FaSignOutAlt, FaUpload, FaFilePowerpoint, FaTrashAlt } from 'react-icons/fa'; // Added FaTrashAlt
+import { getTemplates, uploadTemplate } from '../api';
+import './uploadTemplate.css'; // Main styles for this page
+import './dashboard.css'; // Shared dashboard styles
 
 export default function UploadTemplate() {
+  const navigate = useNavigate();
   const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null); // Preview might not work well for PPTX
   const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const [templates, setTemplates] = useState([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [prebuiltTemplates, setPrebuiltTemplates] = useState([]);
+  const [loadingPrebuilt, setLoadingPrebuilt] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(
-    JSON.parse(localStorage.getItem("selectedTemplate")) || null
+    JSON.parse(localStorage.getItem('selectedTemplate')) || null
+  );
+  const [uploadedTemplates, setUploadedTemplates] = useState(
+    JSON.parse(localStorage.getItem('uploadedTemplates')) || []
   );
 
-  // Fetch prebuilt templates (FIXED)
+  // NEW: State to manage the active tab ('prebuilt' or 'uploaded')
+  const [activeTab, setActiveTab] = useState('prebuilt');
+
+  // Fetch prebuilt templates
   useEffect(() => {
-    const fetchTemplates = async () => {
+    const fetchPrebuiltTemplates = async () => {
+      setLoadingPrebuilt(true);
       try {
-        // 3. Use the new API function
         const res = await getTemplates();
-        setTemplates(res.data);
+        setPrebuiltTemplates(res.data || []);
       } catch (err) {
-        console.error("Error fetching templates:", err);
+        console.error('Error fetching prebuilt templates:', err);
+        setMessage('Could not load prebuilt templates.');
       } finally {
-        setLoadingTemplates(false);
+        setLoadingPrebuilt(false);
       }
     };
-    fetchTemplates();
+    fetchPrebuiltTemplates();
   }, []);
 
-  // Handle file change (No changes needed)
+  // Handle file selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-        // Basic validation for PPTX
-        if (selectedFile.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || selectedFile.name.endsWith('.pptx')) {
-            setFile(selectedFile);
-            // NOTE: Creating an object URL for PPTX preview in an iframe usually doesn't work directly.
-            // You might need a more complex preview solution or just show the filename.
-            setPreview(URL.createObjectURL(selectedFile));
-        } else {
-            alert("Please upload a valid PPTX file (.pptx)");
-            setFile(null);
-            setPreview(null);
-        }
+      if (selectedFile.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || selectedFile.name.endsWith('.pptx')) {
+          setFile(selectedFile);
+          setMessage(`Selected: ${selectedFile.name}`); // Show selected filename
+      } else {
+          alert("Please upload a valid PPTX file (.pptx)");
+          e.target.value = null;
+          setFile(null);
+          setMessage('');
+      }
     } else {
         setFile(null);
-        setPreview(null);
+        setMessage('');
     }
   };
 
-  // Handle file upload (FIXED)
+
+  // Handle file upload
   const handleUpload = async () => {
-    if (!file) return alert("Please select a PPTX file to upload.");
+    if (!file) return alert('Please select a PPTX file to upload.');
     setUploading(true);
-    setMessage("");
+    setMessage('Uploading...');
 
     const formData = new FormData();
-    formData.append("file", file); // Backend expects 'file'
+    formData.append('file', file);
 
     try {
-      // 4. Use the new API function
       const response = await uploadTemplate(formData);
-      setMessage(response.data.message || "Template uploaded successfully!");
+      setMessage(response.data.message || 'Template uploaded successfully!');
+
+      const newTemplate = {
+        id: `uploaded-${Date.now()}-${file.name}`,
+        name: file.name,
+        isUploaded: true,
+      };
+
+      const updatedUploadedTemplates = [...uploadedTemplates, newTemplate];
+      setUploadedTemplates(updatedUploadedTemplates);
+      localStorage.setItem('uploadedTemplates', JSON.stringify(updatedUploadedTemplates));
+
       setFile(null);
-      setPreview(null);
-      // Maybe refresh the list of uploaded templates here if you add that feature
+      document.getElementById('file-input').value = null; // Clear file input
+      setActiveTab('uploaded'); // Switch to uploaded tab after upload
+
     } catch (error) {
       setMessage(`Error uploading template: ${error.response?.data?.message || error.message}. Please try again.`);
-      console.error("Upload error:", error);
+      console.error('Upload error:', error);
     } finally {
       setUploading(false);
     }
   };
 
-  // Handle logout (No changes needed)
+  // Handle selecting any template
+   const handleSelectTemplate = (tpl) => {
+     setSelectedTemplate(tpl);
+     localStorage.setItem('selectedTemplate', JSON.stringify(tpl));
+     const type = tpl.isUploaded ? 'uploaded' : 'pre-built';
+     alert(`✅ Selected "${tpl.name}" (${type}) — it will be used in Edit/Preview.`);
+   };
+
+
+  // Handle logout
   const handleLogout = () => {
-    if (!window.confirm("Are you sure you want to log out?")) return;
+    // ... (keep existing logout logic) ...
+    if (!window.confirm('Are you sure you want to log out?')) return;
     setLoggingOut(true);
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-    // Consider using navigate hook instead of window.location
-    setTimeout(() => (window.location.href = "/login"), 1200);
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    localStorage.removeItem('selectedTemplate');
+    setTimeout(() => navigate('/login'), 1200);
   };
 
-  // Select prebuilt template (No changes needed)
-  const handleSelectTemplate = (tpl) => {
-    setSelectedTemplate(tpl);
-    localStorage.setItem("selectedTemplate", JSON.stringify(tpl));
-    alert(`✅ Selected "${tpl.name}" — it will be used in EditPreview.`);
+  // Handle removing an uploaded template
+  const handleRemoveUploadedTemplate = (idToRemove, event) => {
+      event.stopPropagation(); // Prevent card click when clicking remove button
+      if (!window.confirm("Remove this template?")) return;
+
+      const updatedTemplates = uploadedTemplates.filter(tpl => tpl.id !== idToRemove);
+      setUploadedTemplates(updatedTemplates);
+      localStorage.setItem('uploadedTemplates', JSON.stringify(updatedTemplates));
+
+      if (selectedTemplate?.id === idToRemove) {
+          setSelectedTemplate(null);
+          localStorage.removeItem('selectedTemplate');
+      }
+       setMessage('Uploaded template removed.');
   };
+
 
   return (
     <div className="dashboard">
-      {/* Sidebar (No changes) */}
+      {/* Sidebar (Keep as is) */}
       <aside className="sidebar">
+        {/* ... Sidebar content ... */}
         <div className="fa fa-magic logo">
           <div>
             <h2>SLIDE-IT</h2>
@@ -125,50 +162,119 @@ export default function UploadTemplate() {
         </nav>
       </aside>
 
-      {/* Main Content (No changes to JSX structure) */}
-      <main className="main">
-        <div className="upload-template-page">
-          {/* Upload Card */}
-          <div className="upload-card">
-            <h2>Upload Your Template</h2>
-            <p className="subtitle">Upload a custom PPTX design file (.pptx)</p>
+      {/* Main Content - Redesigned */}
+      <main className="main main-upload-template">
+        <h1 className="page-title">Manage Templates</h1>
 
-            <input type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={handleFileChange} />
+        {/* Upload Section - More integrated */}
+        <div className="upload-section-new">
+          <h2>Upload Custom Template (.pptx)</h2>
+           <div className="upload-controls">
+            <label htmlFor="file-input" className="file-input-label">
+                {file ? `Selected: ${file.name}` : 'Choose File...'}
+            </label>
+            <input
+              id="file-input"
+              type="file"
+              accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              onChange={handleFileChange}
+              style={{ display: 'none' }} // Hide default input
+            />
+            <button className="upload-button" onClick={handleUpload} disabled={uploading || !file}>
+              <FaUpload /> {uploading ? 'Uploading...' : 'Upload'}
+            </button>
+          </div>
+          {message && <p className={`upload-message ${message.startsWith('Error') ? 'error' : 'success'}`}>{message}</p>}
+        </div>
 
-            {/* Preview Section (Consider simplifying or removing if iframe doesn't work) */}
-            {file && (
-              <div className="preview">
-                <p>Selected file: {file.name}</p>
-                {/* <iframe src={preview} title="Template Preview" width="100%" height="200px" /> */}
+        {/* Templates Section with Tabs */}
+        <div className="templates-section">
+          <div className="tabs">
+            <button
+              className={`tab-button ${activeTab === 'prebuilt' ? 'active' : ''}`}
+              onClick={() => setActiveTab('prebuilt')}
+            >
+              Pre-Built Templates
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'uploaded' ? 'active' : ''}`}
+              onClick={() => setActiveTab('uploaded')}
+            >
+              Your Uploads ({uploadedTemplates.length})
+            </button>
+          </div>
+
+          <div className="tab-content">
+            {/* Prebuilt Tab */}
+            {activeTab === 'prebuilt' && (
+              <div className="template-grid">
+                {loadingPrebuilt ? (
+                  <p>Loading templates...</p>
+                ) : prebuiltTemplates.length > 0 ? (
+                  prebuiltTemplates.map((tpl) => (
+                    <div
+                      key={tpl.id}
+                      className={`template-card prebuilt-card ${
+                        selectedTemplate?.id === tpl.id ? 'selected' : ''
+                      }`}
+                      onClick={() => handleSelectTemplate(tpl)}
+                    >
+                      <img
+                        src={tpl.thumbnail}
+                        alt={tpl.name}
+                        onError={(e) => { /* Keep onError logic */
+                           e.target.onerror = null; e.target.style.display = 'none';
+                           const parent = e.target.parentNode;
+                           if(parent && !parent.querySelector('.template-error-text')){
+                             const errorText = document.createElement('p'); errorText.textContent = '(Preview unavailable)';
+                             errorText.className = 'template-error-text'; parent.insertBefore(errorText, e.target.nextSibling);
+                           }
+                        }}
+                      />
+                      <div className="card-overlay">
+                          <p>{tpl.name}</p>
+                          <button className="use-button-overlay">Use</button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p>No pre-built templates available.</p>
+                )}
               </div>
             )}
 
-            <button onClick={handleUpload} disabled={uploading || !file}>
-              {uploading ? "Uploading..." : "Upload Template"}
-            </button>
-            {message && <p className="message">{message}</p>}
-          </div>
-
-          {/* Prebuilt Templates Section */}
-          <div className="prebuilt-section">
-            <h3>Choose a Pre-Built Template</h3>
-            {loadingTemplates ? (
-              <p>Loading templates...</p>
-            ) : (
+            {/* Uploaded Tab */}
+            {activeTab === 'uploaded' && (
               <div className="template-grid">
-                {templates.map((tpl) => (
-                  <div
-                    key={tpl.id}
-                    className={`template-card ${
-                      selectedTemplate?.id === tpl.id ? "selected" : ""
-                    }`}
-                  >
-                    {/* Make image clickable */}
-                    <img src={tpl.thumbnail} alt={tpl.name} onClick={() => handleSelectTemplate(tpl)} style={{cursor: 'pointer'}} />
-                    <p>{tpl.name}</p>
-                    <button onClick={() => handleSelectTemplate(tpl)}>Use</button>
-                  </div>
-                ))}
+                {uploadedTemplates.length > 0 ? (
+                  uploadedTemplates.map((tpl) => (
+                    <div
+                      key={tpl.id}
+                      className={`template-card uploaded-card ${
+                        selectedTemplate?.id === tpl.id ? 'selected' : ''
+                      }`}
+                      onClick={() => handleSelectTemplate(tpl)}
+                    >
+                      <div className="template-icon">
+                        <FaFilePowerpoint size="4em" />
+                      </div>
+                      <div className="card-overlay">
+                          <p title={tpl.name}>{tpl.name}</p>
+                          <div className="uploaded-actions">
+                             <button className="use-button-overlay">Use</button>
+                             <button
+                                className="remove-button-overlay"
+                                onClick={(e) => handleRemoveUploadedTemplate(tpl.id, e)}
+                             >
+                                <FaTrashAlt /> Remove
+                             </button>
+                          </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p>You haven't uploaded any templates yet. Use the section above to upload a .pptx file.</p>
+                )}
               </div>
             )}
           </div>

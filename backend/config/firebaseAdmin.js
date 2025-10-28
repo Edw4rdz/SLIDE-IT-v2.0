@@ -4,7 +4,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 // Load the service account key
-const serviceAccount = require("./serviceAccountKey.json");
+const serviceAccount = require("./serviceAccountkey.json");
 
 // Initialize the Firebase Admin SDK
 admin.initializeApp({
