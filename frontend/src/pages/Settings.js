@@ -160,7 +160,7 @@ export default function Settings() {
           <header className="settings-header">
             <div className="header-icon">⚙️</div>
             <div>
-              <h1>Profile & Settings</h1>
+              <h1>User Profile & Settings</h1>
               <p>Manage your profile and app settings.</p>
             </div>
           </header>

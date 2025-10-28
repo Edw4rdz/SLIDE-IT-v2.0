@@ -69,15 +69,23 @@ const generateImageFromPollinations = async (prompt, retries = 1) => {
     console.warn("Invalid or empty image prompt provided for Pollinations.");
     return null;
   }
-  const encodedPrompt = encodeURIComponent(prompt.trim());
-  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
-  console.log(`Attempting to fetch image from Pollinations: ${url}`);
+// --- Replace with this ---
+if (!prompt || typeof prompt !== 'string' || prompt.trim() === "") {
+    console.warn("Invalid or empty image prompt provided for Pollinations.");
+    return null;
+}
+// Create the enhanced prompt first
+const enhancedPrompt = `${prompt.trim()}, presentation graphic style, clear background`;
+// Encode the enhanced prompt directly for the URL
+const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}`;
+console.log(`Attempting to fetch image from Pollinations: ${url}`);
+// --- End replace ---
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await axios.get(url, {
         responseType: "arraybuffer",
-        timeout: 30000,
+        timeout: 35000, // Slightly longer timeout
       });
       const base64 = Buffer.from(response.data, 'binary').toString('base64');
       const mimeType = response.headers['content-type'] || 'image/jpeg';
@@ -86,7 +94,7 @@ const generateImageFromPollinations = async (prompt, retries = 1) => {
     } catch (err) {
       console.warn(`⚠️ Pollinations fetch failed (attempt ${attempt + 1}/${retries + 1}) for prompt "${prompt}":`, err.message);
       if (attempt < retries) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2500)); // Longer retry delay
       } else {
         console.error(`Failed to fetch image from Pollinations after ${retries + 1} attempts for prompt: "${prompt}"`);
         return null;
@@ -97,7 +105,7 @@ const generateImageFromPollinations = async (prompt, retries = 1) => {
 };
 
 /**
- * Helper function to add a single slide using the specific styling provided.
+ * Helper function to add a single slide using the target style (image_6ce583.jpg).
  * Marked as async because it fetches the image.
  * @param {PptxGenJS.Presentation} pptx - The PptxGenJS presentation object.
  * @param {object} slideData - Data including title, bullets, imagePrompt.
@@ -107,65 +115,76 @@ const addSlideWithCustomStyle = async (pptx, slideData) => {
   const slideBullets = slideData.bullets || [];
   const imagePrompt = slideData.imagePrompt || slideTitle; // Fallback prompt
 
-  const newSlide = pptx.addSlide();
+  const newSlide = pptx.addSlide(); // Create a new slide
 
-  // --- STYLING FROM YOUR EXAMPLE SNIPPET ---
-  const margin = 0.5; // inches
-  const textWidth = 5.0; // inches
-  const imageWidth = 4.5; // inches
+  // --- STYLING based on image_6ce583.jpg ---
+  // Assuming a 16x9 layout (10 inches wide x 5.625 inches high)
 
-  // Add Title
+  // 1. Add Title (Centered, Top)
   newSlide.addText(slideTitle, {
-    x: margin,
-    y: margin,
-    w: textWidth - margin, // Use calculated width
-    fontSize: 28,
+    x: 0.5,           // Left margin
+    y: 0.25,          // Position near top
+    w: 9.0,           // Width (10 inches - 0.5 margin each side)
+    h: 0.75,          // Height for title area
+    align: 'center',    // Center align text
+    fontSize: 32,
     bold: true,
-    color: "203864", // Dark blue color
+    fontFace: 'Arial',  // Example font
+    color: '365F91',    // Example dark blue/purple color (adjust hex code)
   });
 
-  // Add Bullets
+  // Define column dimensions below title
+  const contentY = 1.25; // Start content lower to avoid title overlap
+  const contentHeight = 4.0; // Max height for content area below title (5.625 total height - 1.25 Y - ~0.375 bottom margin)
+  const leftColX = 0.5;
+  const leftColW = 4.3; // Approx 43% width
+  const gap = 0.4;
+  const rightColX = leftColX + leftColW + gap;
+  const rightColW = 10.0 - rightColX - 0.5; // Remaining width minus right margin
+
+
+  // 2. Add Bullets (Left Column, below title) - ADJUSTED y, h, and added bullet:true
   if (slideBullets.length > 0) {
-    // Your snippet uses '• ' prefix, pptxgenjs `bullet:true` might look different.
-    // We'll use your snippet's approach for exact replication:
-    const bulletText = slideBullets.map((b) => `• ${b || ''}`).join("\n"); // Ensure bullet prefix
-    newSlide.addText(bulletText, {
-      x: margin,
-      y: 1.2, // Position below title
-      w: textWidth - margin, // Use calculated width
-      fontSize: 18,
-      color: "333333", // Dark grey color
-      lineSpacing: 28, // Line spacing in points
-      // Removed bullet: true as we added the prefix manually
+    newSlide.addText(slideBullets.join('\n'), {
+      x: leftColX,
+      y: contentY,       // Start lower down
+      w: leftColW,
+      h: contentHeight,  // Use defined height
+      fontSize: 16,      // Keep font size
+      fontFace: 'Arial',
+      color: '404040',     // Dark grey text
+      bullet: true,      // <-- ADD THIS FOR BULLET POINTS
+      lineSpacing: 28,     // Keep line spacing
+      valign: 'top'
     });
   }
 
-  // Fetch image data using the helper function
+  // 3. Fetch image data using the helper function
   const imageBase64Data = await generateImageFromPollinations(imagePrompt);
 
-  // Add Image using base64 data if fetched successfully
+  // 4. Add Image (Right Column, below title) - ADJUSTED y, h to match bullets
   if (imageBase64Data) {
      try {
-       // Use the coordinates and dimensions from your snippet
        newSlide.addImage({
-         data: imageBase64Data, // Use the fetched base64 data URI
-         x: textWidth + margin, // Position image to the right of text
-         y: 0.0,               // Vertical position from your snippet
-         w: imageWidth,        // Width from your snippet
-         h: 3.0,               // Height from your snippet
-         // sizing: { type: 'contain', w: imageWidth, h: 4.5 } // Optional: Add sizing if needed
+         data: imageBase64Data,
+         x: rightColX,
+         y: contentY,       // Align vertically with bullets
+         w: rightColW,
+         h: contentHeight,  // Use same height as bullets column
+         sizing: { type: 'contain', w: rightColW, h: contentHeight } // Fit image within the bounds clearly
        });
        console.log(`Added image to slide "${slideTitle}"`);
      } catch (imgErr) {
        console.warn(`⚠️ PptxGenJS failed to add image for slide "${slideTitle}":`, imgErr);
-        // Add placeholder text on failure, positioned similarly to the image
-        newSlide.addText('[Image load failed]', { x: textWidth + margin, y: 1.0, w: imageWidth, h: 4.5, color: 'FF0000', align: 'center', valign: 'middle'});
+        // Add placeholder text on failure, positioned similarly
+        newSlide.addText('[Image load failed]', { x: rightColX, y: contentY, w: rightColW, h: contentHeight, color: 'FF0000', align: 'center', valign: 'middle'});
      }
   } else {
     console.warn(`Skipping image for slide "${slideTitle}" (fetch failed or no prompt).`);
     // Add placeholder text if no image generated
-    newSlide.addText('[No image generated]', { x: textWidth + margin, y: 1.0, w: imageWidth, h: 4.5, color: '888888', align: 'center', valign: 'middle'});
+    newSlide.addText('[No image generated]', { x: rightColX, y: contentY, w: rightColW, h: contentHeight, color: '888888', align: 'center', valign: 'middle'});
   }
+  // --- END NEW STYLING INTEGRATION ---
 };
 
 /**
@@ -179,20 +198,23 @@ export const downloadPPTX = async (slides, fileName = "presentation.pptx") => {
       return;
   }
 
-  console.log("Generating PPTX file with custom style and images:", slides);
+  console.log("Generating PPTX file with new style and images:", slides);
   alert("Generating presentation with images... This may take a minute. Please wait.");
 
   const pptx = new PptxGenJS();
+  // Set layout to 16x9 for predictable coordinates (inches: 10 x 5.625)
+  pptx.layout = 'LAYOUT_16x9';
 
   // Process slides sequentially
   console.log("Starting slide generation process...");
   for (let i = 0; i < slides.length; i++) {
-    console.log(`Processing slide ${i + 1}/${slides.length}...`);
+    const slideNumber = i + 1; // Slide number starts from 1
+    console.log(`Processing slide ${slideNumber}/${slides.length}...`);
     try {
       // Call the helper function that uses the specific styling
       await addSlideWithCustomStyle(pptx, slides[i]);
     } catch (slideError) {
-        console.error(`Error processing slide ${i + 1}:`, slideError);
+        console.error(`Error processing slide ${slideNumber}:`, slideError);
     }
   }
 

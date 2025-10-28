@@ -1,5 +1,6 @@
 import { geminiModel } from "../config/geminiConfig.js";
-
+import mammoth from "mammoth"; 
+import * as XLSX from "xlsx";
 /**
  * Helper function to parse the AI's JSON response reliably.
  * Tries direct parsing and parsing from markdown code blocks.
@@ -102,28 +103,55 @@ export const convertTextToSlides = async (text, slides) => {
 /**
  * Business Logic: Converts a Word Doc (.docx) file (base64) into slide data including image prompts.
  */
+/**
+ * Business Logic: Converts a Word Doc (.docx) file (base64) into slide data including image prompts.
+ * Extracts text first, then sends text to AI.
+ */
 export const convertWordToSlides = async (base64Word, slides) => {
   try {
-    // Updated prompt asking for imagePrompt
+    // 1. Decode base64 and extract text using mammoth
+    console.log("Decoding base64 Word document...");
+    const buffer = Buffer.from(base64Word, "base64");
+    console.log("Extracting text from Word buffer...");
+    const { value: extractedText } = await mammoth.extractRawText({ buffer });
+
+    if (!extractedText || extractedText.trim().length === 0) {
+      throw new Error("No readable text found in the Word document.");
+    }
+    console.log(`Extracted ${extractedText.length} characters.`);
+
+    // 2. Create the prompt using the extracted text
     const prompt = `
-      Extract text from this Word document and organize it into approximately ${slides} slides.
+      Based on the following text extracted from a Word document, organize the content into approximately ${slides} slides.
       For each slide, provide a concise 'title', a list of 'bullets' (3-5 points), AND a simple 'imagePrompt' (a few keywords describing a relevant image).
       Return ONLY JSON in the format: [{ "title": "...", "bullets": ["...", "..."], "imagePrompt": "..." }]
+
+      EXTRACTED TEXT:
+      ---
+      ${extractedText}
+      ---
     `;
+
+    // 3. Call Gemini with ONLY the text prompt (no inlineData)
+    console.log("Sending extracted text to Gemini AI...");
     const result = await geminiModel.generateContent({
       contents: [{
         role: "user",
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data: base64Word } }
-        ]
+        parts: [{ text: prompt }] // Send only text
       }],
       generationConfig: { responseMimeType: "application/json" }
     });
-     // Use the reliable parser
-     return parseAIResponse(result.response.text());
+
+    // 4. Parse the response
+    console.log("Parsing Gemini AI response...");
+    return parseAIResponse(result.response.text()); // Use your existing parser
+
   } catch (err) {
     console.error("Error in AI Service (Word):", err);
+    // Add more specific error message based on potential mammoth failure
+    if (err.message.includes("mammoth")) {
+        throw new Error(`Failed to extract text from Word document: ${err.message}`);
+    }
     throw new Error(`Failed to convert Word doc using AI: ${err.message}`);
   }
 };
@@ -133,26 +161,60 @@ export const convertWordToSlides = async (base64Word, slides) => {
  */
 export const convertExcelToSlides = async (base64Excel, slides) => {
   try {
-    // Updated prompt asking for imagePrompt
+    // 1. Decode base64 and parse Excel data using xlsx
+    console.log("Decoding base64 Excel document...");
+    const buffer = Buffer.from(base64Excel, "base64");
+    console.log("Parsing Excel buffer...");
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+
+    let combinedText = "";
+    // Extract text from each sheet (simple CSV-like representation)
+    workbook.SheetNames.forEach((sheetName) => {
+      console.log(`Extracting text from sheet: ${sheetName}`);
+      const sheet = workbook.Sheets[sheetName];
+      // Convert sheet data to CSV format text
+      const sheetData = XLSX.utils.sheet_to_csv(sheet, { skipHidden: true });
+      combinedText += `\n--- Sheet: ${sheetName} ---\n${sheetData}\n`;
+    });
+
+    if (combinedText.trim().length === 0) {
+      throw new Error("No readable data found in the Excel document.");
+    }
+    console.log(`Extracted ${combinedText.length} characters from Excel.`);
+
+    // 2. Create the prompt using the extracted text
     const prompt = `
-      Extract data from this Excel spreadsheet and organize it into approximately ${slides} slides. Prioritize summaries, charts, and key tables.
-      For each slide, provide a concise 'title', a list of 'bullets' (3-5 points summarizing insights), AND a simple 'imagePrompt' (a few keywords describing a relevant chart or data visualization).
+      Based on the following text extracted from an Excel spreadsheet (represented sheet by sheet in CSV-like format), organize the key insights into approximately ${slides} slides. Focus on summaries, trends, totals, or important data points.
+      For each slide, provide a concise 'title', a list of 'bullets' (3-5 points summarizing information), AND a simple 'imagePrompt' (keywords describing a relevant chart, graph, or data visualization).
       Return ONLY JSON in the format: [{ "title": "...", "bullets": ["...", "..."], "imagePrompt": "..." }]
+
+      EXTRACTED EXCEL DATA:
+      ---
+      ${combinedText}
+      ---
     `;
+
+    // 3. Call Gemini with ONLY the text prompt (NO inlineData for Excel)
+    console.log("Sending extracted Excel text to Gemini AI...");
     const result = await geminiModel.generateContent({
       contents: [{
         role: "user",
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data: base64Excel } }
-        ]
+        parts: [{ text: prompt }] // Send only the extracted text
       }],
       generationConfig: { responseMimeType: "application/json" }
     });
-     // Use the reliable parser
-     return parseAIResponse(result.response.text());
+
+    // 4. Parse the response using your helper
+    console.log("Parsing Gemini AI response for Excel conversion...");
+    return parseAIResponse(result.response.text());
+
   } catch (err) {
     console.error("Error in AI Service (Excel):", err);
+     // Add more specific error message based on potential xlsx failure
+    if (err.message.includes("xlsx")) {
+        throw new Error(`Failed to parse Excel document: ${err.message}`);
+    }
+    // Keep the original error message if it's from Gemini or parsing
     throw new Error(`Failed to convert Excel sheet using AI: ${err.message}`);
   }
 };
