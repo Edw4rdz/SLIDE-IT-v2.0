@@ -1,62 +1,158 @@
-// src/templates.js
-
-// This file acts as our "database" for prebuilt templates.
+// src/prebuilttemplates.js
 export const PREBUILT_TEMPLATES = [
   {
-    id: "tpl1",
-    name: "Business Pitch Deck",
+    id: "tpl-tech-01",
+    name: "Futuristic Tech Couture",
     thumbnail:
-      "https://cms-media.slidesai.io/wp-content/uploads/2024/02/20140647/Cover-Pitch-deck-vs-business-plan.png",
-    // ⬇️ NEW: Added slide content structure
+      "https://media.slidesgo.com/storage/76624478/conversions/0-futuristic-background-thumb.jpg",
+    link: "https://docs.google.com/presentation/d/1FuturisticTechDemo/copy",
     slides: [
-      { id: 'tpl1-s1', title: 'The Problem', bullets: ['Clearly state the problem you are solving.', 'Why does this problem matter?'], imagePrompt: 'a graph showing a downward trend' },
-      { id: 'tpl1-s2', title: 'The Solution', bullets: ['Describe your product or service.', 'How does it solve the problem?'], imagePrompt: 'a diagram of a solution' },
-      { id: 'tpl1-s3', title: 'Market Size', bullets: ['Who is your target customer?', 'How big is the market (TAM, SAM, SOM)?'], imagePrompt: 'a pie chart of market segments' },
-      { id: 'tpl1-s4', title: 'Why Us?', bullets: ['What is your unique advantage?', 'Introduce your core team.'], imagePrompt: 'a team of professionals working together' }
+      /* ... slide content ... */
     ],
-    // Design info
-    background:
-      "https://images.unsplash.com/photo-1522202195461-98d9a9aa8b6b?auto=format&fit=crop&w=1200&q=60",
-    titleColor: "#003366", // Added # for consistency
-    textColor: "#222222", // Added #
-    font: "Calibri",
+    design: {
+      font: "Roboto",
+      // ✅ CHANGED to an array
+      globalBackground: ["#0A1F44", "#092F6B", "#005E90"], 
+      globalTitleColor: "#00E6FF",
+      globalTextColor: "#E5E5E5",
+      layouts: {
+        title: {
+          // ✅ CHANGED to an array
+          background: ["#0A1F44", "#092F6B", "#005E90"],
+          titleColor: "#00E6FF",
+          textColor: "#E5E5E5",
+        },
+        content: {
+          // ✅ CHANGED to an array
+          background: ["#0A1F44", "#092F6B", "#005E90"],
+          titleColor: "#00E6FF",
+          textColor: "#E5E5E5",
+        },
+      },
+    },
   },
   {
-    id: "tpl2",
-    name: "Book Report",
+    id: "tpl-business-01",
+    name: "Elegant Dark Business",
     thumbnail:
-      "https://www.bibguru.com/blog/img/book-report-1400x700.png",
-    // ⬇️ NEW: Added slide content structure
+      "https://media.slidesgo.com/storage/5068851/conversions/0-dark-elegance-thumb.jpg",
+    link: "https://docs.google.com/presentation/d/1ElegantDarkBusiness/copy",
     slides: [
-      { id: 'tpl2-s1', title: 'Book Report: [Book Title]', bullets: ['Author: [Author Name]', 'Genre: [Book Genre]'], imagePrompt: 'a classic book cover' },
-      { id: 'tpl2-s2', title: 'Plot Summary', bullets: ['Beginning: [Main plot point]', 'Middle: [Main plot point]', 'End: [Main plot point]'], imagePrompt: 'a story map or journey' },
-      { id: 'tpl2-s3', title: 'Main Characters', bullets: ['**Character 1:** Description.', '**Character 2:** Description.'], imagePrompt: 'portraits of two distinct people' },
-      { id: 'tpl2-s4', title: 'My Thoughts', bullets: ['What I liked about the book.', 'What I disliked or would change.'], imagePrompt: 'a person thinking' }
+      /* ... slide content ... */
     ],
-    // Design info
-    background:
-      "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=60",
-    titleColor: "#5A3E1B", // Added #
-    textColor: "#2F241F", // Added #
-    font: "Georgia",
+    design: {
+      font: "Lato",
+      // ✅ CHANGED to an array
+      globalBackground: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
+      globalTitleColor: "#FFD700",
+      globalTextColor: "#CCCCCC",
+      layouts: {
+        title: {
+          // ✅ CHANGED to an array
+          background: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
+          titleColor: "#FFD700",
+          textColor: "#CCCCCC",
+        },
+        content: {
+          // ✅ CHANGED to an array
+          background: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
+          titleColor: "#FFD700",
+          textColor: "#CCCCCC",
+        },
+      },
+    },
   },
   {
-    id: "tpl3",
-    name: "Educational Lesson",
+    id: "tpl-creative-01",
+    name: "Creative Gradient Splash",
     thumbnail:
-      "https://slidemodel.com/wp-content/uploads/60508-01-e-learning-powerpoint-template-16x9-1.jpg",
-    // ⬇️ NEW: Added slide content structure
+      "https://png.pngtree.com/background/20250103/original/pngtree-vibrant-gradient-iridescent-colors-abstract-blur-shapes-transition-texture-for-eye-picture-image_15299202.jpg",
+    link: "https://docs.google.com/presentation/d/1CreativeGradientSplash/copy",
     slides: [
-      { id: 'tpl3-s1', title: 'Lesson: [Subject Name]', bullets: ['Today\'s Topic: [Topic]', 'Grade Level: [Number]'], imagePrompt: 'a clean modern classroom' },
-      { id: 'tpl3-s2', title: 'Learning Objectives', bullets: ['By the end of this lesson, you will be able to:', '1. [Objective 1]', '2. [Objective 2]'], imagePrompt: 'a target or a lightbulb icon' },
-      { id: 'tpl3-s3', title: 'Key Concept 1', bullets: ['Explanation of the first concept.', 'Example: [Provide a clear example]'], imagePrompt: 'a simple diagram explaining a concept' },
-      { id: 'tpl3-s4', title: 'Summary & Review', bullets: ['What did we learn today?', 'Key takeaways.'], imagePrompt: 'a checklist or summary icon' }
+      /* ... slide content ... */
     ],
-    // Design info
-    background:
-      "https://images.unsplash.com/photo-1584697964191-3b79c8daec3d?auto=format&fit=crop&w=1200&q=60",
-    titleColor: "#2A6F97", // Added #
-    textColor: "#0A2472", // Added #
-    font: "Arial",
+    design: {
+      font: "Montserrat",
+      // ✅ CHANGED to an array
+      globalBackground: ["#FF6A5E", "#D8458B", "#5E2BB8"],
+      globalTitleColor: "#FFFFFF",
+      globalTextColor: "#F0F0F0",
+      layouts: {
+        title: {
+          // ✅ CHANGED to an array
+          background: ["#FF6A5E", "#D8458B", "#5E2BB8"],
+          titleColor: "#FFFFFF",
+          textColor: "#F0F0F0",
+        },
+        content: {
+          // ✅ CHANGED to an array
+          background: ["#FF6A5E", "#D8458B", "#5E2BB8"],
+          titleColor: "#FFFFFF",
+          textColor: "#F0F0F0",
+        },
+      },
+    },
+  },
+  {
+    id: "tpl-minimal-01",
+    name: "Minimalist White Space",
+    thumbnail:
+      "https://www.slidescarnival.com/wp-content/uploads/Minimalist-White-Slides-1.jpg",
+    link: "https://docs.google.com/presentation/d/1MinimalistWhiteSpace/copy",
+    slides: [
+      /* ... slide content ... */
+    ],
+    design: {
+      font: "Helvetica Neue",
+      // ✅ CHANGED to an array
+      globalBackground: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
+      globalTitleColor: "#222222",
+      globalTextColor: "#555555",
+      layouts: {
+        title: {
+          // ✅ CHANGED to an array
+          background: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
+          titleColor: "#222222",
+          textColor: "#555555",
+        },
+        content: {
+          // ✅ CHANGED to an array
+          background: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
+          titleColor: "#222222",
+          textColor: "#555555",
+        },
+      },
+    },
+  },
+  {
+    id: "tpl-nature-01",
+    name: "Organic Nature Presentation",
+    thumbnail:
+      "https://www.slidekit.com/wp-content/uploads/2024/09/Free-Forest-PowerPoint-Template-For-Nature-and-Eco-Friendly-Presentations.jpg",
+    link: "https://docs.google.com/presentation/d/1OrganicNatureTemplate/copy",
+    slides: [
+      /* ... slide content ... */
+    ],
+    design: {
+      font: "Merriweather",
+      // ✅ CHANGED to an array
+      globalBackground: ["#A8E063", "#56AB2F", "#235E3B"],
+      globalTitleColor: "#235E3B",
+      globalTextColor: "#3E4E48",
+      layouts: {
+        title: {
+          // ✅ CHANGED to an array
+          background: ["#A8E063", "#56AB2F", "#235E3B"],
+          titleColor: "#FFFFFF", 
+          textColor: "#F0F0F0",
+        },
+        content: {
+          // ✅ This is a solid color, so it STAYS A STRING
+          background: "#FFFFFF", 
+          titleColor: "#235E3B",
+          textColor: "#3E4E48",
+        },
+      },
+    },
   },
 ];

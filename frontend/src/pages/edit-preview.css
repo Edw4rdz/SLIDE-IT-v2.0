@@ -1,518 +1,447 @@
+/* src/pages/edit-preview.css */
+
 /* --- Overall Layout --- */
 .edit-preview-wrapper {
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
-    background: linear-gradient(135deg, #eef1ff, #dee7ff);
-    font-family: 'Inter', sans-serif; /* Default font */
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(135deg, #eef1ff, #dee7ff);
+  font-family: 'Inter', sans-serif;
+  position: relative;
 }
 
 .loading-message,
 .no-slides-message {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    font-size: 1.2rem;
-    color: #555;
-    width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: #555;
+  width: 100%;
 }
 
-/* --- Sidebar --- */
+/* --- Sidebar (Collapsible) --- */
 .sidebar-glass {
-    width: 280px;
-    background: rgba(65, 80, 255, 0.85);
-    backdrop-filter: blur(14px);
-    color: #fff;
-    padding: 25px;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    height: 100%;
-    overflow-y: auto;
-    box-shadow: 2px 0px 15px rgba(0, 0, 0, 0.1);
-    border-right: 1px solid rgba(255, 255, 255, 0.2);
+  width: 280px; 
+  background: rgba(65, 80, 255, 0.85);
+  backdrop-filter: blur(14px);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100%;
+  box-shadow: 2px 0px 15px rgba(0, 0, 0, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 20; 
+  position: relative;
+}
+
+.sidebar-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  padding: 25px;
+  box-sizing: border-box;
+  overflow: hidden; 
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .sidebar-glass h2 {
-    font-size: 1.3rem;
-    margin-bottom: 20px;
-    text-align: center;
-    flex-shrink: 0;
+  font-size: 1.3rem;
+  margin: 0; 
+  text-align: left;
 }
 
+.sidebar-toggle {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* --- Button to OPEN sidebar --- */
+.sidebar-toggle-open {
+  background: linear-gradient(90deg, #6578ff, #8a5cff);
+  border: none;
+  color: #fff;
+  border-radius: 0 10px 10px 0;
+  width: 30px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  position: absolute; 
+  left: 0; 
+  top: 50%;
+  transform: translateY(-50%);
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 15; 
+}
+.sidebar-toggle-open:hover {
+  box-shadow: 0 4px 12px rgba(101, 120, 255, 0.5);
+}
+
+
+/* --- Template Gallery (Unchanged) --- */
 .template-gallery {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    overflow-y: auto;
-    padding-right: 5px;
-    flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+  padding-right: 5px;
+  flex-grow: 1;
 }
-
 .template-item {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    padding: 10px;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    text-align: center;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.3s ease;
 }
-
 .template-item img {
-    width: 100%;
-    height: 100px;
-    object-fit: cover;
-    border-radius: 8px;
-    display: block;
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
 }
-
 .template-item p {
-    margin-top: 8px;
-    font-size: 0.9rem;
-    color: #f0f0f0;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: #f0f0f0;
 }
-
-.template-item .template-error-text {
-    font-size: 0.8rem;
-    color: #ffdddd;
-    margin-top: 8px;
-}
-
 .template-item:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: scale(1.03);
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-
 .template-item.selected {
-    border: 2px solid #fff;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
 }
-
 .loading {
-    text-align: center;
-    color: #eee;
+  text-align: center;
+  color: #eee;
 }
 
 /* --- Main Content Area --- */
 .main-content {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
-/* --- Header --- */
+/* --- Header (Unchanged) --- */
 .header-glass {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(12px);
-    display: flex;
-    align-items: center;
-    padding: 15px 30px;
-    border-bottom: 1px solid rgba(200, 210, 255, 0.5);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    flex-shrink: 0;
-    position: relative;
-    z-index: 10;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  padding: 15px 30px;
+  border-bottom: 1px solid rgba(200, 210, 255, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
-
 .header-glass h1 {
-    color: #28307a;
-    font-weight: 600;
-    font-size: 1.4rem;
-    margin: 0;
-    flex-grow: 1;
-    text-align: center;
-    padding: 0 20px;
+  color: #28307a;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin: 0;
+  flex-grow: 1;
+  text-align: center;
+  padding: 0 20px;
 }
-
 .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-shrink: 0;
 }
-
 .topic-edit-input {
-    font-size: 1rem;
-    padding: 8px 12px;
-    border: 1.5px solid #d4d8ff;
-    border-radius: 10px;
-    background: #f7f9ff;
-    color: #333;
-    min-width: 200px;
-    width: auto;
-    outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-size: 1rem;
+  padding: 8px 12px;
+  border: 1.5px solid #d4d8ff;
+  border-radius: 10px;
+  background: #f7f9ff;
+  color: #333;
+  min-width: 200px;
+  width: auto;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .topic-edit-input:focus {
-    border-color: #6578ff;
-    box-shadow: 0 0 8px rgba(101, 120, 255, 0.3);
+  border-color: #6578ff;
+  box-shadow: 0 0 8px rgba(101, 120, 255, 0.3);
 }
-
 .btn-back,
 .btn-download {
-    border: none;
-    padding: 10px 18px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
 }
-
 .btn-back {
-    background: #e8ebf8;
-    color: #4a59a7;
+  background: #e8ebf8;
+  color: #4a59a7;
 }
 .btn-back:hover {
-    background: #dbe1f4;
+  background: #dbe1f4;
 }
-
 .btn-download {
-    background: linear-gradient(90deg, #6578ff, #8a5cff);
-    color: #fff;
-    box-shadow: 0 2px 5px rgba(101, 120, 255, 0.4);
+  background: linear-gradient(90deg, #6578ff, #8a5cff);
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(101, 120, 255, 0.4);
 }
-
 .btn-download:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(101, 120, 255, 0.5);
-}
-.btn-download:disabled {
-    background: #b0b8d8;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
-}
-.btn-back:active,
-.btn-download:active {
-    transform: scale(0.98);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(101, 120, 255, 0.5);
 }
 
 /* --- Slide Grid --- */
 .slides-grid {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 30px;
-    display: grid;
-    grid-template-columns: repeat( auto-fit, minmax(550px, 1fr) );
-    gap: 30px;
-    align-content: start;
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 24px 30px; 
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px;
+  align-content: start;
+  justify-items: center; /* This will center the cards if the window is wider */
 }
 
-.slide-editor {
-    background: #ffffff;
-    border-radius: 18px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    overflow: hidden;
-    border: 1px solid #e0e5f5;
-    min-height: 420px;
-
-    /* --- NEW: Default CSS Variable Values --- */
-    --slide-font-family: 'Inter', sans-serif;
-    --slide-text-color: #333333;
-    --slide-title-color: #000000;
-    --slide-background-image: none;
-    --slide-background-color: #ffffff;
-    /* --- END NEW --- */
+/* --- GAMMA-STYLE CARD --- */
+.slide-preview-card.gamma-style {
+  width: 100%;
+  /* ✅ REMOVED max-width: 900px; */ 
+  min-height: 400px;
+  padding: 30px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  gap: 25px;
+  background-size: cover;
+  background-position: center;
+  box-sizing: border-box; 
 }
 
-/* --- Edit Area --- */
-.edit-section {
-    padding: 25px;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid #e8ebf8;
-    background-color: #fdfdff; /* Slightly off-white for visual separation */
+.slide-content-area {
+  flex: 2; 
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.edit-section h4 {
-    margin: 0 0 15px 0;
-    color: #555;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
+.slide-image-prompt-area {
+  flex: 1; 
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(5px);
+  padding: 20px;
+  border-radius: 12px;
+  z-index: 1;
+  font-size: 0.9em;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
 }
 
-.edit-section label {
-    font-weight: 600;
-    color: #3643a2;
-    font-size: 0.9rem;
-    display: block;
-    margin-bottom: 6px;
-    margin-top: 12px;
+.form-group {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+.slide-content-area .form-group {
+  flex-grow: 1; 
+}
+.slide-content-area .form-group:last-child {
+  margin-bottom: 0; 
 }
 
-.edit-section input[type='text'],
-.edit-section textarea {
-    width: 100%;
-    border: 1.5px solid #d4d8ff;
-    background: #f7f9ff;
-    padding: 12px;
-    border-radius: 10px;
-    margin-bottom: 15px;
-    outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    font-size: 0.95rem;
-    box-sizing: border-box;
-    /* NEW: Use variable for font consistency */
-    font-family: var(--slide-font-family);
+
+/* --- STYLES FOR IN-SLIDE EDITING --- */
+.form-control-title-preview {
+  font-size: 2rem !important;
+  font-weight: 700;
+  border: none !important;
+  border-bottom: 2px solid; 
+  background: transparent !important;
+  margin-bottom: 15px;
+  padding: 10px 5px;
+  width: 100%;
+  box-shadow: none !important;
+  outline: none;
+  box-sizing: border-box;
 }
 
-.edit-section textarea {
-    min-height: 120px;
-    resize: vertical;
+.form-control-bullets-preview {
+  font-size: 1rem;
+  background: transparent !important;
+  border: 1px dashed rgba(255, 255, 255, 0.3) !important; 
+  width: 100%;
+  line-height: 1.6;
+  outline: none;
+  box-shadow: none !important;
+  resize: none; 
+  flex-grow: 1; 
+  padding: 10px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  min-height: 150px; 
 }
 
-.edit-section input[type='text']:focus,
-.edit-section textarea:focus {
-    border-color: #6578ff;
-    box-shadow: 0 0 10px rgba(101, 120, 255, 0.3);
+.form-control-title-preview::placeholder,
+.form-control-bullets-preview::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 1;
 }
 
-/* --- Preview Area --- */
-.preview-section {
-    padding: 25px;
-    /* background-color: #f8f9fc; Use dynamic background instead */
-    display: flex;
-    flex-direction: column;
-
-    /* --- NEW: Apply dynamic background --- */
-    background-image: var(--slide-background-image);
-    background-color: var(--slide-background-color); /* Fallback */
-    background-size: cover;
-    background-position: center;
-    /* --- END NEW --- */
+.form-control-title-preview:focus,
+.form-control-bullets-preview:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.7) !important;
 }
 
-.preview-section h4 {
-    margin: 0 0 15px 0;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    padding-bottom: 5px;
-    /* NEW: Apply text color (might need adjustment based on background) */
-    color: var(--slide-text-color);
-    opacity: 0.8; /* Make it slightly less prominent */
+.image-prompt-input:focus {
+  outline: none;
+  border-color: #8a5cff !important;
+  box-shadow: 0 0 10px rgba(138, 92, 255, 0.5);
 }
 
-.preview-slide {
-    /* Removed fixed background */
-    border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle border */
-    border-radius: 12px;
-    padding: 20px;
-    width: 100%;
-    height: 100%;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    /* Background is now controlled by .preview-section */
-    background-color: rgba(255, 255, 255, 0.6); /* Semi-transparent white overlay */
-    backdrop-filter: blur(3px); /* Slight blur for readability */
-
-    /* --- NEW: Apply dynamic font --- */
-    font-family: var(--slide-font-family);
+/* --- NEW STYLES FOR UPLOAD BUTTONS --- */
+.image-buttons-container {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
-.preview-slide h3 {
-    font-size: 1.1rem;
-    margin: 0 0 10px 0;
-    text-align: left;
-    flex-shrink: 0;
-    max-height: 3em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-wrap: break-word;
-    /* --- NEW: Apply dynamic title color & font --- */
-    color: var(--slide-title-color);
-    font-family: var(--slide-font-family); /* Explicitly set font */
+.hidden-file-input {
+  display: none;
 }
 
-.preview-slide ul {
-    list-style: disc;
-    text-align: left;
-    margin: 0 0 15px 0;
-    padding-left: 25px;
-    font-size: 0.9rem;
-    flex-grow: 1;
-    overflow-y: auto;
-    max-height: 100px;
-     /* --- NEW: Apply dynamic text color & font --- */
-    color: var(--slide-text-color);
-    font-family: var(--slide-font-family); /* Explicitly set font */
+.upload-image-btn,
+.remove-image-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.preview-slide li {
-    margin-bottom: 6px;
-    /* --- NEW: Apply dynamic text color & font --- */
-    color: var(--slide-text-color);
-    font-family: var(--slide-font-family); /* Explicitly set font */
+.upload-image-btn {
+  background-color: rgba(255, 255, 255, 0.8);
+  color: #333;
+  flex-grow: 1;
+  justify-content: center;
+}
+.upload-image-btn:hover {
+  background-color: #fff;
 }
 
-/* --- Image Preview Styling --- */
+.remove-image-btn {
+  background-color: rgba(255, 82, 82, 0.8);
+  color: #fff;
+}
+.remove-image-btn:hover {
+  background-color: rgba(255, 82, 82, 1);
+}
+
+
+/* --- Image Preview Area --- */
 .image-preview-container {
-    margin-top: auto;
-    width: 100%;
-    height: 200px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: rgba(238, 241, 245, 0.8); /* Semi-transparent background */
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid rgba(220, 225, 236, 0.8);
-    flex-shrink: 0;
-    position: relative;
+  width: 100%;
+  flex-grow: 1; 
+  min-height: 150px; 
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
 }
 
 .preview-image {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    opacity: 0;
-    transition: opacity 0.5s ease-in-out;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain; 
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+.preview-image.loaded {
+  opacity: 1;
 }
 
 .image-preview-container .loading-text,
 .image-preview-container .no-image-text,
 .image-preview-container .error-text {
-    font-size: 0.9em;
-    color: #888;
-    text-align: center;
-    padding: 10px;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    background-color: rgba(255,255,255,0.7); /* Make text readable on images */
-    border-radius: 4px;
+  font-size: 0.9em;
+  color: #eee;
+  text-align: center;
+  padding: 10px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
 }
 .image-preview-container .error-text {
-    color: #c00;
+  color: #ffcdd2;
 }
 
-/* --- SLIDE-PREVIEW IMPROVEMENTS (16:9 aspect ratio) --- */
-.preview-slide {
-    aspect-ratio: 16 / 9;              /* Matches PPTX widescreen layout */
-    max-width: 100%;
-    background-color: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(6px);
-    padding: 28px 30px;
-    border-radius: 16px;
-    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.05),
-                0 4px 12px rgba(0, 0, 0, 0.06);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-/* Title now scales more like a PPT heading */
-.preview-slide h3 {
-    font-size: 1.6rem;
-    font-weight: 700;
-    line-height: 1.3;
-    margin-bottom: 10px;
-    color: var(--slide-title-color);
-    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-/* Bulleted content readability */
-.preview-slide ul {
-    flex-grow: 1;
-    margin: 0;
-    padding-left: 25px;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: var(--slide-text-color);
-    text-shadow: 0 1px 2px rgba(255,255,255,0.4);
-}
-
-/* --- Ensure image preview matches generated PPTX proportions --- */
-.image-preview-container {
-    height: 40%; /* Instead of fixed 200px */
-    margin-top: 10px;
-    border-radius: 10px;
-    background-color: rgba(245, 247, 255, 0.8);
-    border: 1px solid rgba(220, 225, 236, 0.8);
-    overflow: hidden;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/* Smooth fade-in when image loads */
-.preview-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    opacity: 0;
-    transition: opacity 0.4s ease-in;
-}
-.preview-image.loaded {
-    opacity: 1;
-}
-
-/* --- Responsive fixes for smaller screens --- */
-@media (max-width: 768px) {
-    .slides-grid {
-        grid-template-columns: 1fr;
-        padding: 20px;
-    }
-    .preview-slide {
-        aspect-ratio: 4 / 3;
-        padding: 20px;
-    }
-    .preview-slide h3 {
-        font-size: 1.2rem;
-    }
-}
-.template-item {
-  transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.3s ease;
-  cursor: pointer;
-}
-
-.template-item:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.template-item.selected {
-  border: 2px solid #007bff;
-  box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
-  opacity: 1 !important;
-}
-/* --- Slide container --- */
-.slide-editor {
-  background-color: var(--slide-background-color);
-  background-image: var(--slide-background-image);
-  background-size: cover;
-  background-position: center;
-  color: var(--slide-text-color);
-  font-family: var(--slide-font-family);
-  transition: all 0.3s ease;
-}
-.slide-editor h3 {
-  color: var(--slide-title-color);
-}
-
-.slide-editor h4 {
-  color: var(--slide-title-color, #000000);
-  font-family: var(--slide-font-family, Arial, sans-serif);
-}
-
-.slide-editor ul li {
-  color: var(--slide-text-color, #333333);
-  font-family: var(--slide-font-family, Arial, sans-serif);
+/* --- Accessibility helper --- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

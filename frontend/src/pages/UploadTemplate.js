@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaSignOutAlt, FaUpload, FaFilePowerpoint, FaTrashAlt } from 'react-icons/fa'; // Added FaTrashAlt
+import { FaSignOutAlt, FaUpload, FaFilePowerpoint, FaTrashAlt } from 'react-icons/fa';
 import { getTemplates, uploadTemplate } from '../api';
 import './uploadTemplate.css'; // Main styles for this page
 import './dashboard.css'; // Shared dashboard styles
@@ -21,7 +21,6 @@ export default function UploadTemplate() {
     JSON.parse(localStorage.getItem('uploadedTemplates')) || []
   );
 
-  // NEW: State to manage the active tab ('prebuilt' or 'uploaded')
   const [activeTab, setActiveTab] = useState('prebuilt');
 
   // Fetch prebuilt templates
@@ -97,17 +96,21 @@ export default function UploadTemplate() {
   };
 
   // Handle selecting any template
+  // Handle selecting any template
    const handleSelectTemplate = (tpl) => {
      setSelectedTemplate(tpl);
      localStorage.setItem('selectedTemplate', JSON.stringify(tpl));
      const type = tpl.isUploaded ? 'uploaded' : 'pre-built';
-     alert(`✅ Selected "${tpl.name}" (${type}) — it will be used in Edit/Preview.`);
+     alert(`✅ Selected "${tpl.name}" (${type}) — now you can customize it.`); // Updated alert message
+
+     // ⬇️ *** CHANGE ***
+     // Navigate to the new customization page instead of the dashboard
+     navigate('/customize-template');
    };
 
 
   // Handle logout
   const handleLogout = () => {
-    // ... (keep existing logout logic) ...
     if (!window.confirm('Are you sure you want to log out?')) return;
     setLoggingOut(true);
     localStorage.removeItem('user');
@@ -137,7 +140,6 @@ export default function UploadTemplate() {
     <div className="dashboard">
       {/* Sidebar (Keep as is) */}
       <aside className="sidebar">
-        {/* ... Sidebar content ... */}
         <div className="fa fa-magic logo">
           <div>
             <h2>SLIDE-IT</h2>
@@ -233,7 +235,15 @@ export default function UploadTemplate() {
                       />
                       <div className="card-overlay">
                           <p>{tpl.name}</p>
-                          <button className="use-button-overlay">Use</button>
+                          <button
+                            className="use-button-overlay"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectTemplate(tpl);
+                            }}
+                          >
+                            Use
+                          </button>
                       </div>
                     </div>
                   ))
@@ -261,7 +271,15 @@ export default function UploadTemplate() {
                       <div className="card-overlay">
                           <p title={tpl.name}>{tpl.name}</p>
                           <div className="uploaded-actions">
-                             <button className="use-button-overlay">Use</button>
+                             <button
+                                className="use-button-overlay"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectTemplate(tpl);
+                               }}
+                             >
+                                Use
+                             </button>
                              <button
                                 className="remove-button-overlay"
                                 onClick={(e) => handleRemoveUploadedTemplate(tpl.id, e)}

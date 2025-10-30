@@ -12,6 +12,7 @@ import ExcelToPPT from "./pages/ExcelToPPT";
 import Conversions from "./pages/Conversions";
 import Logout from "./pages/Logout";
 import UploadTemplate from "./pages/UploadTemplate";
+import CustomizeTemplate from './pages/CustomizeTemplate';
 import Settings from "./pages/Settings"; 
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/edit-preview" element={<EditPreview />} />
         <Route path="/uploadTemplate" element={<UploadTemplate />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/customize-template" element={<CustomizeTemplate />} />
         <Route path="*" element={<h1>404 - Page Not Found</h1>} />
       </Routes>
     </Router>
