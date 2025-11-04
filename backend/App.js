@@ -10,7 +10,8 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import templateRoutes from "./routes/templateRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js"; // Your new AI route
 import userAuthRoutes from "./routes/userAuthRoutes.js"; // Your new login route
-import historyRoutes from "./routes/historyRoutes.js"; // <-- 1. ADD THIS LINE
+import historyRoutes from "./routes/historyRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js"; // <-- ADDED
 
 // --- SETUP ---
 dotenv.config();
@@ -33,7 +34,8 @@ app.use("/api", uploadRoutes);
 app.use("/api", templateRoutes);
 app.use("/api", aiRoutes);
 app.use("/api", userAuthRoutes);
-app.use("/api", historyRoutes); // <-- 2. ADD THIS LINE
+app.use("/api", historyRoutes);
+app.use("/api", adminRoutes); // <-- ADDED
 
 // --- EXPORT APP ---
 // We export 'app' so server.js can import it and start the server

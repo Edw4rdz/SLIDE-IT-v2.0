@@ -14,6 +14,9 @@ import Logout from "./pages/Logout";
 import UploadTemplate from "./pages/UploadTemplate";
 import CustomizeTemplate from './pages/CustomizeTemplate';
 import Settings from "./pages/Settings"; 
+// <-- 1. ADD IMPORTS (Assuming AdminRoute is in a 'components' folder)
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminRoute from "./components/AdminRoute";
 
 export default function App() {
   return (
@@ -35,6 +38,17 @@ export default function App() {
         <Route path="/uploadTemplate" element={<UploadTemplate />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/customize-template" element={<CustomizeTemplate />} />
+
+        {/* 2. <-- ADD THIS ROUTE (This is the protected admin route) */}
+        <Route 
+          path="/admin" 
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          } 
+        />
+        
         <Route path="*" element={<h1>404 - Page Not Found</h1>} />
       </Routes>
     </Router>

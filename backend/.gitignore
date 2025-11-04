@@ -24,3 +24,9 @@ yarn-debug.log*
 yarn-error.log*
 
 serviceAccountKey.json
+# Local backup files
+*.json
+
+# One-time scripts
+migrateHistory.js
+backupHistory.js
