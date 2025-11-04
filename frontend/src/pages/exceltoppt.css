@@ -347,5 +347,129 @@ body {
     left: 100%; /* End off-screen right */
   }
 }
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 25px 35px;
+  border-radius: 14px;
+  text-align: center;
+  width: 380px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+.modal-content h2 {
+  margin-bottom: 10px;
+}
+
+.modal-content p {
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 15px;
+}
+
+.modal-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  font-weight: 500;
+  padding: 10px 18px;
+  transition: all 0.2s;
+}
+
+.btn-text {
+  background: #f3f3f3;
+  color: #333;
+}
+
+.btn-image {
+  background: #ef4444;
+  color: #fff;
+}
+
+.modal-btn:hover {
+  opacity: 0.9;
+}
+
+.modal-btn-cancel {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+/* Customize Output Section */
+.customize-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 10px 0;
+}
+
+.slide-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.slide-btn {
+  background: #6c63ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.slide-btn:hover {
+  background: #5848e5;
+}
+
+.slide-input {
+  width: 70px;
+  height: 38px;
+  text-align: center;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+/* Removes default number input arrows */
+.slide-input::-webkit-inner-spin-button,
+.slide-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.slide-count {
+  font-size: 0.95rem;
+  color: #555;
+}
 
 /* --- END ADDED STYLES --- */

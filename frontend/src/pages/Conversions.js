@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-// ✅ Import the text icon
-import { FaSignOutAlt, FaUpload, FaFileAlt } from "react-icons/fa";
+// import axios from "axios"; // <-- REMOVED
+import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import { getHistory, deleteHistory, downloadPPTX } from "../api"; // <-- Uses api.js
 import "./dashboard.css";
 import "./conversion.css";
@@ -12,7 +12,7 @@ export default function Conversions() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Handle Logout (Unchanged)
+  // ✅ Handle Logout
   const handleLogout = () => {
     if (!window.confirm("Are you sure you want to log out?")) return;
     setLoggingOut(true);
@@ -21,7 +21,7 @@ export default function Conversions() {
     setTimeout(() => navigate("/login"), 1200);
   };
 
-  // ✅ Fetch History (Unchanged)
+  // ✅ Fetch History
   useEffect(() => {
     const fetchHistory = async () => {
       try {
@@ -30,10 +30,14 @@ export default function Conversions() {
           navigate("/login");
           return;
         }
+        // Uses the new function from api.js
         const res = await getHistory(user.user_id);
         setHistory(res.data);
       } catch (err) {
         console.error("Error fetching conversion history:", err);
+        if (err.response?.status === 404) {
+          console.log("History API (/api/conversions) not found or backend not running.");
+        }
       } finally {
         setLoading(false);
       }
@@ -41,7 +45,7 @@ export default function Conversions() {
     fetchHistory();
   }, [navigate]);
 
-  // ✅ Delete Conversion (Unchanged)
+  // ✅ Delete Conversion
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this conversion permanently?")) return;
     try {
@@ -51,6 +55,7 @@ export default function Conversions() {
         navigate("/login");
         return;
       }
+      // Uses the new function from api.js
       await deleteHistory(id, user.user_id);
       setHistory((prev) => prev.filter((c) => c.id !== id));
       alert("Conversion deleted successfully!");
@@ -60,55 +65,31 @@ export default function Conversions() {
     }
   };
 
-  // ✅ --- FIX 1: UPDATED handleEdit ---
-  // We now pass the 'includeImages' flag from the conversion object.
+  // ✅ Edit Conversion
   const handleEdit = (conv) => {
+    // Navigate to EditPreview, passing the slide data and filename
     navigate("/edit-preview", {
-      state: { 
-        slides: conv.slides || [], 
-        topic: conv.fileName,
-        // This is the line that fixes the bug
-        includeImages: conv.includeImages 
-      },
+      state: { slides: conv.slides || [], topic: conv.fileName },
     });
   };
 
-  // ✅ --- FIX 2: UPDATED handleDownload ---
-  // We now pass the 'includeImages' flag to the download function.
+  // ✅ Handle Download
   const handleDownload = (conv) => {
     if (!conv.slides || conv.slides.length === 0) {
       return alert("No slide data found to download.");
     }
-    
-    // The download function needs a design object, even a default one.
-    const defaultDesign = {
-      font: "Arial",
-      globalBackground: "#ffffff",
-      globalTitleColor: "#000000",
-      globalTextColor: "#333333",
-      layouts: { 
-        title: { background: "#ffffff", titleColor: "#000000", textColor: "#333333" },
-        content: { background: "#ffffff", titleColor: "#000000", textColor: "#333333" }
-      }
-    };
-
-    // Pass the flag as the 4th argument, just like in EditPreview.js
-    downloadPPTX(
-      conv.slides, 
-      defaultDesign, // Use a default design
-      conv.fileName, 
-      conv.includeImages // This is the line that fixes the bug
-    );
+    // Calls the PPTX generator function from api.js
+    downloadPPTX(conv.slides, conv.fileName);
   };
 
-  // ✅ Preview Slides (Unchanged)
+  // ✅ Preview Slides (Only shows title and bullets count for brevity)
   const renderSlidePreview = (slides) => {
     if (!slides || slides.length === 0) return <p>No slide data available.</p>;
     return (
       <div className="slide-preview">
         <h4>Slide Preview ({slides.length} slides)</h4>
         <ul>
-          {slides.slice(0, 3).map((slide, index) => ( 
+          {slides.slice(0, 3).map((slide, index) => ( // Show first 3 slides only
             <li key={index}>
               <strong>{slide.title || "Untitled"}</strong>
                {slide.bullets && ` (${slide.bullets.length} bullet points)`}
@@ -122,7 +103,7 @@ export default function Conversions() {
 
   return (
     <div className="dashboard">
-      {/* Sidebar (Unchanged) */}
+      {/* Sidebar */}
       <aside className="sidebar">
         <div className="fa fa-magic logo">
           <div>
@@ -148,7 +129,7 @@ export default function Conversions() {
         </nav>
       </aside>
 
-      {/* Main Content (Unchanged) */}
+      {/* Main Content */}
       <main className="main">
         <div className="container">
           <header className="conversion-header">
@@ -165,27 +146,24 @@ export default function Conversions() {
               {history.map((conv) => (
                 <div className="conversion-card" key={conv.id}>
                   <div className="card-header">
+                    {/* Display status and type from history data */}
                     <span className={`status-badge ${conv.status?.toLowerCase() || 'unknown'}`}>{conv.status || 'Unknown'}</span>
                     <p className="file-type">{conv.type || 'Unknown Type'}</p>
                   </div>
 
                   <h3 className="file-name">{conv.fileName || 'Untitled Conversion'}</h3>
 
+                  {/* Optional: Display date */}
                   {conv.uploadedAt?.seconds && (
-                       <p className="conversion-date">
-                         Saved on {new Date(conv.uploadedAt.seconds * 1000).toLocaleString()}
-                       </p>
+                     <p className="conversion-date">
+                       Saved on {new Date(conv.uploadedAt.seconds * 1000).toLocaleString()}
+                     </p>
                   )}
-                  
-                  {/* ✅ --- NEW: Show a badge if it's text-only --- ✅ */}
-                  {conv.includeImages === false && (
-                    <div className="text-only-badge">
-                      <FaFileAlt /> Text Only
-                    </div>
-                  )}
+
 
                   {renderSlidePreview(conv.slides)}
 
+                  {/* Download Button */}
                   {conv.status === "Completed" && conv.slides && conv.slides.length > 0 && (
                     <button
                       className="download-btn"
@@ -195,6 +173,7 @@ export default function Conversions() {
                     </button>
                   )}
 
+                  {/* Edit & Delete Buttons */}
                   <div className="conversion-actions">
                     <button
                       className="edit-btn"

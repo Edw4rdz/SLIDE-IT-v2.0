@@ -1,11 +1,9 @@
 import React, { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaSignOutAlt, FaUpload } from "react-icons/fa";
-import { convertWord } from "../api"; // Uses api.js
+import { FaSignOutAlt, FaUpload, FaImages, FaFileAlt } from "react-icons/fa";
+import { convertWord } from "../api";
 import "./wordtoppt.css";
 import "font-awesome/css/font-awesome.min.css";
-// import { db } from "../firebase"; // <-- REMOVED Firestore imports
-// import { doc, onSnapshot } from "firebase/firestore"; // <-- REMOVED
 
 export default function WordToPPT() {
   const navigate = useNavigate();
@@ -13,15 +11,17 @@ export default function WordToPPT() {
   const [slides, setSlides] = useState(15);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
-  // const [progress, setProgress] = useState(0); // <-- REMOVED progress state
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
-  // const [conversionId, setConversionId] = useState(null); // <-- REMOVED conversionId state
   const fileInputRef = useRef(null);
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
-  // 📂 Select File (No changes needed)
+  // ✅ New modal state and image choice
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
+
+  // 📂 File selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (
@@ -37,19 +37,21 @@ export default function WordToPPT() {
     }
   };
 
-  // 🚀 Upload + Convert Word (FIXED - Simplified)
-  const handleUpload = async () => {
+  // ✅ Instead of converting directly, open modal first
+  const handleUpload = () => {
     if (!file) return alert("Please select a Word document first");
     if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
+    if (!loggedInUser?.user_id)
+      return alert("You must be logged in to convert and save history.");
+    setIsModalOpen(true);
+  };
 
-    // --- 1. ADDED USER CHECK ---
-    if (!loggedInUser?.user_id) {
-        return alert("You must be logged in to convert and save history.");
-    }
-
+  // ✅ Handles the conversion after user chooses option
+  const handleConversionStart = async (includeImages) => {
+    setIsModalOpen(false);
+    setIncludeImagesChoice(includeImages);
     setIsLoading(true);
     setLoadingText("Reading Word file...");
-    // setProgress(0); // <-- REMOVED
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -59,27 +61,21 @@ export default function WordToPPT() {
       const base64Word = reader.result.split(",")[1];
 
       try {
-        // Call the API - sends data and waits for the slide array
         const response = await convertWord({
           base64Word,
           slides,
-          userId: loggedInUser.user_id, // Correct
-          fileName: file.name          // Correct
+          userId: loggedInUser.user_id,
+          fileName: file.name,
+          includeImages: includeImages, // ✅ Added this line
         });
 
-        // --- 2. FIXED RESPONSE HANDLING ---
-        // Check if the response data is a valid array
         if (response.data && Array.isArray(response.data)) {
-          
-          // Add unique IDs for the EditPreview page
           const slidesWithId = response.data.map((s, idx) => ({ ...s, id: idx }));
-          
           setConvertedSlides(slidesWithId);
-          setTopic(file.name.replace(/\.(docx|doc)/i, "")); // Set topic for navigation
+          setTopic(file.name.replace(/\.(docx|doc)/i, ""));
           setLoadingText("Conversion completed!");
           alert("✅ Conversion successful! You can now preview or edit it.");
         } else {
-          // Handle cases where the response might not be as expected
           setLoadingText("Conversion failed.");
           alert("Conversion failed: Invalid response from server.");
         }
@@ -89,7 +85,6 @@ export default function WordToPPT() {
         alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
       } finally {
         setIsLoading(false);
-        // setLoadingText(""); // Keep "Completed" or "Failed" message
       }
     };
 
@@ -100,7 +95,7 @@ export default function WordToPPT() {
     };
   };
 
-  // 🔒 Logout (No changes needed)
+  // 🔒 Logout
   const handleLogout = () => {
     if (!window.confirm("Are you sure you want to log out?")) return;
     setLoggingOut(true);
@@ -111,40 +106,40 @@ export default function WordToPPT() {
 
   return (
     <div className="ai-dashboard">
-      {/* Sidebar (No changes) */}
+      {/* Sidebar */}
       <aside className="ai-sidebar">
-         <div className="ai-logo">
-           <i className="fa fa-magic"></i>
-           <div className="logo-text">
-             <h2>SLIDE-IT</h2>
-             <p>Convert & Generate</p>
-           </div>
-         </div>
-         <nav className="ai-nav">
-           <div className="top-links">
-             <Link to="/dashboard" className="active">
-               <i className="fa fa-home"></i> Dashboard
-             </Link>
-             <Link to="/conversion">
-               <i className="fa fa-history"></i> Drafts
-             </Link>
-             <Link to="/settings">
-               <i className="fa fa-cog"></i> Settings
-             </Link>
-             <Link to="/uploadTemplate" className="upload-btn">
-               <FaUpload className="icon" /> Upload Template
-             </Link>
-           </div>
-           <div className="bottom-links">
-             <div className="logout-btn" onClick={handleLogout}>
-               <FaSignOutAlt className="icon" /> Logout
-               {loggingOut && <div className="spinner-small"></div>}
-             </div>
-           </div>
-         </nav>
-       </aside>
+        <div className="ai-logo">
+          <i className="fa fa-magic"></i>
+          <div className="logo-text">
+            <h2>SLIDE-IT</h2>
+            <p>Convert & Generate</p>
+          </div>
+        </div>
+        <nav className="ai-nav">
+          <div className="top-links">
+            <Link to="/dashboard" className="active">
+              <i className="fa fa-home"></i> Dashboard
+            </Link>
+            <Link to="/conversion">
+              <i className="fa fa-history"></i> Drafts
+            </Link>
+            <Link to="/settings">
+              <i className="fa fa-cog"></i> Settings
+            </Link>
+            <Link to="/uploadTemplate" className="upload-btn">
+              <FaUpload className="icon" /> Upload Template
+            </Link>
+          </div>
+          <div className="bottom-links">
+            <div className="logout-btn" onClick={handleLogout}>
+              <FaSignOutAlt className="icon" /> Logout
+              {loggingOut && <div className="spinner-small"></div>}
+            </div>
+          </div>
+        </nav>
+      </aside>
 
-      {/* Main Content (No changes to JSX structure) */}
+      {/* Main Content */}
       <main className="mainw">
         <div className="containerw">
           <header className="header">
@@ -180,7 +175,7 @@ export default function WordToPPT() {
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
 
-                {/* Progress Button */}
+                {/* Convert button now opens modal */}
                 <button
                   onClick={handleUpload}
                   className="convertw-btn"
@@ -188,23 +183,30 @@ export default function WordToPPT() {
                 >
                   {isLoading ? (
                     <div className="progress-bar-container">
-                      {/* Using indeterminate bar instead of percentage */}
                       <div className="progress-bar-indeterminate"></div>
                       <span className="progress-text">{loadingText}</span>
                     </div>
-                  ) : convertedSlides ? ( // <-- Change button text after success
-                      "📝 Edit & Preview Slides"
-                    ) : (
-                      "Convert to PPT"
-                    )}
+                  ) : convertedSlides ? (
+                    "✅ Converted! Edit Now"
+                  ) : (
+                    "Convert to PPT"
+                  )}
                 </button>
 
-                {/* Preview/Edit button appears after conversion */}
+                {/* Edit/Preview button after conversion */}
                 {convertedSlides && (
                   <div className="after-convert-actions">
                     <button
                       className="edit-preview-btn"
-                      onClick={() => navigate("/edit-preview", { state: { slides: convertedSlides, topic } })}
+                      onClick={() =>
+                        navigate("/edit-preview", {
+                          state: {
+                            slides: convertedSlides,
+                            topic,
+                            includeImages: includeImagesChoice,
+                          },
+                        })
+                      }
                     >
                       📝 Edit & Preview Slides
                     </button>
@@ -212,22 +214,44 @@ export default function WordToPPT() {
                 )}
               </div>
 
-              {/* Customization */}
+              {/* Customize Slides */}
               <div className="ai-card">
-                <h2>Customize Your Presentation</h2>
-                <div className="ai-slider-section">
-                  <label htmlFor="slides">Number of Slides</label>
-                  <input
-                    type="range"
-                    id="slides"
-                    min="5"
-                    max="25"
-                    value={slides}
-                    onChange={(e) => setSlides(parseInt(e.target.value))}
-                  />
-                  <span id="slide-count">{slides} slides</span>
-                </div>
-              </div>
+  <h2>Customize Output</h2>
+  <div className="ai-slider-section">
+    <label htmlFor="slides">Number of Slides</label>
+    <div className="slide-input-group">
+      <button
+        type="button"
+        className="slide-btn minus"
+        onClick={() => setSlides((prev) => Math.max(1, prev - 1))}
+      >
+        ➖
+      </button>
+
+      <input
+        type="number"
+        id="slides"
+        min="1"
+        value={slides}
+        onChange={(e) => {
+          const value = parseInt(e.target.value);
+          if (!isNaN(value) && value >= 1) setSlides(value);
+        }}
+        className="slide-input"
+      />
+
+      <button
+        type="button"
+        className="slide-btn plus"
+        onClick={() => setSlides((prev) => prev + 1)}
+      >
+        ➕
+      </button>
+    </div>
+    <span id="slide-count"> Total number of slides: {slides}</span>
+  </div>
+</div>
+
             </div>
 
             {/* Right Column */}
@@ -242,12 +266,11 @@ export default function WordToPPT() {
                   <li>Creates professional layouts</li>
                 </ul>
               </div>
-
               <div className="ai-info-box">
                 <h3>Supported Formats</h3>
                 <ul>
                   <li>Microsoft Word (.docx)</li>
-                  <li>Word 97-2003 (.doc)</li>
+                  <li>Word 97–2003 (.doc)</li>
                   <li>Up to 25MB file size</li>
                 </ul>
               </div>
@@ -255,6 +278,36 @@ export default function WordToPPT() {
           </div>
         </div>
       </main>
+
+      {/* ✅ Modal for Image/Text choice */}
+      {isModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content">
+            <h2>Image Generation</h2>
+            <p>Do you want to include AI-generated images in your presentation?</p>
+            <div className="modal-buttons">
+              <button
+                className="modal-btn btn-text"
+                onClick={() => handleConversionStart(false)}
+              >
+                <FaFileAlt /> Text Only
+              </button>
+              <button
+                className="modal-btn btn-image"
+                onClick={() => handleConversionStart(true)}
+              >
+                <FaImages /> Include Images
+              </button>
+            </div>
+            <button
+              className="modal-btn-cancel"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

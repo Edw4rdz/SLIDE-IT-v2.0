@@ -6,6 +6,8 @@ import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle } from '
 import { getTemplates, downloadPPTX } from '../api';
 import './edit-preview.css';
 
+
+
 // Helper function (keep as is)
 const getPollinationsImageUrl = (prompt) => {
   if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;

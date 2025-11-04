@@ -228,18 +228,40 @@ export default function PDFToPPT() {
                <div className="ai-card">
                  {/* ... (customization JSX is unchanged) ... */}
                  <h2>Customize Output</h2>
-                 <div className="ai-slider-section">
-                   <label htmlFor="slides">Number of Slides</label>
-                   <input
-                     type="range"
-                     id="slides"
-                     min="5"
-                     max="30"
-                     value={slides}
-                     onChange={(e) => setSlides(parseInt(e.target.value))}
-                   />
-                   <span id="slide-count">{slides} slides</span>
-                 </div>
+                <div className="ai-slider-section">
+  <label htmlFor="slides">Number of Slides</label>
+  <div className="slide-input-group">
+    <button
+      type="button"
+      className="slide-btn minus"
+      onClick={() => setSlides((prev) => Math.max(1, prev - 1))}
+    >
+      ➖
+    </button>
+
+    <input
+      type="number"
+      id="slides"
+      min="1"
+      value={slides}
+      onChange={(e) => {
+        const value = parseInt(e.target.value);
+        if (!isNaN(value) && value >= 1) setSlides(value);
+      }}
+      className="slide-input"
+    />
+
+    <button
+      type="button"
+      className="slide-btn plus"
+      onClick={() => setSlides((prev) => prev + 1)}
+    >
+      ➕
+    </button>
+  </div>
+  <span id="slide-count"> Total number of slides: {slides}</span>
+</div>
+
                </div>
              </div>
              <div className="ai-right">

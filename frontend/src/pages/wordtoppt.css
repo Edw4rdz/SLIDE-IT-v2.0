@@ -465,5 +465,13 @@ body {
     left: 100%; /* End off-screen right */
   }
 }
+.ai-card:has(.slide-input-group) {
+  display: flex;
+  flex-direction: column;
+  justify-content: left; /* vertically center */
+  align-items: left; /* horizontally center */
+  text-align: left;
+  min-height: 220px; /* gives breathing room */
+}
 
 /* --- END ADDED STYLES --- */

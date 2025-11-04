@@ -385,5 +385,78 @@ textarea {
     left: 100%; /* End off-screen right */
   }
 }
+/* Center the customize section content */
+.ai-card:has(.slide-input-group) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* vertical centering */
+  align-items: center; /* horizontal centering */
+  text-align: center;
+  min-height: 220px;
+}
+
+/* Label and slide count spacing */
+.ai-card .ai-slider-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ai-card .ai-slider-section label {
+  margin-bottom: 10px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.ai-card .slide-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slide-input {
+  width: 70px;
+  text-align: center;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 5px;
+  font-size: 16px;
+  -moz-appearance: textfield; /* remove arrows in Firefox */
+}
+
+.slide-input::-webkit-inner-spin-button,
+.slide-input::-webkit-outer-spin-button {
+  -webkit-appearance: none; /* remove arrows in Chrome/Safari */
+  margin: 0;
+}
+
+.slide-btn {
+  background-color: #0078ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: 0.2s;
+}
+
+.slide-btn:hover {
+  background-color: #005fcc;
+}
+
+#slide-count {
+  margin-top: 10px;
+  font-weight: 500;
+  color: #333;
+}
+.ai-card:has(.slide-input-group) {
+  display: flex;
+  flex-direction: column;
+  justify-content: left; /* vertically center */
+  align-items: left; /* horizontally center */
+  text-align: left;
+  min-height: 220px; /* gives breathing room */
+}
 
 /* --- END ADDED STYLES --- */

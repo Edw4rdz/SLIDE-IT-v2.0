@@ -212,20 +212,43 @@ export default function ExcelToPPT() {
               </section>
 
               {/* Customize */}
-              <section className="card">
-                <h2>Customize Your Presentation</h2>
-                <div className="input-group">
-                  <label>Number of Slides</label>
-                  <input
-                    type="range"
-                    min="3"
-                    max="20"
-                    value={slidesCount}
-                    onChange={(e) => setSlidesCount(parseInt(e.target.value))}
-                  />
-                  <span>{slidesCount} slides</span>
-                </div>
-              </section>
+              {/* Customize */}
+<section className="card">
+  <h2>Customize Your Presentation</h2>
+  <div className="customize-section">
+    <label htmlFor="slidesCount">Number of Slides</label>
+    <div className="slide-control">
+      <button
+        type="button"
+        className="slide-btn"
+        onClick={() => setSlidesCount((prev) => Math.max(1, prev - 1))}
+      >
+        –
+      </button>
+
+      <input
+        type="number"
+        id="slidesCount"
+        value={slidesCount}
+        onChange={(e) => {
+          const val = parseInt(e.target.value);
+          if (!isNaN(val) && val >= 1) setSlidesCount(val);
+        }}
+        className="slide-input"
+      />
+
+      <button
+        type="button"
+        className="slide-btn"
+        onClick={() => setSlidesCount((prev) => prev + 1)}
+      >
+        +
+      </button>
+    </div>
+    <span className="slide-count">Total Slides: {slidesCount}</span>
+  </div>
+</section>
+
             </div>
 
             {/* Sidebar */}

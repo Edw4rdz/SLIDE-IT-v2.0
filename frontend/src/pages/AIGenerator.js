@@ -155,20 +155,34 @@ export default function AIGenerator() {
               </div>
 
               <div className="ai-card">
-                <h2>Customize Your Presentation</h2>
-                <div className="ai-slider-section">
-                  <label htmlFor="slides">Number of Slides</label>
-                  <input
-                    type="range"
-                    id="slides"
-                    min="5"
-                    max="20"
-                    value={slides}
-                    onChange={(e) => setSlides(Number(e.target.value))}
-                  />
-                  <span id="slide-count">{slides} slides</span>
-                </div>
-              </div>
+  <h2>Customize Presentation</h2>
+  <div className="ai-slider-section centered-slide-control">
+    <label htmlFor="slides">Number of Slides</label>
+    <div className="slide-control">
+      <button
+        className="slide-btn"
+        onClick={() => setSlides((prev) => Math.max(1, prev - 1))}
+      >
+        –
+      </button>
+      <input
+        type="number"
+        id="slides"
+        value={slides}
+        onChange={(e) => setSlides(parseInt(e.target.value) || 1)}
+        className="slide-input"
+      />
+      <button
+        className="slide-btn"
+        onClick={() => setSlides((prev) => prev + 1)}
+      >
+        +
+      </button>
+    </div>
+    <span id="slide-count">{slides} slides</span>
+  </div>
+</div>
+
             </div>
 
             {/* Right */}

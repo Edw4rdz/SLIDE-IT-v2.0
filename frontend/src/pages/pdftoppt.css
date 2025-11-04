@@ -532,4 +532,91 @@ body {
   color: #333;
   text-decoration: underline;
 }
+.slide-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Center the entire number control group */
+.slide-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* centers horizontally */
+  gap: 10px; /* space between buttons and input */
+  margin-top: 10px;
+}
+.slide-input {
+  width: 60px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: 2px solid #ff5b5b;
+  border-radius: 6px;
+  padding: 5px;
+}
+
+.slide-input:focus {
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
+.slide-btn {
+  background-color: #ff5b5b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+
+.slide-btn:hover {
+  background-color: #ff3b3b;
+}
+
+.slide-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.slide-btn.plus {
+  background: #ef4444;
+  box-shadow: 0 0 10px rgba(255, 77, 72, 0.8);
+}
+
+.slide-btn.minus {
+  background: #ef4444;
+  box-shadow: 0 0 10px rgba(255, 77, 77, 0.6);
+}
+.slide-input::-webkit-inner-spin-button,
+.slide-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.slide-input {
+  -moz-appearance: textfield;
+}
+/* Center the slide controls inside Customize Output container */
+.ai-card:has(.slide-input-group) {
+  display: flex;
+  flex-direction: column;
+  justify-content: left; /* vertically center */
+  align-items: left; /* horizontally center */
+  text-align: left;
+  min-height: 220px; /* gives breathing room */
+}
+
+.ai-card .ai-slider-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ai-card .ai-slider-section label,
+.ai-card #slide-count {
+  text-align: center;
+}
+
 /* --- END ADDED STYLES --- */

@@ -510,4 +510,85 @@ textarea.slide-edit-bullets {
   100% {
     left: 100%; /* End off-screen right */
   }
+}/* ============================= */
+/* 🎨 Customize Your Presentation */
+/* ============================= */
+
+.ai-slider-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  padding: 20px 0;
+  border-top: 1px solid #eaeaea;
+  margin-top: 12px;
+}
+
+.ai-slider-section label {
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+}
+
+.slide-input-group,
+.ai-slider-section .slide-input-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Plus/Minus Buttons */
+.ai-slide-btn {
+  background: linear-gradient(135deg, #6c63ff, #7f74ff);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 3px 6px rgba(108, 99, 255, 0.25);
+  transition: all 0.2s ease-in-out;
+}
+
+.ai-slide-btn:hover {
+  background: linear-gradient(135deg, #5b52f2, #6c63ff);
+  transform: scale(1.05);
+}
+
+/* Centered Input Box */
+.ai-slide-count {
+  width: 80px;
+  height: 42px;
+  text-align: center;
+  font-size: 18px;
+  border: 1px solid #d0d0d0;
+  border-radius: 10px;
+  background: #fff;
+  color: #333;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  -moz-appearance: textfield;
+}
+
+/* Removes up/down arrows in Chrome/Edge/Safari */
+.ai-slide-count::-webkit-inner-spin-button,
+.ai-slide-count::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Removes up/down arrows in Firefox */
+.ai-slide-count {
+  -moz-appearance: textfield;
+}
+
+/* Optional subtitle text */
+#slide-count {
+  font-size: 0.95rem;
+  color: #555;
+  margin-top: 8px;
 }
