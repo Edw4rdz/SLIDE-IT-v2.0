@@ -1,11 +1,11 @@
-// src/api.js
+
 import axios from "axios";
 import PptxGenJS from "pptxgenjs";
 import { Buffer } from "buffer";
 
 const API_BASE = "http://localhost:5000/api";
 
-// ... (All other functions like registerUser, getTemplates, etc. are unchanged) ...
+
 export const registerUser = (data) => axios.post(`${API_BASE}/register`, data);
 export const loginUser = (data) => axios.post(`${API_BASE}/login`, data);
 export const convertPDF = (data) => axios.post(`${API_BASE}/convert-pdf`, data);
@@ -25,7 +25,7 @@ export const deleteHistory = (id, userId) =>
 
 
 const generateImageFromPollinations = async (prompt, retries = 1) => {
-  // ... (This function is unchanged) ...
+
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;
   const encodedPrompt = encodeURIComponent(prompt.trim());
   const url = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
@@ -47,11 +47,7 @@ const generateImageFromPollinations = async (prompt, retries = 1) => {
 };
 
 
-// -----------------------------------------------------------------------------
-// 🔹 MAIN DOWNLOAD FUNCTION (✅ UPDATED FOR "Text Only" option)
-// -----------------------------------------------------------------------------
 
-// ✅ --- LINE 1: Accept the new 'includeImages' flag ---
 export const downloadPPTX = async (slides, design, fileName = "presentation.pptx", includeImages = true) => {
   if (!slides?.length) {
     alert("No slides to export.");
@@ -75,7 +71,7 @@ export const downloadPPTX = async (slides, design, fileName = "presentation.pptx
 
     const slide = pptx.addSlide();
 
-    // --- 1. Determine Theme (Unchanged) ---
+    
     const slideLayout = s.layout || 'content';
     const layoutStyles = safeDesign.layouts?.[slideLayout] || {};
     const theme = {
@@ -85,7 +81,6 @@ export const downloadPPTX = async (slides, design, fileName = "presentation.pptx
       font: safeDesign.font || "Arial",
     };
 
-    // --- 2. Apply Background (Unchanged) ---
     let backgroundOption = {};
     const fallbackBgColor = "#FFFFFF"; 
     if (Array.isArray(theme.background)) {
@@ -109,7 +104,7 @@ export const downloadPPTX = async (slides, design, fileName = "presentation.pptx
     }
     slide.background = backgroundOption;
 
-    // --- 3. Add Title (Unchanged) ---
+
     slide.addText(String(s.title || "Untitled Slide"), {
       x: 0.5, y: 0.25, w: 9.0, h: 1.0, 
       align: "center", 
@@ -119,16 +114,15 @@ export const downloadPPTX = async (slides, design, fileName = "presentation.pptx
       color: theme.titleColor.replace("#", ""),
     });
 
-    // --- 4. Get Image (✅ LOGIC UPDATED) ---
+   
     let imageBase64 = null;
     if (s.uploadedImage) {
-      // Priority 1: Use the user's uploaded image
       console.log(`Using uploaded image for slide ${i + 1}`);
       imageBase64 = s.uploadedImage;
       
-    // ✅ --- LINE 2: Check for 'imagePrompt' AND the 'includeImages' flag ---
+
     } else if (s.imagePrompt && includeImages) {
-      // Priority 2: Fetch the AI image (only if flag is true)
+   
       console.log(`Fetching AI image for slide ${i + 1}: ${s.imagePrompt}`);
       try {
         imageBase64 = await generateImageFromPollinations(s.imagePrompt); 
@@ -136,9 +130,6 @@ export const downloadPPTX = async (slides, design, fileName = "presentation.pptx
         console.error(`Failed to fetch image for slide ${i + 1}`, err);
       }
     }
-    // (If 'includeImages' is false, this block is skipped)
-
-    // --- 5. Add Content (Unchanged) ---
     const bulletStrings = Array.isArray(s.bullets) ? s.bullets.map(b => String(b || "")) : [];
     const bulletObjects = bulletStrings.map(str => ({ 
       text: str,
@@ -149,11 +140,8 @@ export const downloadPPTX = async (slides, design, fileName = "presentation.pptx
       }
     }));
     
-    // This layout logic is already perfect. 
-    // If imageBase64 is null (because user chose "Text Only"), 
-    // it will automatically use "LAYOUT 2: No Image".
+
     if (imageBase64) {
-      // LAYOUT 1: Image exists
       if (bulletObjects.length > 0) {
         slide.addText(bulletObjects, {
           x: 0.5, y: 1.5, w: 4.5, h: 3.8, 
@@ -168,7 +156,7 @@ export const downloadPPTX = async (slides, design, fileName = "presentation.pptx
         sizing: { type: 'cover', w: 4.0, h: 3.8 }
       });
     } else {
-      // LAYOUT 2: No Image
+
       if (bulletObjects.length > 0) {
         slide.addText(bulletObjects, {
           x: 1.0, y: 1.5, w: 8.0, h: 3.8,
@@ -178,9 +166,8 @@ export const downloadPPTX = async (slides, design, fileName = "presentation.pptx
         });
       }
     }
-  } // --- End slide loop ---
+  } 
 
-  // --- Generate File (Unchanged) ---
   try {
     await pptx.writeFile({ fileName });
     console.log(`✅ Presentation "${fileName}" generated.`);

@@ -39,7 +39,6 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/customize-template" element={<CustomizeTemplate />} />
 
-        {/* 2. <-- ADD THIS ROUTE (This is the protected admin route) */}
         <Route 
           path="/admin" 
           element={

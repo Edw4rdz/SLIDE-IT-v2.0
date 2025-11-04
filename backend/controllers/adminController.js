@@ -8,16 +8,34 @@ export const getAllUsers = async (req, res) => {
     const usersSnap = await db.collection("users").get();
     const users = [];
     
+    // --- NEW LOGIC ---
+    // Get the timestamp for 30 days ago
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // --- END NEW LOGIC ---
+
     usersSnap.forEach((doc) => {
       const data = doc.data();
-      // We'll gather the basic user info
+      
+      // --- NEW LOGIC ---
+      let status = "inactive";
+      // Check if lastLogin exists and is a Firestore Timestamp
+      // (Timestamps from the server are stored as Timestamps, not strings)
+      if (data.lastLogin && data.lastLogin.toDate) { 
+        if (data.lastLogin.toDate() > thirtyDaysAgo) {
+          status = "active";
+        }
+      }
+      // --- END NEW LOGIC ---
+
       users.push({
         id: doc.id,
         username: data.username || "N/A",
         email: data.email || "N/A",
         authUID: data.authUID,
         isAdmin: data.isAdmin || false,
-        // You could later add a 'lastLogin' field to determine active/inactive
+        lastLogin: data.lastLogin?.toDate() || null, // <-- MODIFIED: Send the date
+        status: status // <-- MODIFIED: Send the new status
       });
     });
 
@@ -33,8 +51,7 @@ export const getAllUsers = async (req, res) => {
 
 /**
  * Controller: Gets usage statistics for app features.
- * This reads from the "history" collection, which your historyController also uses.
- *
+ * (This function is unchanged)
  */
 export const getAnalytics = async (req, res) => {
   try {
@@ -43,21 +60,18 @@ export const getAnalytics = async (req, res) => {
     // These names match the 'tools' array in your Dashboard.js
     //
     const featureCounts = {
-      "ai-generator": 0,
-      "pdftoppt": 0,
-      "wordtoppt": 0,
-      "texttoppt": 0,
-      "exceltoppt": 0,
+      "AI-Generated PPTs": 0,
+      "PDF-to-PPTs": 0,
+      "DOCX/WORD-to-PPTs": 0,
+      "TxT-to-PPTs": 0,
+      "Excel-to-PPTs": 0,
       "unknown": 0,
     };
 
     historySnap.forEach((doc) => {
       const historyItem = doc.data();
       
-      // *** IMPORTANT ***
-      // We must assume that your 'history' documents contain a field
-      // like 'conversionType' that stores a string (e.g., "pdftoppt").
-      // If your field is named differently, you must change 'historyItem.conversionType' below.
+      // We are looking for the 'conversionType' field
       const type = historyItem.conversionType; 
 
       if (type && featureCounts.hasOwnProperty(type)) {

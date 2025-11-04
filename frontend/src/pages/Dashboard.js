@@ -26,36 +26,46 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
   const [userName, setUserName] = useState("Loading...");
+  const [isAdmin, setIsAdmin] = useState(false); // <-- NEW: Added isAdmin STATE
 
+  // <-- FIX: RE-ADDED THE MISSING FUNCTION -->
   // Try to read cached user first (fast)
   const tryCachedUser = () => {
     try {
       const raw = localStorage.getItem("user");
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      // ✅ Use username if available
-      if (parsed && parsed.username) return parsed;
+      // We return the full parsed object now
+      if (parsed) return parsed; 
     } catch (e) {
       // ignore parse errors
     }
     return null;
   };
+  // <-- END OF FIX -->
 
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         setUserName("Unknown User");
+        setIsAdmin(false); // <-- NEW: Make sure to reset
         return;
       }
 
       // 1️⃣ Quick: try cached localStorage user
-      const cached = tryCachedUser();
+      const cached = tryCachedUser(); // <-- This call will now work
       if (cached && cached.username) {
         setUserName(cached.username);
       } else {
         setUserName("Loading...");
       }
+
+      // <-- NEW: Check cache for admin flag -->
+      if (cached?.isAdmin === true) {
+        setIsAdmin(true);
+      }
+      // <-- End of new logic -->
 
       try {
         // 2️⃣ Try to get a document with ID = auth.uid
@@ -64,6 +74,7 @@ export default function Dashboard() {
 
         if (byUidSnap.exists()) {
           const data = byUidSnap.data();
+          if (data.isAdmin === true) setIsAdmin(true); // <-- NEW: SET ADMIN
           const username =
             data.username ||
             data.name ||
@@ -78,6 +89,7 @@ export default function Dashboard() {
               username,
               email: data.email || user.email,
               user_id: user.uid,
+              isAdmin: data.isAdmin || false // <-- NEW: Cache admin status
             })
           );
           return;
@@ -91,6 +103,7 @@ export default function Dashboard() {
         if (!qSnap.empty) {
           const docSnap = qSnap.docs[0];
           const data = docSnap.data();
+          if (data.isAdmin === true) setIsAdmin(true); // <-- NEW: SET ADMIN
           const username =
             data.username ||
             data.name ||
@@ -105,12 +118,14 @@ export default function Dashboard() {
               username,
               email: data.email || user.email,
               user_id: docSnap.id,
+              isAdmin: data.isAdmin || false // <-- NEW: Cache admin status
             })
           );
           return;
         }
 
         // 4️⃣ Fallback
+        setIsAdmin(false); // <-- NEW: Fallback, not an admin
         const fallback = user.displayName || user.email || "User";
         setUserName(fallback);
         localStorage.setItem(
@@ -119,6 +134,7 @@ export default function Dashboard() {
             username: fallback,
             email: user.email,
             user_id: user.uid,
+            isAdmin: false // <-- NEW: Cache admin status
           })
         );
       } catch (err) {
@@ -172,6 +188,14 @@ export default function Dashboard() {
             <Link to="/settings">
               <i className="fa fa-cog" /> Settings
             </Link>
+
+            {/* <-- NEW: ADD THE CONDITIONAL ADMIN LINK --> */}
+            {isAdmin && (
+              <Link to="/admin" className="admin-link">
+                <i className="fa fa-shield" /> Admin Panel
+              </Link>
+            )}
+            {/* <-- End of new link --> */}
 
             {/* Upload Template Button */}
             <Link to="/uploadTemplate" className="upload-btn">

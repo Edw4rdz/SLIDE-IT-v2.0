@@ -26,7 +26,7 @@ export const handlePdfConversion = async (req, res) => {
     await saveHistory({
       userId: userId,
       fileName: fileName || "PDF Conversion", // Use fileName from frontend
-      conversionType: "pdftoppt", // <-- MODIFIED (was 'type: "PDF"')
+      conversionType: "PDF-to-PPTs", // <-- MODIFIED (was 'type: "PDF"')
       slides: slideData // Save the JSON slide data
     });
 
@@ -57,7 +57,7 @@ export const handleTextConversion = async (req, res) => {
     await saveHistory({
       userId: userId,
       fileName: text.substring(0, 40) + "...", // Use first 40 chars of text as name
-      conversionType: "texttoppt", // <-- MODIFIED (was 'type: "Text"')
+      conversionType: "TxT-to-PPTs", // <-- MODIFIED (was 'type: "Text"')
       slides: slideData
     });
 
@@ -88,7 +88,7 @@ export const handleWordConversion = async (req, res) => {
     await saveHistory({
       userId: userId,
       fileName: fileName || "Word Conversion",
-      conversionType: "wordtoppt", // <-- MODIFIED (was 'type: "Word"')
+      conversionType: "DOCX/WORD-to-PPTs", // <-- MODIFIED (was 'type: "Word"')
       slides: slideData
     });
 
@@ -119,7 +119,7 @@ export const handleExcelConversion = async (req, res) => {
     await saveHistory({
       userId: userId,
       fileName: fileName || "Excel Conversion",
-      conversionType: "exceltoppt", // <-- MODIFIED (was 'type: "Excel"')
+      conversionType: "Excel-to-PPTs", // <-- MODIFIED (was 'type: "Excel"')
       slides: slideData
     });
 
@@ -150,7 +150,7 @@ export const handleTopicGeneration = async (req, res) => {
     await saveHistory({
       userId: userId,
       fileName: topic, // Use the topic as the name
-      conversionType: "ai-generator", // <-- MODIFIED (was 'type: "AI Topic"')
+      conversionType: "AI-Generated PPTs", // <-- MODIFIED (was 'type: "AI Topic"')
       slides: slideData 
     });
 

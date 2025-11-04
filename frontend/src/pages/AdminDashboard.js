@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllUsers, fetchAnalytics } from "../adminApi"; // Our new API helper
-import "./adminDashboard.css"; // We will create this CSS file next
+import { fetchAllUsers, fetchAnalytics } from "../adminApi";
+import "./adminDashboard.css"; // We will add styles to this
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -15,7 +15,6 @@ export default function AdminDashboard() {
         setLoading(true);
         setError(null);
         
-        // Fetch both sets of data in parallel
         const [usersData, analyticsData] = await Promise.all([
           fetchAllUsers(),
           fetchAnalytics()
@@ -38,7 +37,6 @@ export default function AdminDashboard() {
     return <div className="admin-container"><h1>Loading Admin Dashboard...</h1></div>;
   }
 
-  // If we get an error (e.g., user is not an admin), show it.
   if (error) {
     return (
       <div className="admin-container">
@@ -56,7 +54,7 @@ export default function AdminDashboard() {
         <Link to="/dashboard">Back to Main Dashboard</Link>
       </header>
       
-      {/* Feature Usage Insights */}
+      {/* ... (Analytics section is unchanged) ... */}
       <section className="admin-section">
         <h2>App Usage Analytics</h2>
         {stats && (
@@ -90,19 +88,29 @@ export default function AdminDashboard() {
           <table className="user-table">
             <thead>
               <tr>
+                <th>Status</th> {/* <-- 1. ADDED HEADER */}
                 <th>Username</th>
                 <th>Email</th>
                 <th>Role</th>
-                <th>Auth UID</th>
+                <th>Last Login</th> {/* <-- 2. ADDED HEADER */}
               </tr>
             </thead>
             <tbody>
               {users.map((user) => (
                 <tr key={user.id}>
+                  {/* 3. ADDED STATUS CELL */}
+                  <td>
+                    <span className={`status-dot ${user.status}`}></span>
+                    {user.status}
+                  </td>
                   <td>{user.username}</td>
                   <td>{user.email}</td>
                   <td>{user.isAdmin ? <span className="admin-badge">Admin</span> : "User"}</td>
-                  <td>{user.authUID}</td>
+                  {/* 4. ADDED LAST LOGIN CELL */}
+                  <td>
+                    {/* Format the date string we get from the backend */}
+                    {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
+                  </td>
                 </tr>
               ))}
             </tbody>

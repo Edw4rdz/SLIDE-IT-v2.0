@@ -133,3 +133,20 @@
   font-weight: 600;
   font-size: 0.85em;
 }
+
+.user-table .status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle; 
+}
+
+.user-table .status-dot.active {
+  background-color: #28a745; /* green */
+}
+
+.user-table .status-dot.inactive {
+  background-color: #6c757d; /* gray */
+}

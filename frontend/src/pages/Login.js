@@ -18,6 +18,7 @@ import {
   query,
   where,
   getDocs,
+  updateDoc, // <-- 1. IMPORT updateDoc
 } from "firebase/firestore";
 
 export default function Login() {
@@ -25,6 +26,21 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // <-- 2. ADD A HELPER FUNCTION to update the lastLogin timestamp -->
+  const updateUserLogin = async (docId) => {
+    try {
+      const userDocRef = doc(db, "users", docId);
+      // We use updateDoc to add/update just this one field
+      await updateDoc(userDocRef, {
+        lastLogin: new Date() // Set lastLogin to the current server time
+      });
+    } catch (err) {
+      // This is not a critical error, so we just log a warning
+      console.warn("Could not update lastLogin time:", err.message);
+    }
+  };
+  // <-- End of helper function -->
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,8 +57,9 @@ export default function Login() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Try to find the user's Firestore doc by authUID (handles numeric doc id layout)
+      // Try to find the user's Firestore doc
       let userDataFromDb = null;
+      let userDocId = null; // <-- 3. We need the document ID
 
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("authUID", "==", user.uid));
@@ -51,13 +68,21 @@ export default function Login() {
       if (!querySnapshot.empty) {
         const docSnap = querySnapshot.docs[0];
         userDataFromDb = { id: docSnap.id, ...docSnap.data() };
+        userDocId = docSnap.id; // <-- 4. Get ID from query
       } else {
         // fallback: maybe some accounts were stored at users/{uid}
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           userDataFromDb = { id: userDoc.id, ...userDoc.data() };
+          userDocId = userDoc.id; // <-- 5. Get ID from doc
         }
       }
+
+      // <-- 6. CALL lastLogin UPDATE -->
+      if (userDocId) {
+        await updateUserLogin(userDocId);
+      }
+      // <-- End of new call -->
 
       // Build a consistent localStorage object
       const localUser = {
@@ -67,20 +92,17 @@ export default function Login() {
         email: userDataFromDb?.email || user.email,
         user_id: userDataFromDb?.numericId || user.uid,
         authUID: user.uid,
-        isAdmin: userDataFromDb?.isAdmin || false // <-- MODIFIED: Store admin status
+        isAdmin: userDataFromDb?.isAdmin || false
       };
 
       localStorage.setItem("user", JSON.stringify(localUser));
       alert("Login successful!");
-
-      // <-- NEW LOGIC: Redirect based on admin status -->
+      
       if (userDataFromDb?.isAdmin === true) {
         navigate("/admin");
       } else {
         navigate("/dashboard");
       }
-      // <-- End of new logic -->
-
     } catch (err) {
       console.error("Firebase login error:", err);
       let errorMessage = "Error logging in. Please try again.";
@@ -104,10 +126,9 @@ export default function Login() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // <-- NEW LOGIC: Always fetch the user doc to check admin status -->
       let userDataFromDb = null;
+      let userDocId = null; // <-- 3. We need the document ID
 
-      // 1. Try to find user doc by authUID query
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("authUID", "==", user.uid));
       const querySnapshot = await getDocs(q);
@@ -115,10 +136,11 @@ export default function Login() {
       if (!querySnapshot.empty) {
         const docSnap = querySnapshot.docs[0];
         userDataFromDb = docSnap.data();
+        userDocId = docSnap.id; // <-- 4. Get ID from query
       } else {
-        // 2. Fallback: try to get user doc by doc ID (user.uid)
         const uidRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(uidRef);
+        userDocId = user.uid; // <-- 5. The ID is the uid
         
         if (docSnap.exists()) {
           userDataFromDb = docSnap.data();
@@ -129,31 +151,32 @@ export default function Login() {
             email: user.email,
             createdAt: new Date().toISOString(),
             authUID: user.uid,
-            isAdmin: false // New users are never admins
+            isAdmin: false
           };
           await setDoc(uidRef, userDataFromDb);
         }
       }
-      // <-- End of new fetching logic -->
+
+      // <-- 6. CALL lastLogin UPDATE -->
+      await updateUserLogin(userDocId);
+      // <-- End of new call -->
 
       const localUser = {
-        username: userDataFromDb?.name || user.displayName || user.email, // <-- MODIFIED
-        email: userDataFromDb?.email || user.email, // <-- MODIFIED
+        username: userDataFromDb?.name || user.displayName || user.email,
+        email: userDataFromDb?.email || user.email,
         user_id: user.uid,
         authUID: user.uid,
-        isAdmin: userDataFromDb?.isAdmin || false // <-- MODIFIED
+        isAdmin: userDataFromDb?.isAdmin || false
       };
 
       localStorage.setItem("user", JSON.stringify(localUser));
       alert("Welcome, " + (localUser.username) + "!");
 
-      // <-- NEW LOGIC: Redirect based on admin status -->
       if (userDataFromDb?.isAdmin === true) {
         navigate("/admin");
       } else {
         navigate("/dashboard");
       }
-      // <-- End of new logic -->
       
     } catch (err) {
       console.error("Google sign-in failed:", err);
