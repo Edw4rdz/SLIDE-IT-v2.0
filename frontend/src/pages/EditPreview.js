@@ -17,6 +17,7 @@ const getPollinationsImageUrl = (prompt) => {
 
 export default function EditPreview() {
   const location = useLocation();
+  const [slides, setSlides] = useState(location.state?.slides || []);
   const navigate = useNavigate();
   
   const initialSlides = (location.state?.slides || []).map((slide, index) => ({
@@ -205,7 +206,26 @@ export default function EditPreview() {
       )
     );
   };
-  
+    // ➕ Add a new blank slide
+  const handleAddSlide = () => {
+    const newSlide = {
+      id: `slide-${Date.now()}`,
+      title: "New Slide",
+      bullets: ["New point 1", "New point 2"],
+      layout: "content",
+      uploadedImage: null,
+      imagePrompt: "",
+    };
+    setEditedSlides(prev => [...prev, newSlide]);
+  };
+
+  // ❌ Delete a slide by ID
+  const handleDeleteSlide = (slideId) => {
+    if (window.confirm("Are you sure you want to delete this slide?")) {
+      setEditedSlides(prev => prev.filter(s => s.id !== slideId));
+    }
+  };
+
   // ✅ --- THIS FUNCTION IS UPDATED --- ✅
   const handleDownload = () => {
     if (!editedSlides.length) return alert("No slides to download!");

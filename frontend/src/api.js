@@ -23,6 +23,43 @@ export const getHistory = (userId) =>
 export const deleteHistory = (id, userId) =>
   axios.delete(`${API_BASE}/conversions/${id}`, { params: { userId } });
 
+// Example prebuilt templates (you might have this in /src/api.js or /src/data/templates.js)
+export const prebuiltTemplates = [
+  {
+    id: 'template1',
+    name: 'Modern Blue',
+    colors: ['#003366', '#0099cc'],
+    images: ['modern-bg.png'],
+    slides: [
+      {
+        id: 'slide1',
+        title: 'Welcome to Modern Blue',
+        bullets: ['Clean Design', 'Professional Look', 'Easy to Customize'],
+        layout: 'title',
+      },
+      {
+        id: 'slide2',
+        title: 'About Us',
+        bullets: ['Our Mission', 'Our Team', 'Our Vision'],
+        layout: 'content',
+      },
+    ],
+  },
+  {
+    id: 'template2',
+    name: 'Creative Sunset',
+    colors: ['#ff7e5f', '#feb47b'],
+    images: ['sunset-bg.png'],
+    slides: [
+      {
+        id: 'slide1',
+        title: 'Creative Sunset Theme',
+        bullets: ['Warm Colors', 'Relaxed Vibe', 'Beautiful Gradient'],
+        layout: 'title',
+      },
+    ],
+  },
+];
 
 const generateImageFromPollinations = async (prompt, retries = 1) => {
 
@@ -47,133 +84,128 @@ const generateImageFromPollinations = async (prompt, retries = 1) => {
 };
 
 
+// 🧠 Converts slides & current design to PowerPoint exactly like Gamma
+export const downloadPPTX = async (slides, design, fileName, includeImages = true) => {
+  try {
+    const pptx = new PptxGenJS();
 
-export const downloadPPTX = async (slides, design, fileName = "presentation.pptx", includeImages = true) => {
-  if (!slides?.length) {
-    alert("No slides to export.");
-    return;
-  }
+    // --- Fix UNKNOWN-LAYOUT issue ---
+    const LAYOUT_NAME = "LAYOUT_16x9_CUSTOM";
+    pptx.defineLayout({ name: LAYOUT_NAME, width: 10.0, height: 5.625 });
+    pptx.layout = LAYOUT_NAME;
 
-  const safeDesign = design || {
-     font: "Arial",
-     globalBackground: "#ffffff",
-     globalTitleColor: "#000000",
-     globalTextColor: "#333333",
-     layouts: { title: {}, content: {} }
-  };
-  
-  const pptx = new PptxGenJS();
-  pptx.layout = "LAYOUT_WIDE"; 
-
-  for (let i = 0; i < slides.length; i++) {
-    const s = slides[i];
-    if (!s) continue; 
-
-    const slide = pptx.addSlide();
-
-    
-    const slideLayout = s.layout || 'content';
-    const layoutStyles = safeDesign.layouts?.[slideLayout] || {};
-    const theme = {
-      background: layoutStyles.background || safeDesign.globalBackground || "#FFFFFF",
-      titleColor: (layoutStyles.titleColor || safeDesign.globalTitleColor || "#000000"),
-      textColor: (layoutStyles.textColor || safeDesign.globalTextColor || "#333333"),
-      font: safeDesign.font || "Arial",
+    // Helper: make gradient → image dataURL
+    const createGradientDataURL = (colors) => {
+      if (!Array.isArray(colors) || colors.length === 0) return null;
+      const canvas = document.createElement("canvas");
+      canvas.width = 1920;
+      canvas.height = 1080;
+      const ctx = canvas.getContext("2d");
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      colors.forEach((c, i) => gradient.addColorStop(i / (colors.length - 1), c));
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/png");
     };
 
-    let backgroundOption = {};
-    const fallbackBgColor = "#FFFFFF"; 
-    if (Array.isArray(theme.background)) {
-      if (theme.background.length > 1) {
-        backgroundOption = {
-          type: "gradient",
-          colors: theme.background.map(c => c.replace("#", "")),
-          angle: safeDesign.gradientAngle || 135 
-        };
-      } else if (theme.background.length === 1) {
-        backgroundOption = { color: theme.background[0].replace("#", "") };
-      } else {
-        backgroundOption = { color: fallbackBgColor.replace("#", "") };
-      }
-    } 
-    else if (typeof theme.background === "string" && theme.background.startsWith("#")) {
-      backgroundOption = { color: theme.background.replace("#", "") };
-    } 
-    else {
-      backgroundOption = { color: fallbackBgColor.replace("#", "") };
-    }
-    slide.background = backgroundOption;
-
-
-    slide.addText(String(s.title || "Untitled Slide"), {
-      x: 0.5, y: 0.25, w: 9.0, h: 1.0, 
-      align: "center", 
-      fontFace: theme.font, 
-      fontSize: 32, 
-      bold: true, 
-      color: theme.titleColor.replace("#", ""),
-    });
-
-   
-    let imageBase64 = null;
-    if (s.uploadedImage) {
-      console.log(`Using uploaded image for slide ${i + 1}`);
-      imageBase64 = s.uploadedImage;
-      
-
-    } else if (s.imagePrompt && includeImages) {
-   
-      console.log(`Fetching AI image for slide ${i + 1}: ${s.imagePrompt}`);
+    // Helper: safely fetch remote image → dataURL (avoids CORS failure)
+    const fetchAsDataURL = async (url) => {
       try {
-        imageBase64 = await generateImageFromPollinations(s.imagePrompt); 
-      } catch (err) {
-        console.error(`Failed to fetch image for slide ${i + 1}`, err);
-      }
-    }
-    const bulletStrings = Array.isArray(s.bullets) ? s.bullets.map(b => String(b || "")) : [];
-    const bulletObjects = bulletStrings.map(str => ({ 
-      text: str,
-      options: { 
-        fontFace: theme.font, 
-        fontSize: 18, 
-        color: theme.textColor.replace("#", ""),
-      }
-    }));
-    
-
-    if (imageBase64) {
-      if (bulletObjects.length > 0) {
-        slide.addText(bulletObjects, {
-          x: 0.5, y: 1.5, w: 4.5, h: 3.8, 
-          align: "left", 
-          bullet: { type: 'bullet', code: '2022' },
-          lineSpacing: 30,
+        const response = await fetch(url, { mode: "cors" });
+        const blob = await response.blob();
+        return await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
         });
+      } catch (e) {
+        console.warn("CORS blocked or fetch failed for:", url);
+        return null;
       }
-      slide.addImage({
-        data: imageBase64,
-        x: 5.5, y: 1.5, w: 4.0, h: 3.8, 
-        sizing: { type: 'cover', w: 4.0, h: 3.8 }
+    };
+
+    for (let i = 0; i < slides.length; i++) {
+      const sdata = slides[i];
+      const slide = pptx.addSlide();
+
+      const layoutType = sdata.layout || "content";
+      const layoutStyle = design?.layouts?.[layoutType] || {};
+      const bgVal = layoutStyle.background ?? design?.globalBackground ?? "#FFFFFF";
+
+      // ---- BACKGROUND ----
+      if (Array.isArray(bgVal) && bgVal.length > 1) {
+        const dataUrl = createGradientDataURL(bgVal);
+        if (dataUrl) slide.addImage({ data: dataUrl, x: 0, y: 0, w: "100%", h: "100%" });
+        else slide.background = { color: bgVal[0] };
+      } else if (typeof bgVal === "string" && bgVal.startsWith("http")) {
+        const dataUrl = await fetchAsDataURL(bgVal);
+        if (dataUrl)
+          slide.addImage({ data: dataUrl, x: 0, y: 0, w: "100%", h: "100%" });
+        else slide.background = { color: "#FFFFFF" };
+      } else {
+        slide.background = { color: Array.isArray(bgVal) ? bgVal[0] : bgVal };
+      }
+
+      // ---- TITLE ----
+      slide.addText(sdata.title || "", {
+        x: 0.5,
+        y: 0.4,
+        w: 9,
+        h: 1,
+        color: layoutStyle.titleColor || design?.globalTitleColor || "#000000",
+        fontFace: design?.font || "Arial",
+        fontSize: 28,
+        bold: true,
+        align: "left",
       });
-    } else {
 
-      if (bulletObjects.length > 0) {
-        slide.addText(bulletObjects, {
-          x: 1.0, y: 1.5, w: 8.0, h: 3.8,
-          align: "left",
-          bullet: { type: 'bullet', code: '2022' },
-          lineSpacing: 30,
+      // ---- BULLETS ----
+      const bullets = Array.isArray(sdata.bullets)
+        ? sdata.bullets
+        : sdata.bullets
+        ? sdata.bullets.split("\n")
+        : [];
+      if (bullets.length) {
+        slide.addText(bullets.map((b) => `• ${b}`).join("\n"), {
+          x: 0.5,
+          y: 1.6,
+          w: 6.8,
+          h: 3.6,
+          color: layoutStyle.textColor || design?.globalTextColor || "#333333",
+          fontFace: design?.font || "Arial",
+          fontSize: 18,
+          lineSpacing: 20,
         });
       }
-    }
-  } 
 
-  try {
+      // ---- IMAGE ----
+      if (includeImages && (sdata.uploadedImage || sdata.imagePrompt)) {
+        let imgSrc = sdata.uploadedImage;
+        if (!imgSrc && sdata.imagePrompt) {
+          const encoded = encodeURIComponent((sdata.imagePrompt || "").trim());
+          imgSrc = `https://image.pollinations.ai/prompt/${encoded}`;
+        }
+        if (imgSrc) {
+          let dataUrl = imgSrc.startsWith("data:")
+            ? imgSrc
+            : await fetchAsDataURL(imgSrc);
+          if (dataUrl) {
+            slide.addImage({
+              data: dataUrl,
+              x: 7.3,
+              y: 1.0,
+              w: 2.7,
+              h: 3.5,
+              sizing: { type: "contain", w: 2.7, h: 3.5 },
+            });
+          }
+        }
+      }
+    }
+
     await pptx.writeFile({ fileName });
-    console.log(`✅ Presentation "${fileName}" generated.`);
   } catch (err) {
-    console.error("❌ Error generating PPTX file:", err);
-    alert(`Error saving presentation: ${err.message || "Unknown error"}`);
-    throw err;
+    console.error("Error generating PPTX:", err);
+    alert("Failed to generate PPTX file. Check console for details.");
   }
 };

@@ -45,19 +45,19 @@ export const PREBUILT_TEMPLATES = [
       // ✅ CHANGED to an array
       globalBackground: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
       globalTitleColor: "#FFD700",
-      globalTextColor: "#CCCCCC",
+      globalTextColor: "#E5E5E5",
       layouts: {
         title: {
           // ✅ CHANGED to an array
           background: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
           titleColor: "#FFD700",
-          textColor: "#CCCCCC",
+          textColor: "#E5E5E5",
         },
         content: {
           // ✅ CHANGED to an array
           background: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
           titleColor: "#FFD700",
-          textColor: "#CCCCCC",
+          textColor: "#E5E5E5",
         },
       },
     },

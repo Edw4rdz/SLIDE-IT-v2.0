@@ -97,16 +97,36 @@ export default function UploadTemplate() {
 
   // Handle selecting any template
   // Handle selecting any template
-   const handleSelectTemplate = (tpl) => {
-     setSelectedTemplate(tpl);
-     localStorage.setItem('selectedTemplate', JSON.stringify(tpl));
-     const type = tpl.isUploaded ? 'uploaded' : 'pre-built';
-     alert(`✅ Selected "${tpl.name}" (${type}) — now you can customize it.`); // Updated alert message
+ const handleSelectTemplate = (tpl) => {
+  const editableCopy = {
+    ...tpl,
+    id: `copy-${tpl.id}-${Date.now()}`,
+    name: `${tpl.name} (Copy)`,
+  };
 
-     // ⬇️ *** CHANGE ***
-     // Navigate to the new customization page instead of the dashboard
-     navigate('/customize-template');
-   };
+  localStorage.setItem('selectedTemplate', JSON.stringify(editableCopy));
+
+  // ✅ Pass slides to EditPreview (use tpl.slides if it exists)
+  const slidesToLoad = tpl.slides?.length ? tpl.slides : [
+    {
+      id: `slide-1-${Date.now()}`,
+      title: 'Sample Slide',
+      bullets: ['This is a sample slide.'],
+      layout: 'title',
+    },
+  ];
+
+  navigate('/edit-preview', {
+    state: {
+      slides: slidesToLoad,
+      initialDesign: editableCopy,
+      topic: tpl.name,
+      includeImages: true,
+    },
+  });
+};
+
+
 
 
   // Handle logout
