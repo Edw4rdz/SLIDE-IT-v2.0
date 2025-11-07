@@ -217,13 +217,11 @@ export default function WordToPPT() {
             {/* Right Column */}
             <div className="ai-right">
               <div className="ai-info-box">
-                <h3>Smart Conversion</h3>
+                <h3>How it Works</h3>
                 <ul>
-                  <li>Automatic heading detection</li>
-                  <li>Preserves formatting and styles</li>
-                  <li>Converts tables and lists</li>
+                  <li>Summarizes your documents</li>
                   <li>Imports images and graphics</li>
-                  <li>Creates professional layouts</li>
+                  <li>Edit your content for clarity and conciseness</li>
                 </ul>
               </div>
               <div className="ai-info-box">

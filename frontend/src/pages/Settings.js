@@ -280,7 +280,7 @@ export default function Settings() {
                 )}
 
                 <button className="save-btn" type="submit" disabled={fbSubmitting}>
-                  {fbSubmitting ? 'Sending...' : 'Submit feedback'}
+                  {fbSubmitting ? 'Sending...' : 'Submit Feedback'}
                 </button>
               </form>
             </div>
