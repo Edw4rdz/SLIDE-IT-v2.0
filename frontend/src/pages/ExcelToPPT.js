@@ -1,8 +1,8 @@
 import React, { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaSignOutAlt, FaUpload } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { convertExcel } from "../api";
-import "./exceltoppt.css";
+import "../styles/exceltoppt.css";
+import Sidebar from "../components/Sidebar";
 
 export default function ExcelToPPT() {
   const [file, setFile] = useState(null);
@@ -13,7 +13,6 @@ export default function ExcelToPPT() {
   const [loadingText, setLoadingText] = useState("");
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
   // Handle file selection (No changes, this is perfect)
@@ -95,108 +94,51 @@ export default function ExcelToPPT() {
     reader.readAsDataURL(file);
   };
 
-  // 🔒 Logout (No changes, this is perfect)
-  const handleLogout = () => {
-    if (!window.confirm("Are you sure you want to log out?")) return;
-    setLoggingOut(true);
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-    setTimeout(() => navigate("/login"), 1200);
-  };
-
   return (
     <div className="dashboard">
-      {/* Sidebar (No changes) */}
-      <aside className="ai-sidebar">
-        <div className="ai-logo">
-          <i className="fa fa-magic"></i>
-          <div className="logo-text">
-            <h2>SLIDE-IT</h2>
-            <p>Convert & Generate</p>
-          </div>
-        </div>
+      <Sidebar activePage="dashboard" />
 
-        <nav className="ai-nav">
-          <div className="top-links">
-            <Link to="/dashboard" className="active">
-              <i className="fa fa-home"></i> Dashboard
-            </Link>
-            <Link to="/conversion">
-              <i className="fa fa-history"></i> Drafts
-            </Link>
-            <Link to="/settings">
-              <i className="fa fa-cog"></i> Settings
-            </Link>
-            <Link to="/uploadTemplate" className="upload-btn">
-              <FaUpload className="icon" /> Upload Template
-            </Link>
-          </div>
-
-          <div className="bottom-links">
-            <div className="logout-btn" onClick={handleLogout}>
-              <FaSignOutAlt className="icon" /> Logout
-              {loggingOut && <div className="spinner-small"></div>}
-            </div>
-          </div>
-        </nav>
-      </aside>
-
-      {/* Main Content (No changes to JSX) */}
       <main className="main">
-        <div className="container">
-          {/* Header */}
-          <header className="header">
-            <div className="header-icon">XLSX</div>
+        <div className="ai-container exceltoppt">
+          <header className="headerp">
+            <div className="headerp-icon">XLSX</div>
             <div>
               <h1>Excel to PPT Converter</h1>
               <p>Transform your Excel sheets into editable AI slides</p>
             </div>
           </header>
 
-          <div className="content-grid">
-            <div className="main-cards">
-              <section className="card">
+          <div className="ai-content">
+            {/* Left */}
+            <div className="ai-left">
+              <div className="ai-card ai-card-top">
                 <h2>Upload Your Excel File</h2>
                 <div
-                  className="file-upload"
+                  className="uploadp-area"
                   onClick={() => fileInputRef.current.click()}
                 >
-                  <div className="uploade-area">
-                    <div className="uploade-icon">⬆</div>
-                    {file ? (
-                      <p>
-                        <strong>{file.name}</strong> loaded
-                      </p>
-                    ) : (
-                      <p>
-                        Drop your Excel file here or{" "}
-                        <span className="browse">browse</span>
-                      </p>
-                    )}
-                    <p>Supports .xlsx and .xls up to 50MB</p>
-                  </div>
+                  <div className="uploadp-icon">⬆</div>
+                  {file ? (
+                    <p className="file-name">📑 {file.name}</p>
+                  ) : (
+                    <h3>Drop or browse your .xlsx file</h3>
+                  )}
+                  <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '8px' }}>
+                    Supports .xlsx and .xls up to 50MB
+                  </p>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    className="file-input"
                     accept=".xlsx,.xls"
-                    style={{ display: "none" }}
                     onChange={handleFileChange}
+                    style={{ display: "none" }}
                   />
                 </div>
 
                 <button
-                  className="convert-btn"
-                  onClick={() => {
-                    if (convertedSlides) {
-                      navigate("/edit-preview", {
-                        state: { slides: convertedSlides, topic },
-                      });
-                    } else {
-                      handleConvert();
-                    }
-                  }}
-                  disabled={isLoading}
+                  onClick={handleConvert}
+                  className="uploadp-btn"
+                  disabled={isLoading || !file}
                 >
                   {isLoading ? (
                     <div className="progress-bar-container">
@@ -204,56 +146,64 @@ export default function ExcelToPPT() {
                       <span className="progress-text">{loadingText}</span>
                     </div>
                   ) : convertedSlides ? (
-                    "📝 Edit & Preview Slides"
+                    "✅ Converted! Edit Now"
                   ) : (
                     "Convert to PowerPoint"
                   )}
                 </button>
-              </section>
 
-              {/* Customize */}
-              {/* Customize */}
-<section className="card">
-  <h2>Customize Your Presentation</h2>
-  <div className="customize-section">
-    <label htmlFor="slidesCount">Number of Slides</label>
-    <div className="slide-control">
-      <button
-        type="button"
-        className="slide-btn"
-        onClick={() => setSlidesCount((prev) => Math.max(1, prev - 1))}
-      >
-        –
-      </button>
+                {convertedSlides && (
+                  <div className="after-convert-actions">
+                    <button
+                      className="edit-preview-btn"
+                      onClick={() =>
+                        navigate("/edit-preview", {
+                          state: { slides: convertedSlides, topic },
+                        })
+                      }
+                    >
+                      📝 Edit & Preview Slides
+                    </button>
+                  </div>
+                )}
+              </div>
 
-      <input
-        type="number"
-        id="slidesCount"
-        value={slidesCount}
-        onChange={(e) => {
-          const val = parseInt(e.target.value);
-          if (!isNaN(val) && val >= 1) setSlidesCount(val);
-        }}
-        className="slide-input"
-      />
-
-      <button
-        type="button"
-        className="slide-btn"
-        onClick={() => setSlidesCount((prev) => prev + 1)}
-      >
-        +
-      </button>
-    </div>
-    <span className="slide-count">Total Slides: {slidesCount}</span>
-  </div>
-</section>
-
+              <div className="ai-card">
+                <h2>Customize Your Presentation</h2>
+                <div className="ai-slider-section centered-slide-control">
+                  <label htmlFor="slidesCount">Number of Slides</label>
+                  <div className="slide-control">
+                    <button
+                      className="slide-btn minus"
+                      onClick={() => setSlidesCount((prev) => Math.max(1, prev - 1))}
+                    >
+                      –
+                    </button>
+                    <input
+                      type="number"
+                      id="slidesCount"
+                      value={slidesCount}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val) && val >= 1) setSlidesCount(val);
+                      }}
+                      className="slide-input"
+                    />
+                    <button
+                      className="slide-btn plus"
+                      onClick={() => setSlidesCount((prev) => prev + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <span id="slide-count">Total Slides: {slidesCount}</span>
+                </div>
+              </div>
             </div>
 
-            {/* Sidebar */}
-            <aside className="right-sidebar">
-              <section className="card">
+            {/* Right */}
+            <div className="ai-right">
+              <div className="ai-info-box">
                 <h3>How it Works</h3>
                 <ol>
                   <li>Upload your Excel document.</li>
@@ -261,9 +211,9 @@ export default function ExcelToPPT() {
                   <li>AI automatically creates your presentation.</li>
                   <li>Preview & edit slides interactively before download.</li>
                 </ol>
-              </section>
+              </div>
 
-              <section className="card">
+              <div className="ai-info-box">
                 <h3>Tips</h3>
                 <ul>
                   <li>Include well-structured headers for better results.</li>
@@ -271,8 +221,8 @@ export default function ExcelToPPT() {
                   <li>Keep large files under 50MB.</li>
                   <li>Use 5–15 slides for balanced detail.</li>
                 </ul>
-              </section>
-            </aside>
+              </div>
+            </div>
           </div>
         </div>
       </main>

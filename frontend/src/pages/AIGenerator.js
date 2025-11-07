@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaSignOutAlt, FaUpload, FaMagic, FaEdit } from "react-icons/fa";
-// import axios from "axios"; // <-- REMOVED
-import { generateSlides } from "../api"; // <-- 1. IMPORTED from api.js
-import "./ai-generator.css";
+import { useNavigate } from "react-router-dom";
+import { FaMagic, FaEdit } from "react-icons/fa";
+import { generateSlides } from "../api"; // <-- 3. RE-ADDED THIS MISSING IMPORT
+import "../styles/ai-generator.css";
+import Sidebar from "../components/Sidebar"; 
 
 export default function AIGenerator() {
   const [slides, setSlides] = useState(10);
@@ -11,20 +11,9 @@ export default function AIGenerator() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
   const [convertedSlides, setConvertedSlides] = useState([]);
-  // const [downloadUrl, setDownloadUrl] = useState(null); // <-- REMOVED
-
+ 
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
-
-  // Logout (no change)
-  const handleLogout = () => {
-    if (!window.confirm("Are you sure you want to log out?")) return;
-    setLoggingOut(true);
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-    setTimeout(() => navigate("/login"), 1200);
-  };
 
   // Generate slides (FIXED)
   const handleGenerate = async () => {
@@ -54,9 +43,10 @@ export default function AIGenerator() {
       setConvertedSlides(slidesWithId);
       setLoadingText("Slides generated successfully!");
 
-    } catch (err) {
+    } catch (err)
+ {
       console.error(err);
-      alert("AI slide generation failed: " + err.response?.data?.error || err.message);
+      alert("AI slide generation failed: " + (err.response?.data?.error || err.message));
     } finally {
       setIsLoading(false);
       setLoadingText("");
@@ -79,35 +69,14 @@ export default function AIGenerator() {
   };
 
   return (
-    <div className="ai-dashboard">
-      {/* Sidebar (no changes) */}
-      <aside className="ai-sidebar">
-        <div className="ai-logo">
-          <i className="fa fa-magic"></i>
-          <div className="logo-text">
-            <h2>SLIDE-IT</h2>
-            <p>Convert & Generate</p>
-          </div>
-        </div>
-        <nav className="ai-nav">
-          <div className="top-links">
-            <Link to="/dashboard" className="active"><i className="fa fa-home"></i> Dashboard</Link>
-            <Link to="/conversion"><i className="fa fa-history"></i> Drafts</Link>
-            <Link to="/settings"><i className="fa fa-cog"></i> Settings</Link>
-            <Link to="/uploadTemplate" className="upload-btn"><FaUpload className="icon" /> Upload Template</Link>
-          </div>
-          <div className="bottom-links">
-            <div className="logout-btn" onClick={handleLogout}>
-              <FaSignOutAlt className="icon" /> Logout
-              {loggingOut && <div className="spinner-small"></div>}
-            </div>
-          </div>
-        </nav>
-      </aside>
+    // 1. CHANGED "ai-dashboard" to "dashboard" for uniform layout
+    <div className="dashboard">
+      
+      <Sidebar activePage="dashboard" />
 
-      {/* Main Content (no changes to JSX) */}
-      <main className="ai-main">
-        <div className="ai-container">
+      {/* 2. CHANGED "ai-main" to "main" for uniform layout */}
+      <main className="main">
+        <div className="ai-container aigenerator">
           <header className="headera">
             <div className="headera-icon">AI</div>
             <div>
@@ -182,7 +151,6 @@ export default function AIGenerator() {
     <span id="slide-count">{slides} slides</span>
   </div>
 </div>
-
             </div>
 
             {/* Right */}

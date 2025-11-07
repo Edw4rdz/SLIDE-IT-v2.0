@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaSignOutAlt, FaUpload } from "react-icons/fa";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, onAuthStateChanged} from "firebase/auth"; 
 import {
   doc,
   getDoc,
@@ -10,9 +9,10 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { db } from "../firebase"; // adjust path if needed
-import "./dashboard.css";
+import { db } from "../firebase"; 
+import "../styles/dashboard.css";
 import "font-awesome/css/font-awesome.min.css";
+import Sidebar from "../components/Sidebar"; 
 
 const tools = [
   { title: "AI PowerPoint Generator", desc: "Create professional slides from any topic using AI.", icon: "fa-cogs", colorClass: "plus", path: "/ai-generator" },
@@ -23,49 +23,44 @@ const tools = [
 ];
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
   const [userName, setUserName] = useState("Loading...");
-  const [isAdmin, setIsAdmin] = useState(false); // <-- NEW: Added isAdmin STATE
+  const [isAdmin, setIsAdmin] = useState(false); 
 
-  // <-- FIX: RE-ADDED THE MISSING FUNCTION -->
-  // Try to read cached user first (fast)
+ 
   const tryCachedUser = () => {
     try {
       const raw = localStorage.getItem("user");
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      // We return the full parsed object now
+
       if (parsed) return parsed; 
     } catch (e) {
-      // ignore parse errors
+      console.error("Error parsing cached user:", e);
     }
     return null;
   };
-  // <-- END OF FIX -->
 
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         setUserName("Unknown User");
-        setIsAdmin(false); // <-- NEW: Make sure to reset
+        setIsAdmin(false); 
         return;
       }
 
       // 1️⃣ Quick: try cached localStorage user
-      const cached = tryCachedUser(); // <-- This call will now work
+      const cached = tryCachedUser(); 
       if (cached && cached.username) {
         setUserName(cached.username);
       } else {
         setUserName("Loading...");
       }
 
-      // <-- NEW: Check cache for admin flag -->
+      // Check cache for admin flag
       if (cached?.isAdmin === true) {
         setIsAdmin(true);
       }
-      // <-- End of new logic -->
 
       try {
         // 2️⃣ Try to get a document with ID = auth.uid
@@ -74,7 +69,7 @@ export default function Dashboard() {
 
         if (byUidSnap.exists()) {
           const data = byUidSnap.data();
-          if (data.isAdmin === true) setIsAdmin(true); // <-- NEW: SET ADMIN
+          if (data.isAdmin === true) setIsAdmin(true); 
           const username =
             data.username ||
             data.name ||
@@ -89,7 +84,7 @@ export default function Dashboard() {
               username,
               email: data.email || user.email,
               user_id: user.uid,
-              isAdmin: data.isAdmin || false // <-- NEW: Cache admin status
+              isAdmin: data.isAdmin || false 
             })
           );
           return;
@@ -103,7 +98,7 @@ export default function Dashboard() {
         if (!qSnap.empty) {
           const docSnap = qSnap.docs[0];
           const data = docSnap.data();
-          if (data.isAdmin === true) setIsAdmin(true); // <-- NEW: SET ADMIN
+          if (data.isAdmin === true) setIsAdmin(true); 
           const username =
             data.username ||
             data.name ||
@@ -118,14 +113,14 @@ export default function Dashboard() {
               username,
               email: data.email || user.email,
               user_id: docSnap.id,
-              isAdmin: data.isAdmin || false // <-- NEW: Cache admin status
+              isAdmin: data.isAdmin || false 
             })
           );
           return;
         }
 
         // 4️⃣ Fallback
-        setIsAdmin(false); // <-- NEW: Fallback, not an admin
+        setIsAdmin(false); 
         const fallback = user.displayName || user.email || "User";
         setUserName(fallback);
         localStorage.setItem(
@@ -134,7 +129,7 @@ export default function Dashboard() {
             username: fallback,
             email: user.email,
             user_id: user.uid,
-            isAdmin: false // <-- NEW: Cache admin status
+            isAdmin: false 
           })
         );
       } catch (err) {
@@ -149,69 +144,13 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleLogout = async () => {
-    const confirmLogout = window.confirm("Are you sure you want to log out?");
-    if (!confirmLogout) return;
-
-    setLoggingOut(true);
-    try {
-      const auth = getAuth();
-      await signOut(auth);
-      localStorage.removeItem("user");
-      sessionStorage.removeItem("user");
-      navigate("/login");
-    } catch (err) {
-      console.error("Logout error:", err);
-      setLoggingOut(false);
-    }
-  };
+  // const handleLogout = async () => { ... }; // <-- 3. REMOVED (Sidebar handles this)
 
   return (
     <div className="dashboard">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="fa fa-magic logo">
-          <div>
-            <h2>SLIDE-IT</h2>
-            <p>Convert & Generate</p>
-          </div>
-        </div>
-
-        <nav className="sidebar-links">
-          <div className="top-links">
-            <Link to="/dashboard" className="active">
-              <i className="fa fa-home" /> Dashboard
-            </Link>
-            <Link to="/conversion">
-              <i className="fa fa-history" /> Drafts
-            </Link>
-            <Link to="/settings">
-              <i className="fa fa-cog" /> Settings
-            </Link>
-
-            {/* <-- NEW: ADD THE CONDITIONAL ADMIN LINK --> */}
-            {isAdmin && (
-              <Link to="/admin" className="admin-link">
-                <i className="fa fa-shield" /> Admin Panel
-              </Link>
-            )}
-            {/* <-- End of new link --> */}
-
-            {/* Upload Template Button */}
-            <Link to="/uploadTemplate" className="upload-btn">
-              <FaUpload className="icon" /> Upload Template
-            </Link>
-          </div> 
-
-          {/* Logout always at bottom */}
-          <div className="bottom-links">
-            <div className="logout-btn" onClick={handleLogout}>
-              <FaSignOutAlt className="icon" /> Logout
-              {loggingOut && <div className="spinner-small"></div>}
-            </div>
-          </div>
-        </nav>
-      </aside>
+      
+      {/* Sidebar Component */}
+      <Sidebar activePage="dashboard" isAdmin={isAdmin} />
 
       {/* Main Content */}
       <main className="main">

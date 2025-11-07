@@ -1,0 +1,493 @@
+/* Global reset - Ensure consistency with dashboard */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  width: 100vw;
+}
+
+/* Main Content - RENAMED from .ai-main */
+.main {
+  margin-left: 230px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: calc(100vw - 230px);
+  overflow-x: hidden;
+  padding: 30px;
+}
+
+/* Container */
+.ai-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+}
+
+/* Header */
+.headerp {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.pdftoppt .headerp-icon {
+  width: 50px;
+  height: 50px;
+  background: #ef4444 !important;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  border-radius: 10px;
+}
+
+/* Content */
+.ai-content {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+}
+
+/* Left Column */
+.ai-left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Card */
+.ai-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.ai-card-top {
+  margin-bottom: 20px;
+}
+
+.ai-card h2 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+}
+
+.ai-card h4 {
+  font-size: 1rem;
+  margin-bottom: 15px;
+}
+
+.ai-section-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.pdftoppt .uploadp-area {
+  border: 2px dashed #ef4444 !important; 
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center;
+  position: relative;
+  transition: background 0.3s;
+}
+
+.pdftoppt .uploadp-area:hover {
+  background: #fee2e2 !important;
+}
+
+.pdftoppt .uploadp-icon {
+  font-size: 2rem;
+  color: #ef4444 !important;
+  margin-bottom: 10px;
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.browsep {
+  color: #ef4444;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.file-name {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.pdftoppt .uploadp-btn {
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  width: 100%;
+  padding: 10px;
+  background: #ef4444 !important;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: background 0.3s;
+  min-height: 45px; 
+  font-weight: 600; 
+}
+
+.pdftoppt .uploadp-btn:hover {
+  background: #dc2626 !important;
+}
+
+.ai-slider-section {
+  margin-bottom: 20px;
+}
+
+.ai-slider-section label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ai-slider-section input[type="range"] {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+#slide-count {
+  display: block;
+  text-align: right;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Right Column */
+.ai-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Info Box */
+.ai-info-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.ai-info-box h3 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+}
+
+.ai-info-box ol,
+.ai-info-box ul {
+  list-style-position: inside;
+  padding-left: 0;
+}
+
+.ai-info-box li {
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.ai-features li {
+  position: relative;
+  padding-left: 15px;
+}
+
+.ai-features li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  color: #ef4444;
+}
+
+.after-convert-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.edit-preview-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-preview-btn:hover {
+  background-color: #4338ca;
+  transform: scale(1.05);
+}
+
+.uploadp-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; 
+  background-color: #b91c1c; 
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; 
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.uploadp-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; 
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); 
+}
+
+.uploadp-btn .progress-bar-indeterminate {
+  width: 60%; 
+  height: 100%;
+  background-color: #ef4444; 
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+  
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; 
+  }
+  100% {
+    left: 100%; 
+  }
+}
+/* --- MODAL STYLES --- */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 450px;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.modal-content p {
+  margin-bottom: 25px;
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.modal-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-btn svg {
+  font-size: 2rem;
+}
+
+.modal-btn.btn-text {
+  background: #f8f9fa;
+  color: #495057;
+}
+.modal-btn.btn-text:hover {
+  border-color: #6c757d;
+  background: #e9ecef;
+}
+
+.modal-btn.btn-image {
+  background: #f0f3ff;
+  color: #4150ff;
+  border-color: #dbe1ff;
+}
+.modal-btn.btn-image:hover {
+  background: #e0e5ff;
+  border-color: #4150ff;
+}
+
+.modal-btn-cancel {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 10px;
+  font-size: 0.9rem;
+}
+.modal-btn-cancel:hover {
+  color: #333;
+  text-decoration: underline;
+}
+.slide-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slide-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center; 
+  gap: 10px; 
+  margin-top: 10px;
+}
+
+/* =================================
+  PDF to PPT - RED THEME
+  =================================
+*/
+.pdftoppt .slide-input {
+  width: 80px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: 2px solid #ef4444;
+  color: #333;
+  text-align: center;
+  padding: 5px;
+}
+
+.pdftoppt .slide-input:focus {
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+  outline: none;
+}
+
+.pdftoppt .slide-btn {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s ease;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.pdftoppt .slide-btn:hover {
+  background-color: #dc2626;
+}
+
+.pdftoppt .slide-btn:active {
+  transform: scale(0.95);
+  background-color: #b91c1c;
+}
+
+.pdftoppt .slide-btn.plus {
+  background-color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+}
+
+.pdftoppt .slide-btn.minus {
+  background-color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+.pdftoppt .slide-input::-webkit-inner-spin-button,
+.pdftoppt .slide-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pdftoppt .slide-input {
+  -moz-appearance: textfield;
+}
+
+.ai-card:has(.slide-input-group) {
+  display: flex;
+  flex-direction: column;
+  justify-content: left; 
+  align-items: left; 
+  text-align: left;
+  min-height: 220px; 
+}
+
+.ai-card .ai-slider-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ai-card .ai-slider-section label,
+.ai-card #slide-count {
+  text-align: center;
+}

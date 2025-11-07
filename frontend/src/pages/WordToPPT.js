@@ -1,9 +1,10 @@
 import React, { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaSignOutAlt, FaUpload, FaImages, FaFileAlt } from "react-icons/fa";
+import { useNavigate } from "react-router-dom"; // Link, FaSignOutAlt, FaUpload removed
+import { FaImages, FaFileAlt } from "react-icons/fa";
 import { convertWord } from "../api";
-import "./wordtoppt.css";
+import "../styles/wordtoppt.css";
 import "font-awesome/css/font-awesome.min.css";
+import Sidebar from "../components/Sidebar"; // <-- 1. IMPORTED SIDEBAR
 
 export default function WordToPPT() {
   const navigate = useNavigate();
@@ -13,15 +14,13 @@ export default function WordToPPT() {
   const [loadingText, setLoadingText] = useState("");
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
-  const [loggingOut, setLoggingOut] = useState(false);
+  // const [loggingOut, setLoggingOut] = useState(false); // <-- 2. REMOVED
   const fileInputRef = useRef(null);
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
-  // ✅ New modal state and image choice
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
 
-  // 📂 File selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (
@@ -37,7 +36,6 @@ export default function WordToPPT() {
     }
   };
 
-  // ✅ Instead of converting directly, open modal first
   const handleUpload = () => {
     if (!file) return alert("Please select a Word document first");
     if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
@@ -46,7 +44,6 @@ export default function WordToPPT() {
     setIsModalOpen(true);
   };
 
-  // ✅ Handles the conversion after user chooses option
   const handleConversionStart = async (includeImages) => {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
@@ -66,7 +63,7 @@ export default function WordToPPT() {
           slides,
           userId: loggedInUser.user_id,
           fileName: file.name,
-          includeImages: includeImages, // ✅ Added this line
+          includeImages: includeImages,
         });
 
         if (response.data && Array.isArray(response.data)) {
@@ -95,53 +92,17 @@ export default function WordToPPT() {
     };
   };
 
-  // 🔒 Logout
-  const handleLogout = () => {
-    if (!window.confirm("Are you sure you want to log out?")) return;
-    setLoggingOut(true);
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-    setTimeout(() => navigate("/login"), 1000);
-  };
+  // const handleLogout = () => { ... }; // <-- 3. REMOVED
 
   return (
-    <div className="ai-dashboard">
-      {/* Sidebar */}
-      <aside className="ai-sidebar">
-        <div className="ai-logo">
-          <i className="fa fa-magic"></i>
-          <div className="logo-text">
-            <h2>SLIDE-IT</h2>
-            <p>Convert & Generate</p>
-          </div>
-        </div>
-        <nav className="ai-nav">
-          <div className="top-links">
-            <Link to="/dashboard" className="active">
-              <i className="fa fa-home"></i> Dashboard
-            </Link>
-            <Link to="/conversion">
-              <i className="fa fa-history"></i> Drafts
-            </Link>
-            <Link to="/settings">
-              <i className="fa fa-cog"></i> Settings
-            </Link>
-            <Link to="/uploadTemplate" className="upload-btn">
-              <FaUpload className="icon" /> Upload Template
-            </Link>
-          </div>
-          <div className="bottom-links">
-            <div className="logout-btn" onClick={handleLogout}>
-              <FaSignOutAlt className="icon" /> Logout
-              {loggingOut && <div className="spinner-small"></div>}
-            </div>
-          </div>
-        </nav>
-      </aside>
+    // 4. CHANGED to 'dashboard'
+    <div className="dashboard">
+      {/* 5. REPLACED old aside with Sidebar component */}
+      <Sidebar activePage="dashboard" />
 
-      {/* Main Content */}
-      <main className="mainw">
-        <div className="containerw">
+      {/* 6. CHANGED to 'main' */}
+      <main className="main">
+        <div className="containerw wordtoppt">
           <header className="header">
             <div className="headerw-icon">DOCX</div>
             <div>
@@ -175,7 +136,6 @@ export default function WordToPPT() {
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
 
-                {/* Convert button now opens modal */}
                 <button
                   onClick={handleUpload}
                   className="convertw-btn"
@@ -193,7 +153,6 @@ export default function WordToPPT() {
                   )}
                 </button>
 
-                {/* Edit/Preview button after conversion */}
                 {convertedSlides && (
                   <div className="after-convert-actions">
                     <button
@@ -216,42 +175,43 @@ export default function WordToPPT() {
 
               {/* Customize Slides */}
               <div className="ai-card">
-  <h2>Customize Output</h2>
-  <div className="ai-slider-section">
-    <label htmlFor="slides">Number of Slides</label>
-    <div className="slide-input-group">
-      <button
-        type="button"
-        className="slide-btn minus"
-        onClick={() => setSlides((prev) => Math.max(1, prev - 1))}
-      >
-        ➖
-      </button>
+                <h2>Customize Output</h2>
+                <div className="ai-slider-section">
+                  <label htmlFor="slides">Number of Slides</label>
+                  <div className="slide-input-group">
+                    {/* --- 7. CHANGED to text '–' --- */}
+                    <button
+                      type="button"
+                      className="slide-btn minus"
+                      onClick={() => setSlides((prev) => Math.max(1, prev - 1))}
+                    >
+                      –
+                    </button>
 
-      <input
-        type="number"
-        id="slides"
-        min="1"
-        value={slides}
-        onChange={(e) => {
-          const value = parseInt(e.target.value);
-          if (!isNaN(value) && value >= 1) setSlides(value);
-        }}
-        className="slide-input"
-      />
+                    <input
+                      type="number"
+                      id="slides"
+                      min="1"
+                      value={slides}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value) && value >= 1) setSlides(value);
+                      }}
+                      className="slide-input"
+                    />
 
-      <button
-        type="button"
-        className="slide-btn plus"
-        onClick={() => setSlides((prev) => prev + 1)}
-      >
-        ➕
-      </button>
-    </div>
-    <span id="slide-count"> Total number of slides: {slides}</span>
-  </div>
-</div>
-
+                    {/* --- 8. CHANGED to text '+' --- */}
+                    <button
+                      type="button"
+                      className="slide-btn plus"
+                      onClick={() => setSlides((prev) => prev + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <span id="slide-count"> Total number of slides: {slides}</span>
+                </div>
+              </div>
             </div>
 
             {/* Right Column */}
@@ -279,7 +239,7 @@ export default function WordToPPT() {
         </div>
       </main>
 
-      {/* ✅ Modal for Image/Text choice */}
+      {/* Modal for Image/Text choice */}
       {isModalOpen && (
         <div className="modal-backdrop">
           <div className="modal-content">

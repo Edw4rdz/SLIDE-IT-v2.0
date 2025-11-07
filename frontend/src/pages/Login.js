@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FaEnvelope, FaLock, FaGoogle } from "react-icons/fa";
 import loginImg from "../assets/loginImg.jpg";
-import "./login.css";
+import "../styles/login.css";
 import { useNavigate } from "react-router-dom";
 
 import {

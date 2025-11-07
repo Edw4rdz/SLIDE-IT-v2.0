@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaSignOutAlt, FaUserCog, FaUpload, FaHistory } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { FaUserCog, FaHistory } from "react-icons/fa";
 import {
   getAuth,
   updatePassword,
@@ -9,14 +9,14 @@ import {
 } from "firebase/auth";
 import { db } from "../firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import "./settings.css";
+import "../styles/settings.css";
+import Sidebar from "../components/Sidebar";
 
 export default function Settings() {
   const navigate = useNavigate();
   const auth = getAuth();
 
   const [loading, setLoading] = useState(true);
-  const [loggingOut, setLoggingOut] = useState(false);
   const [conversionCount, setConversionCount] = useState(0);
 
   // Profile info
@@ -106,55 +106,12 @@ export default function Settings() {
     }
   };
 
-  // 🚪 Logout
-  const handleLogout = async () => {
-    if (!window.confirm("Are you sure you want to log out?")) return;
-    setLoggingOut(true);
-    localStorage.removeItem("user");
-    await auth.signOut();
-    navigate("/login");
-  };
-
   if (loading) return <div>Loading profile...</div>;
 
   return (
-    <div className="ai-dashboard">
-      {/* Sidebar */}
-      <aside className="ai-sidebar">
-        <div className="ai-logo">
-          <i className="fa fa-magic"></i>
-          <div className="logo-text">
-            <h2>SLIDE-IT</h2>
-            <p>Convert & Generate</p>
-          </div>
-        </div>
+    <div className="dashboard">
+      <Sidebar activePage="settings" />
 
-        <nav className="ai-nav">
-          <div className="top-links">
-            <Link to="/dashboard">
-              <i className="fa fa-home"></i> Dashboard
-            </Link>
-            <Link to="/conversion">
-              <i className="fa fa-history"></i> Drafts
-            </Link>
-            <Link to="/settings" className="active">
-              <FaUserCog /> Settings
-            </Link>
-            <Link to="/uploadTemplate" className="upload-btn">
-              <FaUpload className="icon" /> Upload Template
-            </Link>
-          </div>
-
-          <div className="bottom-links">
-            <div className="logout-btn" onClick={handleLogout}>
-              <FaSignOutAlt className="icon" /> Logout
-              {loggingOut && <div className="spinner-small"></div>}
-            </div>
-          </div>
-        </nav>
-      </aside>
-
-      {/* Main Content */}
       <main className="settings-main">
         <div className="settings-container">
           <header className="settings-header">

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaSignOutAlt, FaUpload, FaFilePowerpoint, FaTrashAlt } from 'react-icons/fa';
 import { getTemplates, uploadTemplate } from '../api';
-import './uploadTemplate.css'; // Main styles for this page
-import './dashboard.css'; // Shared dashboard styles
+import '../styles/uploadTemplate.css'; // Main styles for this page
+import '../styles/dashboard.css'; // Shared dashboard styles
 
 export default function UploadTemplate() {
   const navigate = useNavigate();

@@ -1,0 +1,488 @@
+/* Basic Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f4f4f4;
+  display: flex;
+}
+.main {
+  margin-left: 230px; 
+  padding: 30px;
+  width: calc(100% - 230px); 
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.ai-container {
+  width: 100%;
+  max-width: 1200px; 
+  margin: 0 auto;   
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+
+.headerp {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+
+.headerp-icon {
+  width: 50px;
+  height: 50px;
+  background: #f59e0b; 
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  border-radius: 10px;
+}
+
+.headerp h1 {
+  font-size: 1.8rem; 
+  margin: 0;
+}
+
+.headerp p {
+  color: #6b7280;
+  margin: 0;
+}
+
+
+.ai-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+
+.ai-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+.ai-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.ai-card-top {
+  margin-bottom: 20px;
+}
+
+
+.uploadp-area {
+  border: 2px dashed #f97316;
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+  cursor: pointer; 
+}
+
+
+.uploadp-icon {
+  font-size: 32px;
+  color: #f97316;
+  margin-bottom: 12px;
+}
+
+.file-name {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+textarea {
+  width: 100%;
+  min-height: 150px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 12px;
+  font-size: 1rem;
+  margin-top: 10px;
+  resize: vertical;
+}
+
+
+.uploadp-btn {
+  background: #f97316;
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 53px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.uploadp-btn:hover {
+  background: #ea580c;
+}
+
+.ai-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ai-info-box {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.ai-info-box ul {
+  list-style: disc;
+  padding-left: 20px;
+  color: #1f2937;
+  font-size: 0.95rem; 
+}
+
+.ai-info-box li {
+    margin-bottom: 6px;
+}
+
+.ai-card h2, .ai-card h3 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+}
+
+.after-convert-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.edit-preview-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-preview-btn:hover {
+  background-color: #4338ca;
+  transform: scale(1.05);
+}
+
+
+.uploadp-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; 
+  background-color: #c2410c; 
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.uploadp-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; 
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); 
+}
+
+.uploadp-btn .progress-bar-indeterminate {
+  width: 60%;
+  height: 100%;
+  background-color: #f97316; 
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; 
+  }
+  100% {
+    left: 100%; 
+  }
+}
+*/
+.slide-control { 
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slide-input {
+  width: 80px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: 2px solid #f97316;  
+  color: #333;
+  text-align: center;
+  padding: 5px;
+}
+
+.slide-input:focus {
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
+}
+
+.slide-btn {
+  background-color: #f97316; 
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s ease;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px; 
+  font-size: 20px;
+  font-weight: bold;
+  padding: 0; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1; 
+}
+
+.slide-btn:hover {
+  background-color: #ea580c; 
+}
+
+.slide-btn:active {
+  transform: scale(0.95);
+}
+
+.slide-btn.plus {
+  background-color: #f97316; 
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.8);
+}
+
+.slide-btn.minus {
+  background-color: #f97316; 
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
+}
+
+.slide-input::-webkit-inner-spin-button,
+.slide-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.slide-input {
+  -moz-appearance: textfield;
+}
+
+.ai-card:has(.slide-control) { 
+  display: flex;
+  flex-direction: column;
+  justify-content: left; 
+  align-items: left; 
+  text-align: left;
+  min-height: 220px; 
+}
+
+.ai-card .ai-slider-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ai-card .ai-slider-section label,
+.ai-card #slide-count {
+  text-align: center;
+}
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 450px;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.modal-content p {
+  margin-bottom: 25px;
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.modal-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-btn svg {
+  font-size: 2rem;
+}
+
+.modal-btn.btn-text {
+  background: #f8f9fa;
+  color: #495057;
+}
+.modal-btn.btn-text:hover {
+  border-color: #6c757d;
+  background: #e9ecef;
+}
+
+.modal-btn.btn-image {
+  background: #f0f3ff;
+  color: #4150ff;
+  border-color: #dbe1ff;
+}
+.modal-btn.btn-image:hover {
+  background: #e0e5ff;
+  border-color: #4150ff;
+}
+
+.modal-btn-cancel {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 10px;
+  font-size: 0.9rem;
+}
+.modal-btn-cancel:hover {
+  color: #333;
+  text-decoration: underline;
+}
+.texttoppt .headerp-icon {
+  background: #facc15 !important;
+  color: #1f2937 !important;
+}
+
+.texttoppt .uploadp-area {
+  border-color: #facc15 !important;
+}
+
+.texttoppt .uploadp-area:hover {
+  background: #fef3c7 !important;
+}
+
+.texttoppt .uploadp-icon {
+  color: #facc15 !important;
+}
+
+.texttoppt .uploadp-btn {
+  background: #facc15 !important;
+  color: #1f2937 !important;
+}
+
+.texttoppt .uploadp-btn:hover {
+  background: #fbbf24 !important;
+}
+
+.texttoppt .uploadp-btn:disabled {
+  background: #fde68a !important;
+  color: #9ca3af !important;
+}
+
+.texttoppt .uploadp-btn .progress-bar-container {
+  background-color: #d97706 !important;
+}
+
+.texttoppt .uploadp-btn .progress-bar-indeterminate {
+  background-color: #facc15 !important;
+}
+
+.texttoppt .slide-btn,
+.texttoppt .slide-btn.plus,
+.texttoppt .slide-btn.minus {
+  background-color: #facc15 !important;
+  color: #1f2937 !important;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.5) !important;
+}
+
+.texttoppt .slide-btn:hover {
+  background-color: #fbbf24 !important;
+}
+
+.texttoppt .slide-btn:active {
+  background-color: #f59e0b !important;
+}
+
+.texttoppt .slide-input {
+  border-color: #facc15 !important;
+}
+
+.texttoppt .slide-input:focus {
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.5) !important;
+  border-color: #facc15 !important;
+}

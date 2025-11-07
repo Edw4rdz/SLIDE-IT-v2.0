@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaEnvelope, FaLock, FaUser, FaCalendarAlt } from "react-icons/fa";
 import signupImg from "../assets/signupImg.jpg";
-import "./signup.css";
+import "../styles/signup.css";
 
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";

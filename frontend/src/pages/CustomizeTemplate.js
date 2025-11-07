@@ -4,8 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import { motion, Reorder } from "framer-motion";
 import { downloadPPTX } from "../api";
-import "./customize-template.css";
-import "./dashboard.css";
+import "../styles/customize-template.css";
+import "../styles/dashboard.css";
 
 // Sidebar Component
 const Sidebar = ({ handleLogout, loggingOut }) => (

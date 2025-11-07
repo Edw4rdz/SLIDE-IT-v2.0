@@ -1,27 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-// import axios from "axios"; // <-- REMOVED
-import { FaSignOutAlt, FaUpload } from "react-icons/fa";
-import { getHistory, deleteHistory, downloadPPTX } from "../api"; // <-- Uses api.js
-import "./dashboard.css";
-import "./conversion.css";
+import {useNavigate } from "react-router-dom";
+import { getHistory, deleteHistory, downloadPPTX } from "../api"; 
+import "../styles/dashboard.css";
+import "../styles/conversion.css";
+import Sidebar from "../components/Sidebar"; 
 
 export default function Conversions() {
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
+ 
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Handle Logout
-  const handleLogout = () => {
-    if (!window.confirm("Are you sure you want to log out?")) return;
-    setLoggingOut(true);
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-    setTimeout(() => navigate("/login"), 1200);
-  };
+ 
 
-  // ✅ Fetch History
+  // Fetch History
   useEffect(() => {
     const fetchHistory = async () => {
       try {
@@ -103,31 +95,7 @@ export default function Conversions() {
 
   return (
     <div className="dashboard">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="fa fa-magic logo">
-          <div>
-            <h2>SLIDE-IT</h2>
-            <p>Convert & Generate</p>
-          </div>
-        </div>
-        <nav className="sidebar-links">
-          <div className="top-links">
-            <Link to="/dashboard"><i className="fa fa-home" /> Dashboard</Link>
-            <Link to="/conversion" className="active"><i className="fa fa-history" /> Drafts</Link>
-            <Link to="/settings"><i className="fa fa-cog" /> Settings</Link>
-            <Link to="/uploadTemplate" className="upload-btn">
-              <FaUpload className="icon" /> Upload Template
-            </Link>
-          </div>
-          <div className="bottom-links">
-            <div className="logout-btn" onClick={handleLogout}>
-              <FaSignOutAlt className="icon" /> Logout
-              {loggingOut && <div className="spinner-small"></div>}
-            </div>
-          </div>
-        </nav>
-      </aside>
+      <Sidebar activePage="drafts" />
 
       {/* Main Content */}
       <main className="main">
@@ -153,7 +121,6 @@ export default function Conversions() {
 
                   <h3 className="file-name">{conv.fileName || 'Untitled Conversion'}</h3>
 
-                  {/* Optional: Display date */}
                   {conv.uploadedAt?.seconds && (
                      <p className="conversion-date">
                        Saved on {new Date(conv.uploadedAt.seconds * 1000).toLocaleString()}

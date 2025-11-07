@@ -1,10 +1,10 @@
 import React, { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-// ✅ Import new icons
-import { FaSignOutAlt, FaUpload, FaImages, FaFileAlt } from "react-icons/fa";
-import { convertPDF } from "../api"; // axios -> backend
-import "./pdftoppt.css";
+import { useNavigate } from "react-router-dom";
+import { FaImages, FaFileAlt } from "react-icons/fa";
+import { convertPDF } from "../api"; 
+import "../styles/pdftoppt.css";
 import "font-awesome/css/font-awesome.min.css";
+import Sidebar from "../components/Sidebar"; 
 
 export default function PDFToPPT() {
   const [slides, setSlides] = useState(15);
@@ -13,19 +13,15 @@ export default function PDFToPPT() {
   const [loadingText, setLoadingText] = useState("");
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
-  // ✅ --- NEW STATE FOR MODAL ---
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // ✅ --- NEW STATE TO STORE IMAGE CHOICE ---
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
 
 
   const handleFileChange = (e) => {
-    // ... (This function is unchanged)
     const selectedFile = e.target.files[0];
     if (selectedFile && selectedFile.type === "application/pdf") {
       setFile(selectedFile);
@@ -35,24 +31,18 @@ export default function PDFToPPT() {
     }
   };
 
-  // ✅ --- MODIFIED: This function now ONLY opens the modal ---
   const handleUpload = () => {
-    // 1. Run all pre-checks first
     if (!file) return alert("Please select a PDF first");
     if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
     if (!loggedInUser?.user_id) {
       return alert("You must be logged in to convert and save history.");
     }
-    
-    // 2. If checks pass, open the modal
     setIsModalOpen(true);
   };
 
-  // ✅ --- NEW FUNCTION: This runs AFTER user clicks a modal button ---
   const handleConversionStart = async (includeImages) => {
-    // 1. Close modal, set choice, and start loading
     setIsModalOpen(false);
-    setIncludeImagesChoice(includeImages); // Store the user's choice
+    setIncludeImagesChoice(includeImages); 
     setIsLoading(true);
     setLoadingText("Reading PDF file...");
 
@@ -63,23 +53,20 @@ export default function PDFToPPT() {
         setLoadingText("Converting document...");
         const base64PDF = reader.result.split(",")[1];
         
-        // 2. Pass the 'includeImages' flag to the backend
         const response = await convertPDF({
           base64PDF,
           slides,
           userId: loggedInUser.user_id, 
           fileName: file.name,
-          includeImages: includeImages // Pass the user's choice
+          includeImages: includeImages 
         });
 
-        // 3. This is your original success logic, unchanged.
         if (response.data && Array.isArray(response.data)) {
           const slidesWithId = response.data.map((s, idx) => ({ ...s, id: idx }));
 
-          setConvertedSlides(slidesWithId); // This will make the "Edit" button appear
+          setConvertedSlides(slidesWithId); 
           setTopic(file.name.replace(".pdf", ""));
           alert("✅ Conversion successful! You can now preview or edit it.");
-          // NO navigate() call here!
         } else {
           alert("Conversion failed: Invalid response from server.");
         }
@@ -102,56 +89,14 @@ export default function PDFToPPT() {
     reader.readAsDataURL(file);
   };
 
-  const handleLogout = () => {
-    // ... (This function is unchanged)
-    if (!window.confirm("Are you sure you want to log out?")) return;
-    setLoggingOut(true);
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-    setTimeout(() => navigate("/login"), 1000);
-  };
-
   return (
-    <div className="ai-dashboard">
-      {/* Sidebar (Unchanged) */}
-      <aside className="ai-sidebar">
-         {/* ... (all sidebar JSX is unchanged) ... */}
-         <div className="ai-logo">
-           <i className="fa fa-magic"></i>
-           <div className="logo-text">
-             <h2>SLIDE-IT</h2>
-             <p>Convert & Generate</p>
-           </div>
-         </div>
-         <nav className="ai-nav">
-           <div className="top-links">
-             <Link to="/dashboard" className="active">
-               <i className="fa fa-home"></i> Dashboard
-             </Link>
-             <Link to="/conversion">
-               <i className="fa fa-history"></i> Drafts
-             </Link>
-             <Link to="/settings">
-               <i className="fa fa-cog"></i> Settings
-             </Link>
-             <Link to="/uploadTemplate" className="upload-btn">
-               <FaUpload className="icon" /> Upload Template
-             </Link>
-           </div>
-           <div className="bottom-links">
-             <div className="logout-btn" onClick={handleLogout}>
-               <FaSignOutAlt className="icon" /> Logout
-               {loggingOut && <div className="spinner-small"></div>}
-             </div>
-           </div>
-         </nav>
-      </aside>
+    <div className="dashboard"> 
+      
+      <Sidebar activePage="dashboard" />
 
-      {/* Main Content (Unchanged) */}
-      <main className="ai-main">
-        <div className="ai-container">
+      <main className="main">
+        <div className="ai-container pdftoppt">
            <header className="headerp">
-             {/* ... (header JSX is unchanged) ... */}
              <div className="headerp-icon">📄</div>
              <div>
                <h1>PDF to PowerPoint Converter</h1>
@@ -164,7 +109,6 @@ export default function PDFToPPT() {
                <div className="ai-card ai-card-top">
                  <h2>Upload Your PDF</h2>
                  <div className="uploadp-area">
-                   {/* ... (upload area JSX is unchanged) ... */}
                    <div className="uploadp-icon">⬆</div>
                    <h3>
                      Drop your PDF here, or{" "}
@@ -186,11 +130,10 @@ export default function PDFToPPT() {
                    {file && <p className="file-name">📑 {file.name}</p>}
                  </div>
 
-                 {/* ✅ This button NOW just opens the modal */}
                  <button
                    onClick={handleUpload}
                    className="uploadp-btn"
-                   disabled={isLoading || !file} // Also disable if no file
+                   disabled={isLoading || !file} 
                  >
                    {isLoading ? (
                      <div className="progress-bar-container">
@@ -198,13 +141,12 @@ export default function PDFToPPT() {
                        <span className="progress-text">{loadingText}</span>
                      </div>
                    ) : convertedSlides ? (
-                     "✅ Converted! Edit Now" // Change text after conversion
+                     "✅ Converted! Edit Now" 
                    ) : (
                      "Convert to PPT"
                    )}
                  </button>
 
-                 {/* ✅ This button is now the ONLY way to navigate */}
                  {convertedSlides && !isLoading && (
                    <div className="after-convert-actions">
                      <button
@@ -214,7 +156,7 @@ export default function PDFToPPT() {
                            state: { 
                              slides: convertedSlides, 
                              topic,
-                             includeImages: includeImagesChoice // Pass the stored choice
+                             includeImages: includeImagesChoice 
                            } 
                          })
                        }
@@ -226,19 +168,20 @@ export default function PDFToPPT() {
                </div>
 
                <div className="ai-card">
-                 {/* ... (customization JSX is unchanged) ... */}
                  <h2>Customize Output</h2>
                 <div className="ai-slider-section">
   <label htmlFor="slides">Number of Slides</label>
   <div className="slide-input-group">
+    {/* --- 1. Using text '–' and class 'slide-btn' --- */}
     <button
       type="button"
       className="slide-btn minus"
       onClick={() => setSlides((prev) => Math.max(1, prev - 1))}
     >
-      ➖
+      –
     </button>
 
+    {/* --- 2. Using class 'slide-input' --- */}
     <input
       type="number"
       id="slides"
@@ -251,12 +194,13 @@ export default function PDFToPPT() {
       className="slide-input"
     />
 
+    {/* --- 3. Using text '+' and class 'slide-btn' --- */}
     <button
       type="button"
       className="slide-btn plus"
       onClick={() => setSlides((prev) => prev + 1)}
     >
-      ➕
+      +
     </button>
   </div>
   <span id="slide-count"> Total number of slides: {slides}</span>
@@ -265,7 +209,6 @@ export default function PDFToPPT() {
                </div>
              </div>
              <div className="ai-right">
-                {/* ... (all info box JSX is unchanged) ... */}
                 <div className="ai-info-box">
                   <h3>How it Works</h3>
                   <ol>
@@ -289,7 +232,6 @@ export default function PDFToPPT() {
          </div>
       </main>
 
-      {/* ✅ --- NEW MODAL --- ✅ */}
       {isModalOpen && (
         <div className="modal-backdrop">
           <div className="modal-content">
@@ -298,14 +240,14 @@ export default function PDFToPPT() {
             <div className="modal-buttons">
               <button
                 className="modal-btn btn-text"
-                onClick={() => handleConversionStart(false)} // false for text-only
+                onClick={() => handleConversionStart(false)} 
               >
                 <FaFileAlt />
                 Text Only
               </button>
               <button
                 className="modal-btn btn-image"
-                onClick={() => handleConversionStart(true)} // true for images
+                onClick={() => handleConversionStart(true)} 
               >
                 <FaImages />
                 Include Images
@@ -313,7 +255,7 @@ export default function PDFToPPT() {
             </div>
             <button
               className="modal-btn-cancel"
-              onClick={() => setIsModalOpen(false)} // Just close the modal
+              onClick={() => setIsModalOpen(false)} 
             >
               Cancel
             </button>

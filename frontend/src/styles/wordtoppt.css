@@ -1,0 +1,535 @@
+/* Global reset - Ensure consistency with dashboard */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  width: 100vw;
+  font-family: "Poppins", sans-serif;
+  background-color: #f7f8fa;
+}
+
+/* REMOVED .ai-sidebar, .ai-logo, .ai-nav, 
+  .upload-btn, .bottom-links, .logout-btn, .spinner-small, 
+  and @keyframes spin
+*/
+
+/* Main Content - RENAMED from .mainw */
+.main {
+  margin-left: 230px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: calc(100vw - 230px);
+  overflow-x: hidden;
+  padding: 30px;
+}
+
+.containerw {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.headerw-icon {
+  width: 60px;
+  height: 50px;
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  border-radius: 10px;
+}
+
+/* Content */
+.contentw-grid {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  width: 100%;
+}
+
+/* Left Column */
+.ai-left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Card */
+.ai-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ai-card-top {
+  margin-bottom: 20px;
+}
+
+.ai-card h2,
+.ai-card h3,
+.ai-card h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.ai-card ul {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.ai-card ul li {
+  margin-bottom: 6px;
+}
+
+.uploadw-area {
+  border: 2px dashed #3b82f6; 
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.uploadw-area:hover {
+  background: #94b2e2; 
+}
+
+.uploadw-icon {
+  font-size: 32px;
+  color: #3b82f6; 
+  margin-bottom: 12px;
+}
+
+.browsew {
+  background: none;
+  border: none;
+  color: #3b82f6; 
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-name {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Grid 2 Columns */
+.ai-slider-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ai-slider-section label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ai-slider-section input[type="range"] {
+  width: 100%;
+}
+
+.ai-slider-section span {
+  text-align: right;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.ai-style-box {
+  margin-top: 15px;
+}
+
+.ai-style-box label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ai-style-box select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+/* Right Column */
+.ai-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Info Box */
+.ai-info-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ai-info-box h3 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+}
+
+.ai-info-box ul {
+  padding-left: 16px;
+  margin: 0;
+}
+
+.ai-info-box ul li {
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.ai-info-box div {
+  margin-bottom: 10px;
+}
+
+.ai-info-box h4 {
+  font-size: 1rem;
+  margin-bottom: 5px;
+}
+
+.ai-info-box p {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.convertw-btn {
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  width: 100%;
+  padding: 10px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: background 0.3s;
+  min-height: 45px; 
+  font-weight: 600; 
+}
+
+.convertw-btn:hover {
+  background: #94b2e2;
+}
+
+/* --- ADDED: Styles for Edit Button --- */
+.after-convert-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.edit-preview-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.edit-preview-btn:hover {
+  background-color: #4338ca;
+  transform: scale(1.05);
+}
+/* --- END ADDED --- */
+
+/* --- ADDED: STYLES FOR PROGRESS BAR (BLUE THEME) --- */
+
+.convertw-btn .progress-bar-container {
+  width: 100%;
+  height: 25px; 
+  background-color: #2563eb; 
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative; 
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.convertw-btn .progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  position: relative; 
+  z-index: 2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); 
+}
+
+.convertw-btn .progress-bar-indeterminate {
+  width: 60%; 
+  height: 100%;
+  background-color: #3b82f6; 
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 12px;
+  
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}
+
+/* This animation is used by all progress bars */
+@keyframes indeterminate-progress {
+  0% {
+    left: -60%; 
+  }
+  100% {
+    left: 100%; 
+  }
+}
+.ai-card:has(.slide-input-group) {
+  display: flex;
+  flex-direction: column;
+  justify-content: left; 
+  align-items: left; 
+  text-align: left;
+  min-height: 220px; 
+}
+
+/* --- END ADDED STYLES --- */
+
+/* =================================
+  Word to PPT - BLUE THEME
+  =================================
+*/
+.slide-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wordtoppt .slide-input {
+  width: 80px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: 2px solid #3b82f6;
+  color: #333;
+  text-align: center;
+  padding: 5px;
+}
+
+.wordtoppt .slide-input:focus {
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+  outline: none;
+}
+
+.wordtoppt .slide-btn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s ease;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.wordtoppt .slide-btn:hover {
+  background-color: #2563eb;
+}
+
+.wordtoppt .slide-btn:active {
+  transform: scale(0.95);
+  background-color: #1d4ed8;
+}
+
+.wordtoppt .slide-btn.plus {
+  background-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
+}
+
+.wordtoppt .slide-btn.minus {
+  background-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+}
+
+.wordtoppt .slide-input::-webkit-inner-spin-button,
+.wordtoppt .slide-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.wordtoppt .slide-input {
+  -moz-appearance: textfield;
+}
+
+/* Centering fixes */
+.ai-card:has(.slide-input-group) {
+  display: flex;
+  flex-direction: column;
+  justify-content: left; 
+  align-items: left; 
+  text-align: left;
+  min-height: 220px; 
+}
+
+.ai-card .ai-slider-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ai-card .ai-slider-section label,
+.ai-card #slide-count {
+  text-align: center;
+}
+/* --- END OF NEW STYLES --- */
+
+/* Modal styles (copied from pdftoppt.css for uniformity) */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 450px;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.modal-content p {
+  margin-bottom: 25px;
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.modal-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-btn svg {
+  font-size: 2rem;
+}
+
+.modal-btn.btn-text {
+  background: #f8f9fa;
+  color: #495057;
+}
+.modal-btn.btn-text:hover {
+  border-color: #6c757d;
+  background: #e9ecef;
+}
+
+.modal-btn.btn-image {
+  background: #f0f3ff;
+  color: #4150ff;
+  border-color: #dbe1ff;
+}
+.modal-btn.btn-image:hover {
+  background: #e0e5ff;
+  border-color: #4150ff;
+}
+
+.modal-btn-cancel {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 10px;
+  font-size: 0.9rem;
+}
+.modal-btn-cancel:hover {
+  color: #333;
+  text-decoration: underline;
+}

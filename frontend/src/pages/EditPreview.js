@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle } from 'react-icons/fa';
 import { getTemplates, downloadPPTX } from '../api';
-import './edit-preview.css';
+import '../styles/edit-preview.css';
 
 
 

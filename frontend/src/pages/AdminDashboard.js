@@ -8,7 +8,7 @@ import {
   deleteUser, 
   updateUserRole 
 } from "../adminApi";
-import "./adminDashboard.css"; 
+import "../styles/adminDashboard.css"; 
 
 
 import { FaSignOutAlt, FaPlus } from "react-icons/fa"; 
