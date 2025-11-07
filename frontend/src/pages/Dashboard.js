@@ -8,6 +8,9 @@ import {
   query,
   where,
   getDocs,
+  orderBy,
+  limit,
+  onSnapshot,
 } from "firebase/firestore";
 import { db } from "../firebase"; 
 import "../styles/dashboard.css";
@@ -25,6 +28,8 @@ const tools = [
 export default function Dashboard() {
   const [userName, setUserName] = useState("Loading...");
   const [isAdmin, setIsAdmin] = useState(false); 
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
 
  
   const tryCachedUser = () => {
@@ -144,6 +149,53 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load recent feedbacks (real-time)
+  useEffect(() => {
+    setLoadingFeedbacks(true);
+    try {
+      const q = query(
+        collection(db, "feedback"),
+        orderBy("createdAt", "desc"),
+        limit(12)
+      );
+
+      const unsub = onSnapshot(q, (snap) => {
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setFeedbacks(items);
+        setLoadingFeedbacks(false);
+      }, (err) => {
+        console.error("Feedback realtime error:", err);
+        setLoadingFeedbacks(false);
+      });
+
+      return () => unsub();
+    } catch (err) {
+      console.error("Failed to subscribe to feedbacks:", err);
+      setLoadingFeedbacks(false);
+    }
+  }, []);
+
+  // Helper: mask user identifier (first letters + stars)
+  const maskUser = (raw) => {
+    if (!raw) return "A***";
+    // if it's an email, use local part
+    const local = raw.includes("@") ? raw.split("@")[0] : raw;
+    const visible = local.slice(0, 2);
+    return visible + "***";
+  };
+
+  const formatTime = (ts) => {
+    try {
+      if (!ts) return "";
+      // Firestore Timestamp
+      if (ts.toDate) return ts.toDate().toLocaleString();
+      // fallback: assume ISO or epoch
+      const d = new Date(ts);
+      if (!isNaN(d)) return d.toLocaleString();
+    } catch (e) {}
+    return "";
+  };
+
   // const handleLogout = async () => { ... }; // <-- 3. REMOVED (Sidebar handles this)
 
   return (
@@ -162,6 +214,8 @@ export default function Dashboard() {
             <p>Choose a tool below to get started</p>
           </div>
 
+          
+
           <div className="tools-grid">
             {tools.map((tool, index) => (
               <Link key={index} to={tool.path} className="tool-card-link">
@@ -177,6 +231,36 @@ export default function Dashboard() {
                 </div>
               </Link>
             ))}
+          </div>
+
+          {/* Community Feedback (moved below tools) */}
+          <div className="feedback-section">
+            <div className="feedback-header">
+              <h2>Community Feedback</h2>
+              <p className="muted">Recent feedback from other users (names partially masked)</p>
+            </div>
+
+            <div className="feedback-list">
+              {loadingFeedbacks ? (
+                <div className="muted">Loading feedback…</div>
+              ) : feedbacks.length === 0 ? (
+                <div className="muted">No feedback yet — be the first to send one!</div>
+              ) : (
+                feedbacks.map((fb) => (
+                  <div key={fb.id} className="feedback-card-mini">
+                    <div className="meta">
+                      <strong className="who">{maskUser(fb.userEmail || fb.userId)}</strong>
+                      <span className="dot">•</span>
+                      <span className="cat">{fb.category || "other"}</span>
+                      {fb.rating ? <span className="rating"> · {fb.rating}★</span> : null}
+                      <span className="time">{formatTime(fb.createdAt)}</span>
+                    </div>
+                    {fb.title ? <div className="f-title">{fb.title}</div> : null}
+                    <div className="f-message">{(fb.message || "").length > 160 ? (fb.message || "").slice(0,160) + '…' : fb.message}</div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </main>

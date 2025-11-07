@@ -510,4 +510,184 @@
     flex-direction: column;
     max-width: 95%;
   }
+}.slide-preview-card {
+  position: relative; /* Make the delete button’s absolute position relative to this */
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  z-index: 0; /* keeps layout consistent */
+  transition: transform 0.3s ease;
 }
+
+.delete-slide-btn {
+  z-index: 10; /* bring it above everything else */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+/* --- Toolbar for per-slide styling --- */
+.slide-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+.slide-toolbar select,
+.slide-toolbar input[type="number"] {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(200,200,255,0.2);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+.toolbar-button {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  cursor: pointer;
+}
+.toolbar-button:hover { background: rgba(255,255,255,0.12); }
+
+/* Image rendered above the slide card */
+.slide-image-outside {
+  margin: 10px 0 6px 0;
+}
+.slide-image-outside .image-preview-container {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  border: 1px solid rgba(0,0,0,0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+}
+
+/* --- IMAGE PREVIEW INSIDE SLIDE CARD: constrain and align --- */
+.slide-image-prompt-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 180px;
+  max-width: 300px;
+  flex-shrink: 0;
+}
+.slide-image-prompt-area .image-preview-container {
+  width: 140px;
+  height: 100px;
+  margin-left: auto; /* align to right inside the card */
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.slide-image-prompt-area .preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+/* Toolbar outside the slide card (above) */
+.slide-toolbar-outside {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  max-width: 1200px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.slide-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Polished toolbar buttons and controls */
+.slide-toolbar-outside {
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.04);
+  padding: 8px 12px;
+}
+
+.slide-toolbar-outside > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap; /* allow controls to wrap on narrow screens */
+}
+
+.slide-toolbar-outside label {
+  font-size: 13px;
+  color: rgba(0,0,0,0.7);
+  margin-right: 4px;
+}
+
+.slide-toolbar-outside select,
+.slide-toolbar-outside input[type="number"],
+.slide-toolbar-outside .image-prompt-input {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: inherit;
+  font-size: 13px;
+  height: 34px;
+  box-sizing: border-box;
+}
+
+.toolbar-button {
+  background: rgba(0,0,0,0.06);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: inherit;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  transition: transform 0.08s ease, background 0.12s ease, box-shadow 0.12s;
+}
+
+.toolbar-button:hover {
+  transform: translateY(-2px);
+  background: rgba(0,0,0,0.08);
+}
+
+.toolbar-button.active {
+  background: rgba(0,0,0,0.12);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.slide-toolbar-outside input[type="number"]::-webkit-outer-spin-button,
+.slide-toolbar-outside input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Responsive: stack toolbar groups on small screens */
+@media (max-width: 880px) {
+  .slide-toolbar-outside {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .slide-toolbar-outside > div {
+    width: 100%;
+  }
+}
+
+
+
+

@@ -169,6 +169,61 @@ body {
   gap: 20px;
 }
 
+/* Community feedback styles */
+.feedback-section {
+  margin: 18px 0 26px;
+  background: transparent;
+}
+.feedback-header h2 {
+  font-size: 1.2rem;
+  margin-bottom: 4px;
+}
+.feedback-header .muted {
+  color: #777;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+.feedback-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.feedback-card-mini {
+  background: #fff;
+  padding: 14px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feedback-card-mini .meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #666;
+  font-size: 0.85rem;
+}
+.feedback-card-mini .who {
+  color: #333;
+}
+.feedback-card-mini .cat {
+  background: #f2f2f7;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: #555;
+}
+.feedback-card-mini .f-title {
+  font-weight: 600;
+  color: #222;
+}
+.feedback-card-mini .f-message {
+  color: #444;
+  font-size: 0.95rem;
+}
+
+
 /* Tool Card Link */
 .dashboard .tool-card-link {
   text-decoration: none;

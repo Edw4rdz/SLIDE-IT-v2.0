@@ -4,6 +4,7 @@ import EditPreview from './pages/EditPreview';
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import ForgotPassword from "./pages/ForgotPassword";
 import AIGenerator from "./pages/AIGenerator";
 import PDFToPPT from "./pages/PDFtoPPT";
 import TextToPPT from "./pages/TextToPPT";
@@ -24,6 +25,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
+  <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/ai-generator" element={<AIGenerator />} />

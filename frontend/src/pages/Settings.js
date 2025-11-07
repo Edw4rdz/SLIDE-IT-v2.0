@@ -8,7 +8,7 @@ import {
   EmailAuthProvider,
 } from "firebase/auth";
 import { db } from "../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import "../styles/settings.css";
 import Sidebar from "../components/Sidebar";
 
@@ -29,6 +29,15 @@ export default function Settings() {
   // Password fields
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  // Feedback form state
+  const [fbCategory, setFbCategory] = useState("bug");
+  const [fbRating, setFbRating] = useState(5);
+  const [fbTitle, setFbTitle] = useState("");
+  const [fbMessage, setFbMessage] = useState("");
+  const [fbContactEmail, setFbContactEmail] = useState("");
+  const [fbSubmitting, setFbSubmitting] = useState(false);
+  const [fbStatus, setFbStatus] = useState({ type: "", text: "" });
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -106,6 +115,52 @@ export default function Settings() {
     }
   };
 
+  // Feedback submit handler - saves to Firestore `feedback` collection
+  const handleFeedbackSubmit = async (e) => {
+    e && e.preventDefault();
+
+    // Basic validation
+    if (!fbMessage || fbMessage.trim().length < 5) {
+      setFbStatus({ type: "error", text: "Please enter a helpful message (min 5 characters)." });
+      return;
+    }
+
+    setFbSubmitting(true);
+    setFbStatus({ type: "", text: "" });
+
+    try {
+      const payload = {
+        createdAt: serverTimestamp(),
+        userId: auth.currentUser ? auth.currentUser.uid : null,
+        userEmail: fbContactEmail || (auth.currentUser ? auth.currentUser.email : null),
+        page: "/settings",
+        pageMeta: null,
+        category: fbCategory,
+        rating: Number(fbRating) || null,
+        title: fbTitle || null,
+        message: fbMessage,
+        userAgent: navigator.userAgent || null,
+        appVersion: process.env.REACT_APP_VERSION || null,
+        resolved: false,
+      };
+
+      await addDoc(collection(db, "feedback"), payload);
+
+      setFbStatus({ type: "success", text: "Thanks — your feedback has been submitted." });
+      // clear fields
+      setFbCategory("bug");
+      setFbRating(5);
+      setFbTitle("");
+      setFbMessage("");
+      setFbContactEmail("");
+    } catch (err) {
+      console.error("Failed to submit feedback:", err);
+      setFbStatus({ type: "error", text: "Failed to submit feedback. Please try again later." });
+    } finally {
+      setFbSubmitting(false);
+    }
+  };
+
   if (loading) return <div>Loading profile...</div>;
 
   return (
@@ -122,7 +177,7 @@ export default function Settings() {
             </div>
           </header>
 
-          <div className="settings-grid single">
+          <div className="settings-grid">
             <div className="settings-card">
               <h2>USER INFORMATION</h2>
 
@@ -176,6 +231,58 @@ export default function Settings() {
               <button className="save-btn" onClick={handlePasswordChange}>
                 Update Password
               </button>
+            </div>
+
+            {/* Feedback column - placed beside User Info */}
+            <div className="settings-card feedback-card">
+              <h2>Send Feedback</h2>
+
+              <form onSubmit={handleFeedbackSubmit}>
+                <div className="form-group">
+                  <label>Category</label>
+                  <select value={fbCategory} onChange={(e) => setFbCategory(e.target.value)}>
+                    <option value="bug">Bug</option>
+                    <option value="feature">Feature</option>
+                    <option value="ui">UI</option>
+                    <option value="performance">Performance</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Rating (optional)</label>
+                  <select value={fbRating} onChange={(e) => setFbRating(e.target.value)}>
+                    <option value={5}>5</option>
+                    <option value={4}>4</option>
+                    <option value={3}>3</option>
+                    <option value={2}>2</option>
+                    <option value={1}>1</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Title (short)</label>
+                  <input type="text" value={fbTitle} onChange={(e) => setFbTitle(e.target.value)} placeholder="Short summary" />
+                </div>
+
+                <div className="form-group">
+                  <label>Message</label>
+                  <textarea value={fbMessage} onChange={(e) => setFbMessage(e.target.value)} placeholder="Describe what's happening..." rows={6} />
+                </div>
+
+                <div className="form-group">
+                  <label>Your contact email (optional)</label>
+                  <input type="email" value={fbContactEmail} onChange={(e) => setFbContactEmail(e.target.value)} placeholder="If you want us to follow up" />
+                </div>
+
+                {fbStatus.text && (
+                  <div style={{ marginBottom: 10, color: fbStatus.type === 'error' ? '#c0392b' : 'green' }}>{fbStatus.text}</div>
+                )}
+
+                <button className="save-btn" type="submit" disabled={fbSubmitting}>
+                  {fbSubmitting ? 'Sending...' : 'Submit feedback'}
+                </button>
+              </form>
             </div>
           </div>
         </div>

@@ -25,6 +25,18 @@ export default function EditPreview() {
     id: slide.id ?? `slide-${index}-${Date.now()}`, 
     layout: index === 0 ? 'title' : 'content',
     uploadedImage: null, 
+    // per-slide styles (editable via toolbar)
+    styles: slide.styles || {
+      titleFont: 'Arial',
+      titleSize: 32,
+      titleBold: false,
+      titleItalic: false,
+      textFont: 'Arial',
+      textSize: 16,
+      textBold: false,
+      textItalic: false,
+      textAlign: 'left'
+    }
   }));
   const [editedSlides, setEditedSlides] = useState(initialSlides);
   const [topic, setTopic] = useState(location.state?.topic || 'My_Presentation');
@@ -163,6 +175,20 @@ export default function EditPreview() {
       setPreviewImageUrls({});
     }
   }, [editedSlides, showImageColumn]); 
+
+  // Convert hex color like #RRGGBB or #RGB to rgba(...) with given alpha.
+  const hexToRgba = (hex, alpha = 1) => {
+    if (!hex || typeof hex !== 'string') return `rgba(0,0,0,${alpha})`;
+    let h = hex.replace('#', '').trim();
+    if (h.length === 3) {
+      h = h.split('').map(c => c + c).join('');
+    }
+    if (h.length !== 6) return `rgba(0,0,0,${alpha})`;
+    const r = parseInt(h.substring(0,2), 16);
+    const g = parseInt(h.substring(2,4), 16);
+    const b = parseInt(h.substring(4,6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
   
   const handleSlideChange = (id, field, value) => {
     setEditedSlides((currentSlides) =>
@@ -178,6 +204,21 @@ export default function EditPreview() {
           return updatedSlide;
         }
         return s;
+      })
+    );
+  };
+
+  // Update per-slide style settings (font, size, bold, italic, align)
+  const handleStyleChange = (slideId, key, value) => {
+    setEditedSlides(currentSlides =>
+      currentSlides.map(s => {
+        if (s.id !== slideId) return s;
+        const newStyles = { ...(s.styles || {}) };
+        // Apply the change only to the specific style key for this slide.
+        // Removed automatic propagation between title and text so each
+        // control operates independently (title controls only title, etc.).
+        newStyles[key] = value;
+        return { ...s, styles: newStyles };
       })
     );
   };
@@ -215,6 +256,17 @@ export default function EditPreview() {
       layout: "content",
       uploadedImage: null,
       imagePrompt: "",
+      styles: {
+        titleFont: currentDesign.font || 'Arial',
+        titleSize: 32,
+        titleBold: false,
+        titleItalic: false,
+        textFont: currentDesign.font || 'Arial',
+        textSize: 16,
+        textBold: false,
+        textItalic: false,
+        textAlign: 'left'
+      }
     };
     setEditedSlides(prev => [...prev, newSlide]);
   };
@@ -250,6 +302,219 @@ export default function EditPreview() {
   if (!location.state?.slides && editedSlides.length === 0) return <div className="loading-message">Loading slide data... Please wait.</div>;
 
   // --- The rest of your JSX is 100% correct and unchanged ---
+  // build slides JSX outside return to simplify JSX parsing
+  const slidesJSX = editedSlides.map((s, index) => {
+    // ... (theme logic is unchanged)
+    const slideLayout = s.layout || 'content';
+    const layoutStyles = currentDesign.layouts?.[slideLayout] || {};
+    const theme = {
+      background: layoutStyles.background || currentDesign.globalBackground,
+      titleColor: layoutStyles.titleColor || currentDesign.globalTitleColor,
+      textColor: layoutStyles.textColor || currentDesign.globalTextColor,
+      font: currentDesign.font || 'Arial',
+    };
+    let previewStyle = {
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    };
+    if (Array.isArray(theme.background)) {
+      previewStyle.backgroundImage = `linear-gradient(135deg, ${theme.background.join(', ')})`;
+    } else if (typeof theme.background === 'string' && theme.background.startsWith('http')) {
+      previewStyle.backgroundImage = `url(${theme.background})`;
+    } else {
+      previewStyle.backgroundColor = theme.background || '#FFFFFF';
+    }
+
+    return (
+      <div key={s.id} className="slide-wrapper" style={{width: '100%'}}>
+        {/* Toolbar rendered outside (above) the slide card to preserve UI */}
+        <div
+          className="slide-toolbar-outside"
+          role="toolbar"
+          aria-label="Slide text styling"
+          style={{
+            background: hexToRgba(theme.titleColor || currentDesign.globalTitleColor, 0.12),
+            borderColor: hexToRgba(theme.titleColor || currentDesign.globalTitleColor, 0.08)
+          }}
+        >
+          <div style={{display:'flex', gap:8, alignItems:'center'}}>
+            <label style={{fontSize:12}}>Title:</label>
+            <select value={s.styles?.titleFont || 'Arial'} onChange={(e) => handleStyleChange(s.id, 'titleFont', e.target.value)}>
+              <option>Arial</option>
+              <option>Inter</option>
+              <option>Georgia</option>
+              <option>"Times New Roman"</option>
+              <option>"Courier New"</option>
+            </select>
+            <input type="number" value={s.styles?.titleSize || 32} min={10} max={80} style={{width:64}} onChange={(e) => handleStyleChange(s.id, 'titleSize', Number(e.target.value))} />
+            <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'titleBold', !s.styles?.titleBold)} style={{fontWeight: s.styles?.titleBold ? 700 : 400}}>B</button>
+            <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'titleItalic', !s.styles?.titleItalic)} style={{fontStyle: s.styles?.titleItalic ? 'italic' : 'normal'}}>I</button>
+          </div>
+          <div style={{display:'flex', gap:8, alignItems:'center'}}>
+            <label style={{fontSize:12}}>Text:</label>
+            <select value={s.styles?.textFont || 'Arial'} onChange={(e) => handleStyleChange(s.id, 'textFont', e.target.value)}>
+              <option>Arial</option>
+              <option>Inter</option>
+              <option>Georgia</option>
+              <option>"Times New Roman"</option>
+              <option>"Courier New"</option>
+            </select>
+            <input type="number" value={s.styles?.textSize || 16} min={8} max={48} style={{width:56}} onChange={(e) => handleStyleChange(s.id, 'textSize', Number(e.target.value))} />
+            <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'textBold', !s.styles?.textBold)} style={{fontWeight: s.styles?.textBold ? 700 : 400}}>B</button>
+            <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'textItalic', !s.styles?.textItalic)} style={{fontStyle: s.styles?.textItalic ? 'italic' : 'normal'}}>I</button>
+            <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'textAlign', 'left')}>L</button>
+            <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'textAlign', 'center')}>C</button>
+            <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'textAlign', 'right')}>R</button>
+          </div>
+        </div>
+
+        <div 
+          className="slide-preview-card gamma-style" 
+          style={{...previewStyle, color: theme.textColor, fontFamily: theme.font}}
+        >
+         {/* 🗑 DELETE BUTTON (Top right of each slide) */}
+          <button
+            className="delete-slide-btn"
+            onClick={() => handleDeleteSlide(s.id)}
+            title="Delete this slide"
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              backgroundColor: theme.titleColor,
+              color: theme.background,
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontWeight: 'bold',
+            }}
+          >
+            ×
+          </button>
+          <div className="slide-content-area">
+            <div className="form-group">
+              <label htmlFor={`title-${s.id}`} className="sr-only">Slide Title</label>
+              <input
+                id={`title-${s.id}`}
+                type="text"
+                className="form-control-title-preview"
+                value={s.title || ''}
+                onChange={(e) => handleSlideChange(s.id, 'title', e.target.value)}
+                style={{
+                  color: theme.titleColor,
+                  fontFamily: s.styles?.titleFont || theme.font,
+                  borderColor: theme.titleColor,
+                  fontSize: `${s.styles?.titleSize || 32}px`,
+                  fontWeight: s.styles?.titleBold ? 700 : 400,
+                  fontStyle: s.styles?.titleItalic ? 'italic' : 'normal'
+                }}
+                placeholder="Type your title..."
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor={`bullets-${s.id}`} className="sr-only">Slide Bullets</label>
+              <textarea
+                id={`bullets-${s.id}`}
+                className="form-control-bullets-preview"
+                value={(s.bullets || []).join('\n')}
+                onChange={(e) => handleSlideChange(s.id, 'bullets', e.target.value)}
+                rows={8}
+                style={{
+                  color: theme.textColor,
+                  fontFamily: s.styles?.textFont || theme.font,
+                  borderColor: theme.textColor,
+                  fontSize: `${s.styles?.textSize || 16}px`,
+                  fontWeight: s.styles?.textBold ? 700 : 400,
+                  fontStyle: s.styles?.textItalic ? 'italic' : 'normal',
+                  textAlign: s.styles?.textAlign || 'left'
+                }}
+                placeholder="Type your bullet points (one per line)..."
+              />
+            </div>
+          </div>
+          {/* Image prompt / upload controls + preview are inside the slide card */}
+          {showImageColumn && (
+            <div className="slide-image-prompt-area" style={{ borderColor: theme.textColor, color: theme.textColor }}>
+              <div className="form-group">
+                <label htmlFor={`imagePrompt-${s.id}`} style={{ color: theme.titleColor, fontWeight: 'bold' }}>
+                  AI Image Prompt
+                </label>
+                <input
+                  id={`imagePrompt-${s.id}`}
+                  type="text"
+                  className="image-prompt-input"
+                  value={s.imagePrompt || ""}
+                  onChange={(e) => handleSlideChange(s.id, "imagePrompt", e.target.value)}
+                  style={{
+                    fontFamily: theme.font,
+                    color: theme.textColor,
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    border: `1px solid ${theme.textColor}`,
+                    borderRadius: '8px',
+                    width: '100%',
+                    padding: '10px',
+                    marginTop: '5px',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="Describe an AI image..."
+                />
+              </div>
+
+              <div className="image-buttons-container">
+                <label htmlFor={`upload-${s.id}`} className="upload-image-btn">
+                  <FaUpload /> Upload
+                </label>
+                <input 
+                  type="file" 
+                  id={`upload-${s.id}`}
+                  className="hidden-file-input"
+                  accept="image/png, image/jpeg, image/gif"
+                  onChange={(e) => handleImageUpload(e, s.id)}
+                />
+                {(s.uploadedImage || s.imagePrompt) && (
+                  <button 
+                    className="remove-image-btn"
+                    onClick={() => handleRemoveImage(s.id)}
+                  >
+                    <FaTimesCircle /> Pure Text
+                  </button>
+                )}
+              </div>
+
+              <div className="image-preview-container" style={{marginTop:12}}>
+                {s.uploadedImage ? (
+                  <img
+                    key={s.id}
+                    src={s.uploadedImage}
+                    alt="User upload"
+                    className="preview-image loaded"
+                    style={{ opacity: 1, objectFit: 'cover' }}
+                  />
+                ) : fetchingImages && previewImageUrls[s.id] === undefined && s.imagePrompt ? (
+                  <p className="loading-text">Generating...</p>
+                ) : previewImageUrls[s.id] ? (
+                  <img
+                    key={previewImageUrls[s.id]}
+                    src={previewImageUrls[s.id]}
+                    alt={`AI prompt: ${s.imagePrompt || s.title}`}
+                    className="preview-image loaded"
+                    style={{ opacity: 1 }}
+                    onLoad={(e) => e.target.classList.add('loaded')}
+                  />
+                ) : (
+                  <p className="no-image-text">(No image prompt or upload)</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  });
+
   return (
     <div className="edit-preview-wrapper">
       <motion.aside
@@ -321,140 +586,32 @@ export default function EditPreview() {
         </motion.header>
 
         <div className="slides-grid">
-          {editedSlides.map((s, index) => {
-            // ... (theme logic is unchanged)
-            const slideLayout = s.layout || 'content';
-            const layoutStyles = currentDesign.layouts?.[slideLayout] || {};
-            const theme = {
-              background: layoutStyles.background || currentDesign.globalBackground,
-              titleColor: layoutStyles.titleColor || currentDesign.globalTitleColor,
-              textColor: layoutStyles.textColor || currentDesign.globalTextColor,
-              font: currentDesign.font || 'Arial',
-            };
-            let previewStyle = {
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            };
-            if (Array.isArray(theme.background)) {
-              previewStyle.backgroundImage = `linear-gradient(135deg, ${theme.background.join(', ')})`;
-            } else if (typeof theme.background === 'string' && theme.background.startsWith('http')) {
-              previewStyle.backgroundImage = `url(${theme.background})`;
-            } else {
-              previewStyle.backgroundColor = theme.background || '#FFFFFF';
-            }
-
-            return (
-              <div 
-                key={s.id}
-                className="slide-preview-card gamma-style" 
-                style={{...previewStyle, color: theme.textColor, fontFamily: theme.font}}
-              >
-                <div className="slide-content-area">
-                  <div className="form-group">
-                    <label htmlFor={`title-${s.id}`} className="sr-only">Slide Title</label>
-                    <input
-                      id={`title-${s.id}`}
-                      type="text"
-                      className="form-control-title-preview"
-                      value={s.title || ''}
-                      onChange={(e) => handleSlideChange(s.id, 'title', e.target.value)}
-                      style={{ color: theme.titleColor, fontFamily: theme.font, borderColor: theme.titleColor }}
-                      placeholder="Type your title..."
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor={`bullets-${s.id}`} className="sr-only">Slide Bullets</label>
-                    <textarea
-                      id={`bullets-${s.id}`}
-                      className="form-control-bullets-preview"
-                      value={(s.bullets || []).join('\n')}
-                      onChange={(e) => handleSlideChange(s.id, 'bullets', e.target.value)}
-                      rows={8}
-                      style={{ color: theme.textColor, fontFamily: theme.font, borderColor: theme.textColor }}
-                      placeholder="Type your bullet points (one per line)..."
-                    />
-                  </div>
-                </div>
-
-                {/* This whole column is already correctly conditional on showImageColumn */}
-                {showImageColumn && (
-                  <div className="slide-image-prompt-area" style={{ borderColor: theme.textColor, color: theme.textColor }}>
-                    <div className="form-group">
-                      <label htmlFor={`imagePrompt-${s.id}`} style={{ color: theme.titleColor, fontWeight: 'bold' }}>
-                        AI Image Prompt
-                      </label>
-                      <input
-                        id={`imagePrompt-${s.id}`}
-                        type="text"
-                        className="image-prompt-input"
-                        value={s.imagePrompt || ""}
-                        onChange={(e) => handleSlideChange(s.id, "imagePrompt", e.target.value)}
-                        style={{
-                          fontFamily: theme.font,
-                          color: theme.textColor,
-                          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                          border: `1px solid ${theme.textColor}`,
-                          borderRadius: '8px',
-                          width: '100%',
-                          padding: '10px',
-                          marginTop: '5px',
-                          boxSizing: 'border-box'
-                        }}
-                        placeholder="Describe an AI image..."
-                      />
-                    </div>
-
-                    <div className="image-buttons-container">
-                      <label htmlFor={`upload-${s.id}`} className="upload-image-btn">
-                        <FaUpload /> Upload
-                      </label>
-                      <input 
-                        type="file" 
-                        id={`upload-${s.id}`}
-                        className="hidden-file-input"
-                        accept="image/png, image/jpeg, image/gif"
-                        onChange={(e) => handleImageUpload(e, s.id)}
-                      />
-                      {(s.uploadedImage || s.imagePrompt) && (
-                        <button 
-                          className="remove-image-btn"
-                          onClick={() => handleRemoveImage(s.id)}
-                        >
-                          <FaTimesCircle /> Pure Text
-                        </button>
-                      )}
-                    </div>
-                    
-                    <div className="image-preview-container">
-                      {s.uploadedImage ? (
-                        <img
-                          key={s.id}
-                          src={s.uploadedImage}
-                          alt="User upload"
-                          className="preview-image loaded"
-                          style={{ opacity: 1, objectFit: 'cover' }}
-                        />
-                      ) : fetchingImages && previewImageUrls[s.id] === undefined && s.imagePrompt ? (
-                        <p className="loading-text">Generating...</p>
-                      ) : previewImageUrls[s.id] ? (
-                        <img
-                          key={previewImageUrls[s.id]}
-                          src={previewImageUrls[s.id]}
-                          alt={`AI prompt: ${s.imagePrompt || s.title}`}
-                          className="preview-image loaded"
-                          style={{ opacity: 1 }}
-                          onLoad={(e) => e.target.classList.add('loaded')}
-                        />
-                      ) : (
-                        <p className="no-image-text">(No image prompt or upload)</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-              </div>
-            )
-          })}
+          {slidesJSX}
+          {/* ➕ ADD SLIDE BUTTON (After all slides) */}
+  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+    <button
+      onClick={handleAddSlide}
+      className="add-slide-btn"
+      style={{
+        backgroundColor: currentDesign.globalTitleColor,
+        color: currentDesign.globalBackground,
+        border: 'none',
+        borderRadius: '12px',
+        padding: '12px 24px',
+        fontSize: '16px',
+        cursor: 'pointer',
+        transition: '0.3s',
+      }}
+      onMouseEnter={(e) => {
+        e.target.style.opacity = '0.8';
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.opacity = '1';
+      }}
+    >
+      ➕ Add Slide
+    </button>
+  </div>
           {editedSlides.length === 0 && <p className="no-slides-message">No slides to display. Go back and generate some!</p>}
         </div>
       </div>

@@ -10,6 +10,7 @@
 .settings-container {
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%; /* allow full width usage inside the main area */
 }
 
 /* Header */
@@ -35,8 +36,45 @@
 /* Settings Grid */
 .settings-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 25px;
+  /* left column grows, right column (feedback) is narrower for forms */
+  grid-template-columns: 1fr 420px;
+  gap: 28px;
+  align-items: start; /* top-align cards so they line up */
+  grid-auto-rows: 1fr; /* make both grid columns equal height */
+}
+
+/* When the grid is used for a single column page, let it fill the available width */
+.settings-grid.single {
+  grid-template-columns: 1fr;
+}
+
+/* Feedback card styling (matches .settings-card visual language) */
+.feedback-card {
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  /* remove extra top-margin since grid gap handles spacing */
+  margin-top: 0;
+  max-width: 420px;
+}
+
+.feedback-card h2 {
+  margin-bottom: 12px;
+  color: #333;
+}
+
+/* Ensure forms take available card height and buttons sit at the bottom */
+.settings-card form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+
+/* Push submit/save buttons to the bottom of the card */
+.settings-card form .save-btn,
+.settings-card > .save-btn {
+  margin-top: auto;
 }
 
 .settings-card {
@@ -45,6 +83,12 @@
   padding: 25px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  /* ensure both cards visually align in height when content differs */
+  min-height: 200px;
+  height: 100%; /* stretch to the grid row height */
 }
 
 .settings-card:hover {
@@ -123,8 +167,11 @@
 }
 
 /* Responsive */
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+  .settings-container {
+    padding: 0 12px;
   }
 }

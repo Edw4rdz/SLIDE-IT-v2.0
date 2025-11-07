@@ -85,6 +85,7 @@ const generateImageFromPollinations = async (prompt, retries = 1) => {
 
 
 // 🧠 Converts slides & current design to PowerPoint exactly like Gamma
+// 🧠 Converts slides & current design to PowerPoint exactly like the preview & edit
 export const downloadPPTX = async (slides, design, fileName, includeImages = true) => {
   try {
     const pptx = new PptxGenJS();
@@ -108,7 +109,7 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
       return canvas.toDataURL("image/png");
     };
 
-    // Helper: safely fetch remote image → dataURL (avoids CORS failure)
+    // Helper: safely fetch remote image → dataURL
     const fetchAsDataURL = async (url) => {
       try {
         const response = await fetch(url, { mode: "cors" });
@@ -139,64 +140,104 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
         else slide.background = { color: bgVal[0] };
       } else if (typeof bgVal === "string" && bgVal.startsWith("http")) {
         const dataUrl = await fetchAsDataURL(bgVal);
-        if (dataUrl)
-          slide.addImage({ data: dataUrl, x: 0, y: 0, w: "100%", h: "100%" });
+        if (dataUrl) slide.addImage({ data: dataUrl, x: 0, y: 0, w: "100%", h: "100%" });
         else slide.background = { color: "#FFFFFF" };
       } else {
         slide.background = { color: Array.isArray(bgVal) ? bgVal[0] : bgVal };
       }
 
-      // ---- TITLE ----
-      slide.addText(sdata.title || "", {
-        x: 0.5,
-        y: 0.4,
-        w: 9,
-        h: 1,
-        color: layoutStyle.titleColor || design?.globalTitleColor || "#000000",
-        fontFace: design?.font || "Arial",
-        fontSize: 28,
-        bold: true,
-        align: "left",
-      });
-
-      // ---- BULLETS ----
+      // ---- BULLETS & TITLE ----
       const bullets = Array.isArray(sdata.bullets)
         ? sdata.bullets
         : sdata.bullets
         ? sdata.bullets.split("\n")
         : [];
+
+      // --- Determine per-slide styles ---
+      const slideStyles = sdata.styles || {};
+      const textFont = slideStyles.textFont || design?.font || "Arial";
+      const textSize = slideStyles.textSize || 18;
+      const textBold = slideStyles.textBold || false;
+      const textItalic = slideStyles.textItalic || false;
+      const textAlign = slideStyles.textAlign || "left";
+
+      const titleFont = slideStyles.titleFont || design?.font || "Arial";
+      const titleSize = slideStyles.titleSize || 28;
+      const titleBold = slideStyles.titleBold !== undefined ? slideStyles.titleBold : true;
+      const titleItalic = slideStyles.titleItalic || false;
+
+      // Determine image presence and position
+      const hasImage = includeImages && (sdata.uploadedImage || sdata.imagePrompt);
+      const imagePosition = sdata.imagePosition || "right";
+
+      const imgW = 3.0;
+      const imgH = 3.5;
+      const imgMargin = 0.5;
+      const imgX = imagePosition === "left" ? imgMargin : 10 - imgMargin - imgW;
+      const imgY = 1.0;
+
+      let bodyX = 0.5;
+      let bodyW = 9.0;
+      if (hasImage) {
+        if (imagePosition === "left") {
+          bodyX = imgX + imgW + 0.3;
+          bodyW = 10 - bodyX - imgMargin;
+        } else {
+          bodyX = 0.5;
+          bodyW = 10 - imgW - imgMargin - 0.8;
+        }
+      }
+
+      // Add bullets
       if (bullets.length) {
         slide.addText(bullets.map((b) => `• ${b}`).join("\n"), {
-          x: 0.5,
+          x: bodyX,
           y: 1.6,
-          w: 6.8,
+          w: bodyW,
           h: 3.6,
           color: layoutStyle.textColor || design?.globalTextColor || "#333333",
-          fontFace: design?.font || "Arial",
-          fontSize: 18,
+          fontFace: textFont,
+          fontSize: textSize,
+          bold: textBold,
+          italic: textItalic,
+          align: textAlign,
           lineSpacing: 20,
         });
       }
 
+      // Add title
+      const titleX = hasImage ? bodyX : 0.5;
+      const titleW = hasImage ? bodyW : 9;
+      slide.addText(sdata.title || "", {
+        x: titleX,
+        y: 0.35,
+        w: titleW,
+        h: 1,
+        color: layoutStyle.titleColor || design?.globalTitleColor || "#000000",
+        fontFace: titleFont,
+        fontSize: titleSize,
+        bold: titleBold,
+        italic: titleItalic,
+        align: "left",
+      });
+
       // ---- IMAGE ----
-      if (includeImages && (sdata.uploadedImage || sdata.imagePrompt)) {
+      if (hasImage) {
         let imgSrc = sdata.uploadedImage;
         if (!imgSrc && sdata.imagePrompt) {
           const encoded = encodeURIComponent((sdata.imagePrompt || "").trim());
           imgSrc = `https://image.pollinations.ai/prompt/${encoded}`;
         }
         if (imgSrc) {
-          let dataUrl = imgSrc.startsWith("data:")
-            ? imgSrc
-            : await fetchAsDataURL(imgSrc);
+          const dataUrl = imgSrc.startsWith("data:") ? imgSrc : await fetchAsDataURL(imgSrc);
           if (dataUrl) {
             slide.addImage({
               data: dataUrl,
-              x: 7.3,
-              y: 1.0,
-              w: 2.7,
-              h: 3.5,
-              sizing: { type: "contain", w: 2.7, h: 3.5 },
+              x: imgX,
+              y: imgY,
+              w: imgW,
+              h: imgH,
+              sizing: { type: "contain", w: imgW, h: imgH },
             });
           }
         }

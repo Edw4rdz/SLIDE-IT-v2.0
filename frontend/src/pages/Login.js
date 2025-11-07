@@ -221,6 +221,10 @@ export default function Login() {
               />
             </div>
 
+            <p className="forgot-text" style={{ marginBottom: 12 }}>
+              <a href="/forgot-password">Forgot password?</a>
+            </p>
+
             <button type="submit" className="login-btn" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
             </button>
