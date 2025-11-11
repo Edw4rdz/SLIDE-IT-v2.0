@@ -105,8 +105,8 @@ export default function Signup() {
         })
       );
 
-      alert(`✅ Account created successfully! (User #${newUserId})`);
-      navigate("/dashboard");
+      alert("Account Registration Successful!");
+      navigate("/Login");
     } catch (err) {
       console.error("❌ Firebase Signup Error:", err);
       let errorMessage = "An error occurred. Please try again.";
