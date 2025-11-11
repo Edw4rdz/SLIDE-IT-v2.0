@@ -15,7 +15,10 @@ export const getAllUsers = async (req, res) => {
 
     usersSnap.forEach((doc) => {
       const data = doc.data();
-      
+      if (doc.id === 'userCounter' || !data || !data.email || !data.authUID) {
+        return;
+      }
+
       let status = "inactive";
       if (data.lastLogin && data.lastLogin.toDate) { 
         if (data.lastLogin.toDate() > thirtyDaysAgo) {
@@ -171,7 +174,6 @@ export const createUser = async (req, res) => {
 
 /**
  * Controller: Deletes a user from both Auth and Firestore.
- * (This function is unchanged)
  */
 export const deleteUser = async (req, res) => {
 
@@ -208,8 +210,7 @@ export const deleteUser = async (req, res) => {
 };
 
 /**
- * Controller: Updates a user's role (isAdmin).
- * (This function is unchanged)
+ * Controller: Updates a user's role (isAdmin)
  */
 export const updateUserRole = async (req, res) => {
 

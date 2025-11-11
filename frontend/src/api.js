@@ -8,6 +8,7 @@ const API_BASE = "http://localhost:5000/api";
 
 export const registerUser = (data) => axios.post(`${API_BASE}/register`, data);
 export const loginUser = (data) => axios.post(`${API_BASE}/login`, data);
+export const checkEmailExists = (email) => axios.post(`${API_BASE}/check-email`, { email });
 export const convertPDF = (data) => axios.post(`${API_BASE}/convert-pdf`, data);
 export const convertWord = (data) => axios.post(`${API_BASE}/convert-word`, data);
 export const convertText = (data) => axios.post(`${API_BASE}/convert-text`, data);

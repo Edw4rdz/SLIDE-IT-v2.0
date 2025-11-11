@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { sendPasswordResetEmail } from "firebase/auth";
+import { checkEmailExists } from "../api";
 import { auth } from "../firebase";
 import "../styles/login.css";
 
@@ -21,16 +22,28 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
+      // Server-side verification using Firebase Admin to decide message explicitly
+      const { data } = await checkEmailExists(email);
+      if (!data || data.exists !== true) {
+        setError("No account exists with that email address.");
+        return;
+      }
       await sendPasswordResetEmail(auth, email);
-      setMessage(
-        "If an account with that email exists, a password reset link has been sent. Check your inbox." 
-      );
+      setMessage("A password reset link has been sent. Check your inbox.");
     } catch (err) {
       console.error("Error sending password reset email:", err);
-      // Provide a generic message to avoid leaking which emails exist
-      setError(
-        "Unable to send reset email. Please try again later or contact support."
-      );
+      // Granular error handling based on Firebase Auth error codes
+      if (err.code === 'auth/user-not-found') {
+        setError("No account exists with that email address.");
+      } else if (err.code === 'auth/invalid-email') {
+        setError("That email address is not valid. Please check the format.");
+      } else if (err.code === 'auth/missing-email') {
+        setError("Please provide an email address.");
+      } else if (err.code === 'auth/too-many-requests') {
+        setError("Too many attempts. Please wait a moment and try again.");
+      } else {
+        setError("Unable to send reset email at this time. Please try again later.");
+      }
     } finally {
       setLoading(false);
     }
