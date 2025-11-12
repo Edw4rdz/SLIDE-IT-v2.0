@@ -96,6 +96,9 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
     pptx.defineLayout({ name: LAYOUT_NAME, width: 10.0, height: 5.625 });
     pptx.layout = LAYOUT_NAME;
 
+    const SLIDE_WIDTH_IN = 10.0;
+    const SLIDE_HEIGHT_IN = 5.625;
+
     // Helper: make gradient → image dataURL
     const createGradientDataURL = (colors) => {
       if (!Array.isArray(colors) || colors.length === 0) return null;
@@ -149,6 +152,34 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
         console.warn('SVG rasterize failed, falling back to original data URL', e);
         return dataUrl;
       }
+    };
+
+    const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+
+    const ensureTableCells = (rows, cols, existing = []) => {
+      return Array.from({ length: rows }, (_, rIdx) => {
+        const srcRow = Array.isArray(existing[rIdx]) ? existing[rIdx] : [];
+        return Array.from({ length: cols }, (_, cIdx) => (srcRow[cIdx] !== undefined ? srcRow[cIdx] : ''));
+      });
+    };
+
+    const colorToHex = (color, fallback = '#FFFFFF') => {
+      if (!color || typeof color !== 'string') return fallback.replace('#', '').toUpperCase();
+      if (color.startsWith('#')) return color.slice(1).toUpperCase();
+      const match = color.match(/rgba?\(([^)]+)\)/i);
+      if (!match) return fallback.replace('#', '').toUpperCase();
+      const parts = match[1].split(',').map((p) => parseFloat(p.trim()) || 0);
+      const [r, g, b] = parts;
+      const toHex = (v) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0').toUpperCase();
+      return `${toHex(r)}${toHex(g)}${toHex(b)}`;
+    };
+
+    const pxToPt = (px) => Number((px * 72 / 96).toFixed(2));
+
+    const mapBorderStyle = (style) => {
+      if (style === 'dashed' || style === 'dash') return 'dash';
+      if (style === 'dotted' || style === 'dot') return 'dash';
+      return 'solid';
     };
 
     // Helper: normalize bullets/text like the editor preview does
@@ -357,7 +388,62 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
         }
       }
 
-      // Tables export removed as requested
+      const tables = Array.isArray(sdata.tables) ? sdata.tables : [];
+      if (tables.length) {
+        const tableTextColor = colorToHex(layoutStyle.textColor || design?.globalTextColor || '#333333', '#333333');
+        for (const tbl of tables) {
+          try {
+            const rowsCount = Math.max(1, tbl?.rows || (Array.isArray(tbl?.cells) ? tbl.cells.length : 1));
+            const colsCount = Math.max(1, tbl?.cols || (Array.isArray(tbl?.cells?.[0]) ? tbl.cells[0].length : 1));
+            const cellMatrix = ensureTableCells(rowsCount, colsCount, tbl?.cells);
+
+            const fillColor = colorToHex(tbl?.background || '#FFFFFF', '#FFFFFF');
+            const borderColor = colorToHex(tbl?.borderColor || '#111827', '#111827');
+            const borderPt = pxToPt(typeof tbl?.borderWidth === 'number' ? tbl.borderWidth : 1.33);
+            const borderType = mapBorderStyle(tbl?.borderStyle);
+            const borderDef = ['t', 'r', 'b', 'l'].map(() => ({ color: borderColor, pt: borderPt, type: borderType }));
+
+            const tableRows = cellMatrix.map((row) =>
+              row.map((value) => ({
+                text: value || '',
+                options: {
+                  fill: { color: fillColor },
+                  border: borderDef,
+                  color: tableTextColor,
+                  fontFace: textFont,
+                  fontSize: textSize,
+                  valign: 'top',
+                  align: 'left',
+                  margin: [4, 5, 4, 5],
+                  wrap: true,
+                },
+              }))
+            );
+
+            const widthFrac = typeof tbl?.width === 'number' && tbl.width > 0 ? tbl.width : 0.5;
+            const heightFrac = typeof tbl?.height === 'number' && tbl.height > 0 ? tbl.height : 0.3;
+            const tableWidth = clamp(widthFrac * SLIDE_WIDTH_IN, 1, SLIDE_WIDTH_IN);
+            const tableHeight = clamp(heightFrac * SLIDE_HEIGHT_IN, 0.5, SLIDE_HEIGHT_IN);
+            const tableX = clamp((tbl?.x || 0) * SLIDE_WIDTH_IN, 0, SLIDE_WIDTH_IN - tableWidth);
+            const tableY = clamp((tbl?.y || 0) * SLIDE_HEIGHT_IN, 0, SLIDE_HEIGHT_IN - tableHeight);
+
+            const colW = Array.from({ length: colsCount }, () => tableWidth / colsCount);
+            const rowH = Array.from({ length: rowsCount }, () => tableHeight / rowsCount);
+
+            slide.addTable(tableRows, {
+              x: tableX,
+              y: tableY,
+              w: tableWidth,
+              h: tableHeight,
+              colW,
+              rowH,
+              valign: 'top',
+            });
+          } catch (tableErr) {
+            console.warn('Failed to add table to PPTX export', tableErr);
+          }
+        }
+      }
     }
 
     await pptx.writeFile({ fileName });
