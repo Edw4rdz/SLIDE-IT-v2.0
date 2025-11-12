@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 import { db } from "../firebase";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { getHistory } from "../api";
 import "../styles/settings.css";
 import Sidebar from "../components/Sidebar";
 
@@ -87,6 +88,28 @@ export default function Settings() {
 
     fetchUserProfile();
   }, [auth, navigate]);
+
+  // Fetch user's conversion count (uses backend /api/conversions)
+  useEffect(() => {
+    const fetchConversionCount = async () => {
+      try {
+        // Prefer the frontend's local user (set at login). Fallback to Firebase UID.
+        const local = localStorage.getItem("user");
+        const localUser = local ? JSON.parse(local) : null;
+        const userId = localUser?.user_id || (auth.currentUser ? auth.currentUser.uid : null);
+        if (!userId) return; // nothing to fetch
+
+        const res = await getHistory(userId);
+        const list = res?.data || [];
+        setConversionCount(Array.isArray(list) ? list.length : 0);
+      } catch (err) {
+        console.error("Failed to fetch conversion count:", err);
+      }
+    };
+
+    fetchConversionCount();
+    // We intentionally do not re-run on every render; only when auth object changes
+  }, [auth]);
 
   // ✅ Update password (with both fields)
   const handlePasswordChange = async () => {
