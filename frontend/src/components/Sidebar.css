@@ -66,7 +66,6 @@
   margin: 4px 0 0;
 }
 
-/* We removed the ".dashboard" prefix here */
 .sidebar nav a {
   display: flex;
   align-items: center;
@@ -75,10 +74,9 @@
   color: #d1d5db;
   text-decoration: none;
   transition: background 0.3s, color 0.3s;
-  border-left: 4px solid transparent; /* Add for alignment */
+  border-left: 4px solid transparent; 
 }
 
-/* We removed the ".dashboard" prefix here */
 .sidebar nav a:hover,
 .sidebar nav a.active {
   background: #aa729d;
@@ -89,7 +87,7 @@
 /* Logout Button */
 .bottom-links {
   margin-top: auto;
-  text-align: center;
+  padding: 0 10px 10px 10px;
 }
 
 .logout-btn {
@@ -98,15 +96,20 @@
   justify-content: center;
   gap: 8px;
   padding: 12px 20px;
-  color: #d1d5db;
+  color: #ffffff;
+  background-color: #8a1a0e;
+  border-radius: 8px;
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.3s, color 0.3s;
+  transition: background 0.3s, transform 0.2s;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .logout-btn:hover {
-  background: #aa729d;
-  color: #fff;
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .logout-btn .icon {
@@ -150,7 +153,7 @@
   font-weight: 500;
   border-radius: 6px;
   margin-bottom: 10px;
-  /* A distinct "admin" color */
+  /* admin color */
   background-color: #c0392b;
   transition: background-color 0.2s ease;
   border-left: 4px solid transparent; /* Add for alignment */

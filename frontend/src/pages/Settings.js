@@ -21,7 +21,8 @@ export default function Settings() {
 
   // Profile info
   const [profile, setProfile] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     birthday: "",
   });
@@ -55,19 +56,23 @@ export default function Settings() {
         if (!querySnapshot.empty) {
           const data = querySnapshot.docs[0].data();
 
-          const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
           const birthday = data.birthday
             ? new Date(data.birthday).toISOString().split("T")[0]
             : "";
 
           setProfile({
-            fullName,
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
             email: data.email || user.email || "",
             birthday,
           });
         } else {
+          const displayName = user.displayName || "";
+          const [firstName = "", lastName = ""] = displayName.split(" ");
+          
           setProfile({
-            fullName: user.displayName || "",
+            firstName,
+            lastName,
             email: user.email || "",
             birthday: "",
           });
@@ -183,8 +188,13 @@ export default function Settings() {
 
               {/* Profile Info */}
               <div className="form-group">
-                <label>Full Name</label>
-                <input type="text" value={profile.fullName} readOnly />
+                <label>First Name</label>
+                <input type="text" value={profile.firstName} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>Last Name</label>
+                <input type="text" value={profile.lastName} readOnly />
               </div>
 
               <div className="form-group">
@@ -250,7 +260,7 @@ export default function Settings() {
                 </div>
 
                 <div className="form-group">
-                  <label>Rating (optional)</label>
+                  <label>Rating</label>
                   <select value={fbRating} onChange={(e) => setFbRating(e.target.value)}>
                     <option value={5}>5</option>
                     <option value={4}>4</option>

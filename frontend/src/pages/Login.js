@@ -107,10 +107,26 @@ export default function Login() {
       console.error("Firebase login error:", err);
       let errorMessage = "Error logging in. Please try again.";
 
-      if (err.code === "auth/invalid-email") errorMessage = "Invalid email address.";
-      else if (err.code === "auth/user-not-found") errorMessage = "No account found with this email.";
-      else if (err.code === "auth/wrong-password") errorMessage = "Incorrect password.";
-      else if (err.code === "auth/too-many-requests") errorMessage = "Too many failed attempts. Try again later.";
+      // More specific error messages
+      if (err.code === "auth/invalid-email") {
+        errorMessage = "Invalid email format. Please enter a valid email address.";
+      } else if (err.code === "auth/user-not-found") {
+        errorMessage = "No account found with this email. Please check your email or sign up for a new account.";
+      } else if (err.code === "auth/wrong-password") {
+        errorMessage = "Incorrect password. Please try again or use 'Forgot password?' to reset it.";
+      } else if (err.code === "auth/too-many-requests") {
+        errorMessage = "Too many failed login attempts. Your account has been temporarily locked. Please try again later or reset your password.";
+      } else if (err.code === "auth/user-disabled") {
+        errorMessage = "This account has been disabled. Please contact support for assistance.";
+      } else if (err.code === "auth/invalid-credential") {
+        errorMessage = "Invalid credentials. Please check your email and password and try again.";
+      } else if (err.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your internet connection and try again.";
+      } else if (err.code === "auth/operation-not-allowed") {
+        errorMessage = "Email/password login is currently disabled. Please contact support.";
+      } else {
+        errorMessage = `Login failed: ${err.message || "Unknown error"}. Please try again.`;
+      }
 
       alert(errorMessage);
     } finally {
@@ -180,7 +196,26 @@ export default function Login() {
       
     } catch (err) {
       console.error("Google sign-in failed:", err);
-      alert("Google sign-in failed. Please try again.");
+      let errorMessage = "❌ Google sign-in failed. Please try again.";
+
+      // More specific Google sign-in error messages
+      if (err.code === "auth/popup-closed-by-user") {
+        errorMessage = "Sign-in cancelled. Please try again and complete the Google sign-in process.";
+      } else if (err.code === "auth/popup-blocked") {
+        errorMessage = "Pop-up blocked by your browser. Please allow pop-ups for this site and try again.";
+      } else if (err.code === "auth/account-exists-with-different-credential") {
+        errorMessage = "An account already exists with this email using a different sign-in method. Please use your original sign-in method.";
+      } else if (err.code === "auth/cancelled-popup-request") {
+        errorMessage = "Only one sign-in pop-up allowed at a time. Please try again.";
+      } else if (err.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your internet connection and try again.";
+      } else if (err.code === "auth/unauthorized-domain") {
+        errorMessage = "This domain is not authorized for Google sign-in. Please contact support.";
+      } else if (err.message) {
+        errorMessage = `Google sign-in failed: ${err.message}`;
+      }
+
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
