@@ -53,12 +53,17 @@ export default function PDFToPPT() {
         setLoadingText("Converting document...");
         const base64PDF = reader.result.split(",")[1];
         
+        // Build a lightweight preview thumb from first page (client-side canvas)
+        let previewThumb = null;
+        // Placeholder: generate a real page thumbnail later using pdf.js
+
         const response = await convertPDF({
           base64PDF,
           slides,
           userId: loggedInUser.user_id, 
           fileName: file.name,
-          includeImages: includeImages 
+          includeImages: includeImages,
+          previewThumb
         });
 
         if (response.data && Array.isArray(response.data)) {

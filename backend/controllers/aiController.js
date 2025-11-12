@@ -22,12 +22,15 @@ export const handlePdfConversion = async (req, res) => {
     // 2. Call the AI service
     const slideData = await convertPdfToSlides(base64PDF, slides);
 
-    // 3. (NEW) Save to history
+    // 3.Save to history
+    // Optional previewThumb passed by client (e.g., first page image)
+    const { previewThumb } = req.body;
     await saveHistory({
       userId: userId,
-      fileName: fileName || "PDF Conversion", // Use fileName from frontend
-      conversionType: "PDF-to-PPTs", // <-- MODIFIED (was 'type: "PDF"')
-      slides: slideData // Save the JSON slide data
+      fileName: fileName || "PDF Conversion", 
+      conversionType: "PDF-to-PPTs", // 
+      slides: slideData, 
+      previewThumb: previewThumb || null
     });
 
     // 4. Send response
@@ -53,12 +56,14 @@ export const handleTextConversion = async (req, res) => {
     // 2. Call the AI service
     const slideData = await convertTextToSlides(text, slides);
     
-    // 3. (NEW) Save to history
+    // 3. Save to history
+    const { previewThumb } = req.body;
     await saveHistory({
       userId: userId,
-      fileName: text.substring(0, 40) + "...", // Use first 40 chars of text as name
-      conversionType: "TxT-to-PPTs", // <-- MODIFIED (was 'type: "Text"')
-      slides: slideData
+      fileName: text.substring(0, 40) + "...", 
+      conversionType: "TxT-to-PPTs", 
+      slides: slideData,
+      previewThumb: previewThumb || null
     });
 
     // 4. Send response
@@ -84,12 +89,14 @@ export const handleWordConversion = async (req, res) => {
     // 2. Call the AI service
     const slideData = await convertWordToSlides(base64Word, slides);
 
-    // 3. (NEW) Save to history
+    // 3. Save to history
+    const { previewThumb } = req.body;
     await saveHistory({
       userId: userId,
       fileName: fileName || "Word Conversion",
-      conversionType: "DOCX/WORD-to-PPTs", // <-- MODIFIED (was 'type: "Word"')
-      slides: slideData
+      conversionType: "DOCX/WORD-to-PPTs", 
+      slides: slideData,
+      previewThumb: previewThumb || null
     });
 
     // 4. Send response
@@ -115,12 +122,14 @@ export const handleExcelConversion = async (req, res) => {
     // 2. Call the AI service
     const slideData = await convertExcelToSlides(base64Excel, slides);
     
-    // 3. (NEW) Save to history
+    // 3. Save to history
+    const { previewThumb } = req.body;
     await saveHistory({
       userId: userId,
       fileName: fileName || "Excel Conversion",
-      conversionType: "Excel-to-PPTs", // <-- MODIFIED (was 'type: "Excel"')
-      slides: slideData
+      conversionType: "Excel-to-PPTs", 
+      slides: slideData,
+      previewThumb: previewThumb || null
     });
 
     // 4. Send response
@@ -147,11 +156,13 @@ export const handleTopicGeneration = async (req, res) => {
     const slideData = await generateTopicsToSlides(topic, slides);
     
     // 3. (NEW) Save to history
+    const { previewThumb } = req.body;
     await saveHistory({
       userId: userId,
-      fileName: topic, // Use the topic as the name
-      conversionType: "AI-Generated PPTs", // <-- MODIFIED (was 'type: "AI Topic"')
-      slides: slideData 
+      fileName: topic, 
+      conversionType: "AI-Generated PPTs", 
+      slides: slideData,
+      previewThumb: previewThumb || null
     });
 
     // 4. Send response

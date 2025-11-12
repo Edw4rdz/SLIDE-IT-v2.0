@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {useNavigate } from "react-router-dom";
 import { getHistory, deleteHistory, downloadPPTX } from "../api"; 
 import "../styles/dashboard.css";
@@ -59,7 +59,6 @@ export default function Conversions() {
 
   // ✅ Edit Conversion
   const handleEdit = (conv) => {
-    // Navigate to EditPreview, passing the slide data and filename
     navigate("/edit-preview", {
       state: { slides: conv.slides || [], topic: conv.fileName },
     });
@@ -93,6 +92,79 @@ export default function Conversions() {
     );
   };
 
+  const createTextThumb = useCallback((title = "Presentation", type = "PPT") => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 360;
+      canvas.height = 220;
+      const ctx = canvas.getContext("2d");
+
+      // Background gradient
+      const grad = ctx.createLinearGradient(0, 0, 360, 220);
+      grad.addColorStop(0, "#eef2ff");
+      grad.addColorStop(1, "#dbeafe");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 360, 220);
+
+      // Type badge
+      ctx.fillStyle = "#1f2937";
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(14, 14, 94, 26);
+      ctx.globalAlpha = 1;
+      ctx.font = "bold 12px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.fillText((type || "PPT").toUpperCase(), 24, 32);
+
+      // Title text
+      ctx.fillStyle = "#111827";
+      ctx.font = "bold 20px Arial";
+      const maxWidth = 330;
+      const lines = [];
+      const words = String(title || "Presentation").split(/\s+/);
+      let line = "";
+      for (let w of words) {
+        const test = (line ? line + " " : "") + w;
+        if (ctx.measureText(test).width < maxWidth) line = test;
+        else { lines.push(line); line = w; }
+        if (lines.length > 2) break; // keep it compact
+      }
+      if (line && lines.length < 3) lines.push(line);
+      const startY = 90;
+      lines.slice(0, 3).forEach((txt, i) => ctx.fillText(txt, 20, startY + i * 28));
+
+      return canvas.toDataURL("image/jpeg", 0.8);
+    } catch (e) {
+      return null;
+    }
+  }, []);
+
+ 
+  const getThumbnailForConversion = useCallback((conv) => {
+    if (!conv) return null;
+    if (conv.previewThumb) return conv.previewThumb;
+
+    if (conv.slides && conv.slides.length > 0) {
+      const first = conv.slides[0];
+      if (first.imageUrl) return first.imageUrl;
+      if (first.uploadedImage) return first.uploadedImage;
+      if (first.imagePrompt) {
+        const encoded = encodeURIComponent(first.imagePrompt.trim());
+        return `https://image.pollinations.ai/prompt/${encoded}`;
+      }
+   
+      const title = first.title || conv.fileName || "Presentation";
+      return createTextThumb(title, conv.conversionType || conv.type);
+    }
+    return createTextThumb(conv.fileName || "Presentation", conv.conversionType || conv.type);
+  }, [createTextThumb]);
+
+
+  const thumbnails = useMemo(() => {
+    const map = {};
+    history.forEach(h => { map[h.id] = getThumbnailForConversion(h); });
+    return map;
+  }, [history, getThumbnailForConversion]);
+
   return (
     <div className="dashboard">
       <Sidebar activePage="drafts" />
@@ -116,10 +188,23 @@ export default function Conversions() {
                   <div className="card-header">
                     {/* Display status and type from history data */}
                     <span className={`status-badge ${conv.status?.toLowerCase() || 'unknown'}`}>{conv.status || 'Unknown'}</span>
-                    <p className="file-type">{conv.type || 'Unknown Type'}</p>
+                    <p className="file-type">{conv.conversionType || conv.type || 'Unknown Type'}</p>
                   </div>
 
                   <h3 className="file-name">{conv.fileName || 'Untitled Conversion'}</h3>
+
+                  {/* Thumbnail */}
+                  {thumbnails[conv.id] && (
+                    <div className="history-thumb-wrapper">
+                      <img
+                        src={thumbnails[conv.id]}
+                        alt={`Preview for ${conv.fileName}`}
+                        className="history-thumb"
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.style.display='none'; }}
+                      />
+                    </div>
+                  )}
 
                   {conv.uploadedAt?.seconds && (
                      <p className="conversion-date">
@@ -164,4 +249,4 @@ export default function Conversions() {
       </main>
     </div>
   );
-}
+} 

@@ -79,6 +79,25 @@
   color: #111827;
 }
 
+/* Thumbnail preview */
+.history-thumb-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 14px;
+}
+
+.history-thumb {
+  max-width: 100%;
+  width: 180px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
 /* Progress Bar */
 .progress-bar {
   width: 100%;
