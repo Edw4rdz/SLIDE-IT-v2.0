@@ -577,8 +577,9 @@
   flex-shrink: 0;
 }
 .slide-image-prompt-area .image-preview-container {
-  width: 140px;
-  height: 100px;
+  /* Fill the prompt panel width with a taller preview, matching the mock */
+  width: 100%;
+  height: 220px;
   margin-left: auto; /* align to right inside the card */
   border-radius: 8px;
   overflow: hidden;

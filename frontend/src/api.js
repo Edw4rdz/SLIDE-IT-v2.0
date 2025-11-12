@@ -126,6 +126,44 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
       }
     };
 
+    // Helper: rasterize SVG data URL to PNG data URL for PowerPoint compatibility
+    const rasterizeSvgDataUrl = async (dataUrl, width = 512, height = 512) => {
+      try {
+        if (!dataUrl || !dataUrl.startsWith('data:image/svg')) return dataUrl;
+        const img = new Image();
+        // Important for some browsers when drawing SVGs
+        img.crossOrigin = 'anonymous';
+        const loaded = await new Promise((resolve, reject) => {
+          img.onload = () => resolve(true);
+          img.onerror = reject;
+          img.src = dataUrl;
+        });
+        if (!loaded) return dataUrl;
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        return canvas.toDataURL('image/png');
+      } catch (e) {
+        console.warn('SVG rasterize failed, falling back to original data URL', e);
+        return dataUrl;
+      }
+    };
+
+    // Helper: normalize bullets/text like the editor preview does
+    const getBulletLines = (sdata) => {
+      if (!sdata) return [];
+      if (Array.isArray(sdata.bullets)) return sdata.bullets.filter(Boolean).map((b) => String(b).trim()).filter(Boolean);
+      const src = typeof sdata.bullets === 'string' && sdata.bullets.trim().length
+        ? sdata.bullets
+        : (typeof sdata.text === 'string' ? sdata.text : '');
+      return src
+        .split(/\n|•/)
+        .map((l) => (l || '').trim())
+        .filter(Boolean);
+    };
+
     for (let i = 0; i < slides.length; i++) {
       const sdata = slides[i];
       const slide = pptx.addSlide();
@@ -147,12 +185,8 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
         slide.background = { color: Array.isArray(bgVal) ? bgVal[0] : bgVal };
       }
 
-      // ---- BULLETS & TITLE ----
-      const bullets = Array.isArray(sdata.bullets)
-        ? sdata.bullets
-        : sdata.bullets
-        ? sdata.bullets.split("\n")
-        : [];
+      // ---- BULLETS/TEXT & TITLE ----
+      const bulletLines = getBulletLines(sdata);
 
       // --- Determine per-slide styles ---
       const slideStyles = sdata.styles || {};
@@ -167,8 +201,9 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
       const titleBold = slideStyles.titleBold !== undefined ? slideStyles.titleBold : true;
       const titleItalic = slideStyles.titleItalic || false;
 
-      // Determine image presence and position
-      const hasImage = includeImages && (sdata.uploadedImage || sdata.imagePrompt);
+  // Determine image presence and position
+  // Include images on title slides as well so export matches the editor/preview layout
+  const hasImage = includeImages && (sdata.uploadedImage || sdata.imagePrompt);
       const imagePosition = sdata.imagePosition || "right";
 
       const imgW = 3.0;
@@ -189,38 +224,92 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
         }
       }
 
-      // Add bullets
-      if (bullets.length) {
-        slide.addText(bullets.map((b) => `• ${b}`).join("\n"), {
-          x: bodyX,
-          y: 1.6,
-          w: bodyW,
-          h: 3.6,
-          color: layoutStyle.textColor || design?.globalTextColor || "#333333",
-          fontFace: textFont,
-          fontSize: textSize,
-          bold: textBold,
-          italic: textItalic,
-          align: textAlign,
-          lineSpacing: 20,
+      // Add title & body
+      if (layoutType === 'title') {
+        // Render title slide like the editor: left-aligned title within the body area, with optional image column
+        const titleFontSize = (sdata.styles && sdata.styles.titleSize) || titleSize;
+        const titleFontFace = (sdata.styles && sdata.styles.titleFont) || titleFont;
+        const titleX = hasImage ? bodyX : 0.5;
+        const titleW = hasImage ? bodyW : 9;
+        slide.addText(sdata.title || '', {
+          x: titleX,
+          y: 0.35,
+          w: titleW,
+          h: 1,
+          color: layoutStyle.titleColor || design?.globalTitleColor || '#000000',
+          fontFace: titleFontFace,
+          fontSize: titleFontSize,
+          bold: titleBold,
+          italic: titleItalic,
+          align: 'left',
         });
-      }
 
-      // Add title
-      const titleX = hasImage ? bodyX : 0.5;
-      const titleW = hasImage ? bodyW : 9;
-      slide.addText(sdata.title || "", {
-        x: titleX,
-        y: 0.35,
-        w: titleW,
-        h: 1,
-        color: layoutStyle.titleColor || design?.globalTitleColor || "#000000",
-        fontFace: titleFont,
-        fontSize: titleSize,
-        bold: titleBold,
-        italic: titleItalic,
-        align: "left",
-      });
+        // Body text or bullets (left-aligned)
+        let bodyText = typeof sdata.text === 'string' ? sdata.text.trim() : '';
+        if (!bodyText && bulletLines.length) bodyText = bulletLines.join('\n');
+        if (bodyText) {
+          slide.addText(bodyText, {
+            x: titleX,
+            y: 1.6,
+            w: titleW,
+            h: 3.6,
+            color: layoutStyle.textColor || design?.globalTextColor || '#333333',
+            fontFace: textFont,
+            fontSize: textSize,
+            bold: textBold,
+            italic: textItalic,
+            align: textAlign || 'left',
+            lineSpacing: 20,
+          });
+        } else if (bulletLines.length) {
+          slide.addText(bulletLines.map((b) => `• ${b}`).join('\n'), {
+            x: titleX,
+            y: 1.6,
+            w: titleW,
+            h: 3.6,
+            color: layoutStyle.textColor || design?.globalTextColor || '#333333',
+            fontFace: textFont,
+            fontSize: textSize,
+            bold: textBold,
+            italic: textItalic,
+            align: textAlign || 'left',
+            lineSpacing: 20,
+          });
+        }
+      } else {
+        // Content slide: title aligned left within body region
+        const titleX = hasImage ? bodyX : 0.5;
+        const titleW = hasImage ? bodyW : 9;
+        slide.addText(sdata.title || '', {
+          x: titleX,
+          y: 0.35,
+          w: titleW,
+          h: 1,
+          color: layoutStyle.titleColor || design?.globalTitleColor || '#000000',
+          fontFace: titleFont,
+          fontSize: titleSize,
+          bold: titleBold,
+          italic: titleItalic,
+          align: 'left',
+        });
+
+        // Content slide: add bullets if any
+        if (bulletLines.length) {
+          slide.addText(bulletLines.map((b) => `• ${b}`).join('\n'), {
+            x: bodyX,
+            y: 1.6,
+            w: bodyW,
+            h: 3.6,
+            color: layoutStyle.textColor || design?.globalTextColor || '#333333',
+            fontFace: textFont,
+            fontSize: textSize,
+            bold: textBold,
+            italic: textItalic,
+            align: textAlign,
+            lineSpacing: 20,
+          });
+        }
+      }
 
       // ---- IMAGE ----
       if (hasImage) {
@@ -243,6 +332,32 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
           }
         }
       }
+
+      // ---- USER STICKERS ----
+      const stickers = Array.isArray(sdata.stickers) ? sdata.stickers : [];
+      if (stickers.length) {
+        for (const g of stickers) {
+          if (!g || !g.url) continue;
+          let dataUrl = null;
+          if (g.url.startsWith('data:')) {
+            dataUrl = g.url;
+          } else {
+            dataUrl = await fetchAsDataURL(g.url);
+          }
+          if (!dataUrl) continue;
+          if (dataUrl.startsWith('data:image/svg')) {
+            dataUrl = await rasterizeSvgDataUrl(dataUrl);
+          }
+          const x = (g.x || 0) * 10.0;
+          const y = (g.y || 0) * 5.625;
+          const w = (g.width || 0.18) * 10.0;
+          const h = (g.height || 0.18) * 5.625;
+          const rotate = g.rotate || 0;
+          slide.addImage({ data: dataUrl, x, y, w, h, sizing: { type: 'contain', w, h }, rotate });
+        }
+      }
+
+      // Tables export removed as requested
     }
 
     await pptx.writeFile({ fileName });

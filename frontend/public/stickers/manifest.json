@@ -1,0 +1,41 @@
+{
+  "categories": [
+    {
+      "name": "general",
+      "items": [
+        "medal.svg",
+        "thumbs-up.svg",
+        "trophy.svg",
+        "heart.svg",
+        "star.svg"
+      ]
+    },
+    {
+      "name": "corporate",
+      "items": [
+        "handshake.svg",
+        "chart.svg",
+        "briefcase.svg"
+      ]
+    },
+    {
+      "name": "education",
+      "items": [
+        "lightbulb.svg",
+        "books.svg",
+        "graduation-hat.svg"
+      ]
+    },
+    {
+      "name": "shapes",
+      "items": [
+        "circle.svg",
+        "square.svg",
+        "triangle.svg",
+        "arrow-right.svg",
+        "speech-bubble.svg",
+        "cloud.svg"
+      ]
+    }
+  ]
+}
