@@ -1,14 +1,15 @@
 import admin from "firebase-admin";
-// We need to import the 'createRequire' function to read the JSON file
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
+import dotenv from "dotenv";
 
-// Load the service account key
-const serviceAccount = require("./serviceAccountkey.json");
+dotenv.config();
 
-// Initialize the Firebase Admin SDK
+// Initialize Firebase Admin using environment variables
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  })
 });
 
 // Export the Firestore database instance
