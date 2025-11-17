@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaImages, FaFileAlt } from "react-icons/fa";
 import { convertPDF } from "../api"; 
 import "../styles/pdftoppt.css";
-import "font-awesome/css/font-awesome.min.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar"; 
 
 export default function PDFToPPT() {

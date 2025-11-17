@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"; // Link, FaSignOutAlt, FaUpload 
 import { FaImages, FaFileAlt } from "react-icons/fa";
 import { convertWord } from "../api";
 import "../styles/wordtoppt.css";
-import "font-awesome/css/font-awesome.min.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar"; // <-- 1. IMPORTED SIDEBAR
 
 export default function WordToPPT() {

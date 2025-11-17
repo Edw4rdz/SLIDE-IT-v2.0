@@ -13,7 +13,7 @@ import "../styles/adminDashboard.css";
 
 import { FaSignOutAlt, FaPlus } from "react-icons/fa"; 
 import { getAuth, signOut } from "firebase/auth";
-import "font-awesome/css/font-awesome.min.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 
 
 const INITIAL_NEW_USER_STATE = {

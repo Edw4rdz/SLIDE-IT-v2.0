@@ -14,7 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase"; 
 import "../styles/dashboard.css";
-import "font-awesome/css/font-awesome.min.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar"; 
 
 const tools = [

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import { getAuth, signOut } from "firebase/auth";
-import "font-awesome/css/font-awesome.min.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./Sidebar.css"; // We will create this CSS file next
 
 // We accept 'activePage' and 'isAdmin' as props

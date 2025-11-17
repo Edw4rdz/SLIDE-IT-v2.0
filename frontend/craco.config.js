@@ -14,6 +14,14 @@ module.exports = {
           process: "process/browser",
         })
       );
+      
+      // Temporarily disable CSS minification to generate unminified CSS for inspection
+      if (config.optimization && config.optimization.minimizer) {
+        config.optimization.minimizer = config.optimization.minimizer.filter(
+          plugin => plugin.constructor.name !== 'CssMinimizerPlugin'
+        );
+      }
+      
       return config;
     },
   },
