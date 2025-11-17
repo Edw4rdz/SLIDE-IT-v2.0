@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight } from 'react-icons/fa';
+import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable } from 'react-icons/fa';
 import { getTemplates, downloadPPTX } from '../api';
 import '../styles/edit-preview.css';
 
@@ -15,6 +15,143 @@ const getPollinationsImageUrl = (prompt) => {
   return `https://image.pollinations.ai/prompt/${encodedPrompt}`;
 };
 
+const ensureTableCells = (rows, cols, existing = []) => {
+  return Array.from({ length: rows }, (_, rIdx) => {
+    const sourceRow = Array.isArray(existing[rIdx]) ? existing[rIdx] : [];
+    return Array.from({ length: cols }, (_, cIdx) => (sourceRow[cIdx] !== undefined ? sourceRow[cIdx] : ''));
+  });
+};
+
+const clampValue = (value, min, max) => {
+  if (Number.isNaN(value)) return min;
+  if (max < min) return min;
+  return Math.min(Math.max(value, min), max);
+};
+
+const BASE_TABLE_CELL_WIDTH = 0.12; // approx 12% of slide width per column
+const BASE_TABLE_CELL_HEIGHT = 0.10; // approx 10% of slide height per row
+const MIN_TABLE_WIDTH = 0.06;
+const MIN_TABLE_HEIGHT = 0.06;
+const MAX_TABLE_WIDTH = 0.94;
+const MAX_TABLE_HEIGHT = 0.88;
+const HANDLE_TOUCH_SIZE = 16;
+const HANDLE_LINE_WIDTH = 2;
+const HANDLE_COLOR_IDLE = 'transparent';
+const HANDLE_COLOR_ACTIVE = 'rgba(148,163,184,0.85)';
+
+const autoSizeTableFrame = (table) => {
+  const safeTable = table || {};
+  const rows = Math.max(1, safeTable.rows || 1);
+  const cols = Math.max(1, safeTable.cols || 1);
+  const width = clampValue(cols * BASE_TABLE_CELL_WIDTH, MIN_TABLE_WIDTH, MAX_TABLE_WIDTH);
+  const height = clampValue(rows * BASE_TABLE_CELL_HEIGHT, MIN_TABLE_HEIGHT, MAX_TABLE_HEIGHT);
+  const x = clampValue(safeTable.x ?? 0, 0, 1 - width);
+  const y = clampValue(safeTable.y ?? 0, 0, 1 - height);
+  return { ...safeTable, width, height, x, y };
+};
+
+const applyAutoSizeIfNeeded = (table) => {
+  if (!table) return table;
+  return table.userResized ? table : autoSizeTableFrame(table);
+};
+
+const MIN_COLUMN_RATIO = 0.05;
+const MIN_ROW_RATIO = 0.05;
+
+const clampRatio = (value, min, max) => {
+  if (Number.isNaN(value)) return min;
+  if (max < min) return min;
+  return Math.min(Math.max(value, min), max);
+};
+
+const ensureSegments = (count, segments = [], minRatio = 0.01) => {
+  if (count <= 0) return [];
+  const fallback = 1 / count;
+  let arr = Array.isArray(segments) ? segments.slice(0, count) : [];
+  while (arr.length < count) arr.push(fallback);
+  arr = arr.map((v) => (Number.isFinite(v) && v > 0 ? v : fallback));
+  let total = arr.reduce((sum, v) => sum + v, 0);
+  if (!total) {
+    arr = Array(count).fill(fallback);
+    total = 1;
+  }
+  arr = arr.map((v) => v / total);
+  const min = Math.min(minRatio, 1 / count);
+  let deficit = 0;
+  arr = arr.map((v) => {
+    if (v < min) {
+      deficit += (min - v);
+      return min;
+    }
+    return v;
+  });
+  if (deficit > 0) {
+    let remaining = deficit;
+    arr = arr.map((v) => {
+      if (remaining <= 0) return v;
+      const available = v - min;
+      if (available <= 0) return v;
+      const reduction = Math.min(available, remaining);
+      remaining -= reduction;
+      return v - reduction;
+    });
+  }
+  const finalTotal = arr.reduce((sum, v) => sum + v, 0);
+  if (finalTotal <= 0) return Array(count).fill(fallback);
+  return arr.map((v) => v / finalTotal);
+};
+
+const splitSegmentAt = (segments, insertIndex, minRatio) => {
+  const count = Array.isArray(segments) ? segments.length : 0;
+  if (count === 0) return [1];
+  const normalized = ensureSegments(count, segments, minRatio);
+  const index = clampValue(insertIndex, 0, count);
+  const donorIndex = index === 0 ? 0 : Math.min(index - 1, count - 1);
+  const donorShare = normalized[donorIndex] || (1 / count);
+  const newShare = donorShare / 2;
+  const updated = [...normalized];
+  updated[donorIndex] = Math.max(donorShare - newShare, minRatio);
+  updated.splice(index, 0, newShare);
+  return ensureSegments(count + 1, updated, minRatio);
+};
+
+const removeSegmentAt = (segments, removeIndex, minRatio) => {
+  const count = Array.isArray(segments) ? segments.length : 0;
+  if (count <= 1) return [1];
+  const normalized = ensureSegments(count, segments, minRatio);
+  const index = clampValue(removeIndex, 0, count - 1);
+  const updated = [...normalized];
+  const removed = updated.splice(index, 1)[0] || 0;
+  if (!updated.length) return [1];
+  const target = index < updated.length ? index : updated.length - 1;
+  updated[target] += removed;
+  return ensureSegments(updated.length, updated, minRatio);
+};
+
+const ensureTableSizing = (table) => {
+  if (!table) return table;
+  const rows = Math.max(1, table.rows || 1);
+  const cols = Math.max(1, table.cols || 1);
+  const cells = ensureTableCells(rows, cols, table.cells);
+  const columnWidths = ensureSegments(cols, table.columnWidths, MIN_COLUMN_RATIO);
+  const rowHeights = ensureSegments(rows, table.rowHeights, MIN_ROW_RATIO);
+  return { ...table, rows, cols, cells, columnWidths, rowHeights };
+};
+
+const ptToPx = (pt) => +(pt * 96 / 72).toFixed(2);
+const BORDER_WIDTH_OPTIONS = [
+  { label: '0.5 pt', value: ptToPx(0.5) },
+  { label: '0.75 pt', value: ptToPx(0.75) },
+  { label: '1 pt', value: ptToPx(1) },
+  { label: '1.5 pt', value: ptToPx(1.5) },
+  { label: '2.25 pt', value: ptToPx(2.25) },
+];
+const BORDER_STYLE_OPTIONS = [
+  { label: 'Solid', value: 'solid' },
+  { label: 'Dashed', value: 'dashed' },
+];
+const DEFAULT_BORDER_WIDTH = ptToPx(1);
+
 export default function EditPreview() {
   const location = useLocation();
   const [slides, setSlides] = useState(location.state?.slides || []);
@@ -25,6 +162,26 @@ export default function EditPreview() {
     id: slide.id ?? `slide-${index}-${Date.now()}`, 
     layout: index === 0 ? 'title' : 'content',
     uploadedImage: null, 
+    tables: Array.isArray(slide.tables)
+      ? slide.tables.map((tbl) => {
+          const rows = Number.isInteger(tbl?.rows) && tbl.rows > 0 ? tbl.rows : 1;
+          const cols = Number.isInteger(tbl?.cols) && tbl.cols > 0 ? tbl.cols : 1;
+          const baseTable = {
+            ...tbl,
+            rows,
+            cols,
+            borderStyle: tbl?.borderStyle || 'solid',
+            borderWidth: typeof tbl?.borderWidth === 'number' ? tbl.borderWidth : DEFAULT_BORDER_WIDTH,
+            borderColor: tbl?.borderColor || '#111827',
+            background: tbl?.background || '#ffffff',
+            cells: ensureTableCells(rows, cols, tbl?.cells),
+            userResized: Boolean(tbl?.userResized),
+            columnWidths: Array.isArray(tbl?.columnWidths) ? tbl.columnWidths : undefined,
+            rowHeights: Array.isArray(tbl?.rowHeights) ? tbl.rowHeights : undefined
+          };
+          return ensureTableSizing(applyAutoSizeIfNeeded(baseTable));
+        })
+      : [],
     // per-slide styles (editable via toolbar)
     styles: slide.styles || {
       titleFont: 'Arial',
@@ -47,7 +204,6 @@ export default function EditPreview() {
   
   // Stickers: picker, selection and interaction state
   const [openStickerFor, setOpenStickerFor] = useState(null); // slideId or null
-  const [openTableFor, setOpenTableFor] = useState(null); // slideId or null
   const [selectedSticker, setSelectedSticker] = useState(null); // { slideId, index }
   const [draggingSticker, setDraggingSticker] = useState(null); // { slideId, index, startX, startY, origX, origY, rect }
   const [resizingSticker, setResizingSticker] = useState(null); // { slideId, index, mode, startX, startY, origX, origY, origW, origH, rect, origRotate }
@@ -55,7 +211,11 @@ export default function EditPreview() {
   const [selectedTable, setSelectedTable] = useState(null); // { slideId, index }
   const [draggingTable, setDraggingTable] = useState(null);
   const [resizingTable, setResizingTable] = useState(null);
+  const [resizingTableAxis, setResizingTableAxis] = useState(null);
+  const [tableCreator, setTableCreator] = useState({ slideId: null, rows: '3', cols: '3' });
+  const [activeTableCell, setActiveTableCell] = useState(null); // { slideId, tableIndex, rowIndex, colIndex }
   const containerRefs = useRef({});
+  const tableFrameRefs = useRef({});
   const stickerAnchorRefs = useRef({});
   // Download preview modal state
   const [showDownloadPreview, setShowDownloadPreview] = useState(false);
@@ -306,10 +466,81 @@ export default function EditPreview() {
   const handleAddTable = (slideId, rows = 3, cols = 3) => {
     setEditedSlides((prev) => prev.map((s) => {
       if (s.id !== slideId) return s;
-      const added = { type: 'table', rows, cols, x: 0.14, y: 0.28, width: 0.5, height: 0.3, borderColor: '#333', borderWidth: 1, background: 'rgba(255,255,255,0.3)' };
+      const added = ensureTableSizing(applyAutoSizeIfNeeded({
+        type: 'table',
+        rows,
+        cols,
+        cells: ensureTableCells(rows, cols),
+        x: 0.14,
+        y: 0.28,
+        borderColor: '#111827',
+        borderWidth: DEFAULT_BORDER_WIDTH,
+        borderStyle: 'solid',
+        background: '#ffffff',
+        userResized: false,
+        columnWidths: ensureSegments(cols, undefined, MIN_COLUMN_RATIO),
+        rowHeights: ensureSegments(rows, undefined, MIN_ROW_RATIO)
+      }));
       return { ...s, tables: [ ...(s.tables || []), added ] };
     }));
-    setOpenTableFor(null);
+  };
+
+  const updateTableProps = (slideId, tableIndex, updates) => {
+    setEditedSlides((prev) => prev.map((s) => {
+      if (s.id !== slideId) return s;
+      const tables = Array.isArray(s.tables)
+        ? s.tables.map((tbl, idx) => {
+            if (idx !== tableIndex) return tbl;
+            const next = typeof updates === 'function' ? updates(tbl) : updates;
+            return ensureTableSizing({ ...tbl, ...next });
+          })
+        : [];
+      return { ...s, tables };
+    }));
+  };
+
+  const handleTableBackgroundChange = (slideId, tableIndex, background) => {
+    updateTableProps(slideId, tableIndex, { background });
+  };
+
+  const handleTableBorderColorChange = (slideId, tableIndex, color) => {
+    updateTableProps(slideId, tableIndex, { borderColor: color });
+  };
+
+  const handleTableBorderWidthChange = (slideId, tableIndex, widthPx) => {
+    const numericWidth = typeof widthPx === 'number' ? widthPx : parseFloat(widthPx);
+    if (Number.isNaN(numericWidth)) return;
+    updateTableProps(slideId, tableIndex, { borderWidth: numericWidth });
+  };
+
+  const handleTableBorderStyleChange = (slideId, tableIndex, style) => {
+    const allowed = ['solid', 'dashed'];
+    const nextStyle = allowed.includes(style) ? style : 'solid';
+    updateTableProps(slideId, tableIndex, { borderStyle: nextStyle });
+  };
+
+  const toggleTableCreator = (slideId) => {
+    setTableCreator((prev) => {
+      if (prev.slideId === slideId) {
+        return { slideId: null, rows: '3', cols: '3' };
+      }
+      return { slideId, rows: '3', cols: '3' };
+    });
+  };
+
+  const handleTableInputChange = (key, value) => {
+    setTableCreator((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleConfirmTable = (slideId) => {
+    const rows = parseInt(tableCreator.rows, 10);
+    const cols = parseInt(tableCreator.cols, 10);
+    if (!Number.isInteger(rows) || rows <= 0 || !Number.isInteger(cols) || cols <= 0) {
+      window.alert('Please enter positive whole numbers for rows and columns.');
+      return;
+    }
+    handleAddTable(slideId, rows, cols);
+    setTableCreator({ slideId: null, rows: '3', cols: '3' });
   };
 
   const handleRemoveTable = (slideId, index) => {
@@ -319,12 +550,264 @@ export default function EditPreview() {
       arr.splice(index, 1);
       return { ...s, tables: arr };
     }));
+    delete tableFrameRefs.current[`${slideId}-${index}`];
     setSelectedTable(null);
+    if (activeTableCell && activeTableCell.slideId === slideId && activeTableCell.tableIndex === index) {
+      setActiveTableCell(null);
+    } else if (activeTableCell && activeTableCell.slideId === slideId && activeTableCell.tableIndex > index) {
+      setActiveTableCell({ ...activeTableCell, tableIndex: activeTableCell.tableIndex - 1 });
+    }
   };
 
-  // Global mouse handlers for drag/resize/rotate (mouse fallback)
+  const handleTableCellChange = (slideId, tableIndex, rowIndex, colIndex, value) => {
+    setEditedSlides((prev) => prev.map((s) => {
+      if (s.id !== slideId) return s;
+      const tables = Array.isArray(s.tables) ? s.tables.map((tbl, idx) => {
+        if (idx !== tableIndex) return tbl;
+        const rows = tbl.rows || 0;
+        const cols = tbl.cols || 0;
+        const cells = ensureTableCells(rows, cols, tbl.cells);
+        if (cells[rowIndex] && cells[rowIndex][colIndex] !== undefined) {
+          cells[rowIndex][colIndex] = value;
+        }
+        return ensureTableSizing({ ...tbl, cells });
+      }) : [];
+      return { ...s, tables };
+    }));
+    setActiveTableCell({ slideId, tableIndex, rowIndex, colIndex });
+  };
+
+  const handleAddTableRow = (slideId, tableIndex) => {
+    let nextActive = activeTableCell;
+    setEditedSlides((prev) => prev.map((s) => {
+      if (s.id !== slideId) return s;
+      const tables = Array.isArray(s.tables)
+        ? s.tables.map((tbl, idx) => {
+            if (idx !== tableIndex) return tbl;
+            const cols = Math.max(1, tbl.cols || 1);
+            const baseCells = ensureTableCells(Math.max(0, tbl.rows || 0), cols, tbl.cells).map((row) => [...row]);
+            const match = activeTableCell && activeTableCell.slideId === slideId && activeTableCell.tableIndex === tableIndex;
+            const insertIndex = match
+              ? Math.min((activeTableCell.rowIndex ?? baseCells.length - 1) + 1, baseCells.length)
+              : baseCells.length;
+            baseCells.splice(insertIndex, 0, Array(cols).fill(''));
+            if (match) {
+              nextActive = {
+                slideId,
+                tableIndex,
+                rowIndex: insertIndex,
+                colIndex: Math.min(activeTableCell.colIndex ?? 0, cols - 1)
+              };
+            }
+            const nextRowHeights = splitSegmentAt(tbl.rowHeights || [], insertIndex, MIN_ROW_RATIO);
+            return ensureTableSizing(applyAutoSizeIfNeeded({
+              ...tbl,
+              rows: baseCells.length,
+              cells: baseCells,
+              rowHeights: nextRowHeights
+            }));
+          })
+        : [];
+      return { ...s, tables };
+    }));
+    if (nextActive && nextActive.slideId === slideId && nextActive.tableIndex === tableIndex) {
+      setActiveTableCell(nextActive);
+    }
+  };
+
+  const handleAddTableColumn = (slideId, tableIndex) => {
+    let nextActive = activeTableCell;
+    setEditedSlides((prev) => prev.map((s) => {
+      if (s.id !== slideId) return s;
+      const tables = Array.isArray(s.tables)
+        ? s.tables.map((tbl, idx) => {
+            if (idx !== tableIndex) return tbl;
+            const rows = Math.max(1, tbl.rows || 1);
+            const baseCells = ensureTableCells(rows, Math.max(0, tbl.cols || 0), tbl.cells).map((row) => [...row]);
+            const currentCols = baseCells[0]?.length || 0;
+            const match = activeTableCell && activeTableCell.slideId === slideId && activeTableCell.tableIndex === tableIndex;
+            const insertIndex = match ? Math.min((activeTableCell.colIndex ?? currentCols - 1) + 1, currentCols) : currentCols;
+            baseCells.forEach((row) => {
+              const target = insertIndex > row.length ? row.length : insertIndex;
+              row.splice(target, 0, '');
+            });
+            const newCols = baseCells[0]?.length || 1;
+            if (match) {
+              nextActive = {
+                slideId,
+                tableIndex,
+                rowIndex: Math.min(activeTableCell.rowIndex ?? 0, baseCells.length - 1),
+                colIndex: Math.min(insertIndex, newCols - 1)
+              };
+            }
+            const nextColumnWidths = splitSegmentAt(tbl.columnWidths || [], insertIndex, MIN_COLUMN_RATIO);
+            return ensureTableSizing(applyAutoSizeIfNeeded({
+              ...tbl,
+              cols: newCols,
+              cells: baseCells,
+              columnWidths: nextColumnWidths
+            }));
+          })
+        : [];
+      return { ...s, tables };
+    }));
+    if (nextActive && nextActive.slideId === slideId && nextActive.tableIndex === tableIndex) {
+      setActiveTableCell(nextActive);
+    }
+  };
+
+  const handleRemoveTableRow = (slideId, tableIndex) => {
+    let nextActive = activeTableCell;
+    setEditedSlides((prev) => prev.map((s) => {
+      if (s.id !== slideId) return s;
+      const tables = Array.isArray(s.tables)
+        ? s.tables.map((tbl, idx) => {
+            if (idx !== tableIndex) return tbl;
+            const rows = Math.max(1, tbl.rows || 1);
+            const cols = Math.max(1, tbl.cols || 1);
+            const baseCells = ensureTableCells(rows, cols, tbl.cells).map((row) => [...row]);
+            if (baseCells.length <= 1) return tbl;
+            const match = activeTableCell && activeTableCell.slideId === slideId && activeTableCell.tableIndex === tableIndex;
+            const removeIndex = match
+              ? Math.min(Math.max(activeTableCell.rowIndex ?? 0, 0), baseCells.length - 1)
+              : baseCells.length - 1;
+            baseCells.splice(removeIndex, 1);
+            if (!baseCells.length) {
+              baseCells.push(Array(cols).fill(''));
+            }
+            if (match) {
+              const nextRow = removeIndex > baseCells.length - 1 ? baseCells.length - 1 : removeIndex;
+              nextActive = {
+                slideId,
+                tableIndex,
+                rowIndex: Math.max(nextRow, 0),
+                colIndex: Math.min(activeTableCell.colIndex ?? 0, (baseCells[0]?.length || 1) - 1)
+              };
+            }
+            const nextRowHeights = removeSegmentAt(tbl.rowHeights || [], removeIndex, MIN_ROW_RATIO);
+            return ensureTableSizing(applyAutoSizeIfNeeded({
+              ...tbl,
+              rows: baseCells.length,
+              cells: baseCells,
+              rowHeights: nextRowHeights
+            }));
+          })
+        : [];
+      return { ...s, tables };
+    }));
+    if (nextActive && nextActive.slideId === slideId && nextActive.tableIndex === tableIndex) {
+      setActiveTableCell(nextActive);
+    }
+  };
+
+  const handleRemoveTableColumn = (slideId, tableIndex) => {
+    let nextActive = activeTableCell;
+    setEditedSlides((prev) => prev.map((s) => {
+      if (s.id !== slideId) return s;
+      const tables = Array.isArray(s.tables)
+        ? s.tables.map((tbl, idx) => {
+            if (idx !== tableIndex) return tbl;
+            const rows = Math.max(1, tbl.rows || 1);
+            const cols = Math.max(1, tbl.cols || 1);
+            const baseCells = ensureTableCells(rows, cols, tbl.cells).map((row) => [...row]);
+            const currentCols = baseCells[0]?.length || 1;
+            if (currentCols <= 1) return tbl;
+            const match = activeTableCell && activeTableCell.slideId === slideId && activeTableCell.tableIndex === tableIndex;
+            const removeIndex = match
+              ? Math.min(Math.max(activeTableCell.colIndex ?? 0, 0), currentCols - 1)
+              : currentCols - 1;
+            baseCells.forEach((row) => {
+              row.splice(removeIndex, 1);
+              if (!row.length) {
+                row.push('');
+              }
+            });
+            const newCols = baseCells[0]?.length || 1;
+            if (match) {
+              const nextCol = removeIndex > newCols - 1 ? newCols - 1 : removeIndex;
+              nextActive = {
+                slideId,
+                tableIndex,
+                rowIndex: Math.min(activeTableCell.rowIndex ?? 0, baseCells.length - 1),
+                colIndex: Math.max(nextCol, 0)
+              };
+            }
+            const nextColumnWidths = removeSegmentAt(tbl.columnWidths || [], removeIndex, MIN_COLUMN_RATIO);
+            return ensureTableSizing(applyAutoSizeIfNeeded({
+              ...tbl,
+              cols: newCols,
+              cells: baseCells,
+              columnWidths: nextColumnWidths
+            }));
+          })
+        : [];
+      return { ...s, tables };
+    }));
+    if (nextActive && nextActive.slideId === slideId && nextActive.tableIndex === tableIndex) {
+      setActiveTableCell(nextActive);
+    }
+  };
+
   useEffect(() => {
     const onMove = (ev) => {
+      if (resizingTableAxis) {
+        const { slideId, tableIndex, type, index, startX, startY, rect, initialSizes } = resizingTableAxis;
+        if (!rect) return;
+        const segmentCount = Array.isArray(initialSizes) ? initialSizes.length : 0;
+        setEditedSlides((prev) => prev.map((s) => {
+          if (s.id !== slideId) return s;
+          const tables = Array.isArray(s.tables) ? [...s.tables] : [];
+          const t = { ...(tables[tableIndex] || {}) };
+          if (!Array.isArray(initialSizes) || !initialSizes.length) return s;
+          if (type === 'column') {
+            if (!Array.isArray(t.columnWidths) || t.columnWidths.length !== segmentCount) return s;
+            const pairSum = initialSizes[index] + initialSizes[index + 1];
+            if (!pairSum) return s;
+            let delta = (ev.clientX - startX) / rect.width;
+            let first = clampRatio(initialSizes[index] + delta, MIN_COLUMN_RATIO, pairSum - MIN_COLUMN_RATIO);
+            let second = pairSum - first;
+            if (first < MIN_COLUMN_RATIO) {
+              first = MIN_COLUMN_RATIO;
+              second = pairSum - first;
+            }
+            if (second < MIN_COLUMN_RATIO) {
+              second = MIN_COLUMN_RATIO;
+              first = pairSum - second;
+            }
+            const updated = [...t.columnWidths];
+            updated[index] = first;
+            updated[index + 1] = second;
+            const total = updated.reduce((sum, v) => sum + v, 0) || 1;
+            t.columnWidths = updated.map((v) => v / total);
+            t.userResized = true;
+          } else if (type === 'row') {
+            if (!Array.isArray(t.rowHeights) || t.rowHeights.length !== segmentCount) return s;
+            const pairSum = initialSizes[index] + initialSizes[index + 1];
+            if (!pairSum) return s;
+            let delta = (ev.clientY - startY) / rect.height;
+            let first = clampRatio(initialSizes[index] + delta, MIN_ROW_RATIO, pairSum - MIN_ROW_RATIO);
+            let second = pairSum - first;
+            if (first < MIN_ROW_RATIO) {
+              first = MIN_ROW_RATIO;
+              second = pairSum - first;
+            }
+            if (second < MIN_ROW_RATIO) {
+              second = MIN_ROW_RATIO;
+              first = pairSum - second;
+            }
+            const updated = [...t.rowHeights];
+            updated[index] = first;
+            updated[index + 1] = second;
+            const total = updated.reduce((sum, v) => sum + v, 0) || 1;
+            t.rowHeights = updated.map((v) => v / total);
+            t.userResized = true;
+          }
+          tables[tableIndex] = ensureTableSizing(t);
+          return { ...s, tables };
+        }));
+        return;
+      }
+
       if (draggingSticker) {
         const { slideId, index, startX, startY, origX, origY, rect } = draggingSticker;
         const dx = (ev.clientX - startX) / rect.width;
@@ -342,7 +825,8 @@ export default function EditPreview() {
         }));
         return;
       }
-  if (resizingSticker) {
+
+      if (resizingSticker) {
         const { slideId, index, startX, startY, origX, origY, origW, origH, rect, mode } = resizingSticker;
         const dx = (ev.clientX - startX) / rect.width;
         const dy = (ev.clientY - startY) / rect.height;
@@ -361,8 +845,9 @@ export default function EditPreview() {
           arr[index] = g;
           return { ...s, stickers: arr };
         }));
+        return;
       }
-      // Rotation handling
+
       if (rotatingSticker) {
         const { slideId, index, centerX, centerY, startAngle, origRotate } = rotatingSticker;
         const cx = centerX;
@@ -379,7 +864,65 @@ export default function EditPreview() {
         }));
         return;
       }
-      // Table dragging
+
+      if (resizingTableAxis) {
+        const { slideId, tableIndex, type, index, startX, startY, rect, initialSizes } = resizingTableAxis;
+        if (!rect) return;
+        const segmentCount = Array.isArray(initialSizes) ? initialSizes.length : 0;
+        setEditedSlides((prev) => prev.map((s) => {
+          if (s.id !== slideId) return s;
+          const tables = Array.isArray(s.tables) ? [...s.tables] : [];
+          const t = { ...(tables[tableIndex] || {}) };
+          if (!Array.isArray(initialSizes) || !initialSizes.length) return s;
+          if (type === 'column') {
+            if (!Array.isArray(t.columnWidths) || t.columnWidths.length !== segmentCount) return s;
+            const pairSum = initialSizes[index] + initialSizes[index + 1];
+            if (!pairSum) return s;
+            let delta = (ev.clientX - startX) / rect.width;
+            let first = clampRatio(initialSizes[index] + delta, MIN_COLUMN_RATIO, pairSum - MIN_COLUMN_RATIO);
+            let second = pairSum - first;
+            if (first < MIN_COLUMN_RATIO) {
+              first = MIN_COLUMN_RATIO;
+              second = pairSum - first;
+            }
+            if (second < MIN_COLUMN_RATIO) {
+              second = MIN_COLUMN_RATIO;
+              first = pairSum - second;
+            }
+            const updated = [...t.columnWidths];
+            updated[index] = first;
+            updated[index + 1] = second;
+            const total = updated.reduce((sum, v) => sum + v, 0) || 1;
+            t.columnWidths = updated.map((v) => v / total);
+            t.userResized = true;
+          } else if (type === 'row') {
+            if (!Array.isArray(t.rowHeights) || t.rowHeights.length !== segmentCount) return s;
+            const pairSum = initialSizes[index] + initialSizes[index + 1];
+            if (!pairSum) return s;
+            let delta = (ev.clientY - startY) / rect.height;
+            let first = clampRatio(initialSizes[index] + delta, MIN_ROW_RATIO, pairSum - MIN_ROW_RATIO);
+            let second = pairSum - first;
+            if (first < MIN_ROW_RATIO) {
+              first = MIN_ROW_RATIO;
+              second = pairSum - first;
+            }
+            if (second < MIN_ROW_RATIO) {
+              second = MIN_ROW_RATIO;
+              first = pairSum - second;
+            }
+            const updated = [...t.rowHeights];
+            updated[index] = first;
+            updated[index + 1] = second;
+            const total = updated.reduce((sum, v) => sum + v, 0) || 1;
+            t.rowHeights = updated.map((v) => v / total);
+            t.userResized = true;
+          }
+          tables[tableIndex] = ensureTableSizing(t);
+          return { ...s, tables };
+        }));
+        return;
+      }
+
       if (draggingTable) {
         const { slideId, index, startX, startY, origX, origY, rect } = draggingTable;
         const dx = (ev.clientX - startX) / rect.width;
@@ -397,7 +940,7 @@ export default function EditPreview() {
         }));
         return;
       }
-      // Table resizing
+
       if (resizingTable) {
         const { slideId, index, startX, startY, origX, origY, origW, origH, rect, mode } = resizingTable;
         const dx = (ev.clientX - startX) / rect.width;
@@ -407,30 +950,98 @@ export default function EditPreview() {
           const arr = Array.isArray(s.tables) ? [...s.tables] : [];
           const t = { ...(arr[index] || {}) };
           let x = origX || 0, y = origY || 0, w = origW || 0.5, h = origH || 0.3;
-          if (mode === 'se') { w = clamp(w + dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
-          if (mode === 'ne') { w = clamp(w + dx, 0.1, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, 0.1, 1); }
-          if (mode === 'sw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
-          if (mode === 'nw') { x = clamp(x + dx, 0, 1 - w); y = clamp(y + dy, 0, 1 - h); w = clamp(w - dx, 0.1, 1); h = clamp(h - dy, 0.1, 1); }
+          if (mode === 'se') { w = clamp(w + dx, MIN_TABLE_WIDTH, 1); h = clamp(h + dy, MIN_TABLE_HEIGHT, 1); }
+          if (mode === 'ne') { w = clamp(w + dx, MIN_TABLE_WIDTH, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, MIN_TABLE_HEIGHT, 1); }
+          if (mode === 'sw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, MIN_TABLE_WIDTH, 1); h = clamp(h + dy, MIN_TABLE_HEIGHT, 1); }
+          if (mode === 'nw') { x = clamp(x + dx, 0, 1 - w); y = clamp(y + dy, 0, 1 - h); w = clamp(w - dx, MIN_TABLE_WIDTH, 1); h = clamp(h - dy, MIN_TABLE_HEIGHT, 1); }
           t.x = clamp(x, 0, 1 - w);
           t.y = clamp(y, 0, 1 - h);
           t.width = w; t.height = h;
+          t.userResized = true;
           arr[index] = t;
           return { ...s, tables: arr };
         }));
       }
     };
-    const onUp = () => { setDraggingSticker(null); setResizingSticker(null); setRotatingSticker(null); setDraggingTable(null); setResizingTable(null); };
+
+    const onUp = () => {
+      setDraggingSticker(null);
+      setResizingSticker(null);
+      setRotatingSticker(null);
+      setDraggingTable(null);
+      setResizingTable(null);
+      setResizingTableAxis(null);
+    };
+
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [draggingSticker, resizingSticker, rotatingSticker, draggingTable, resizingTable]);
+  }, [draggingSticker, resizingSticker, rotatingSticker, draggingTable, resizingTable, resizingTableAxis]);
 
   // Pointer events (better reliability) - handles stickers AND tables
   useEffect(() => {
     const onPointerMove = (ev) => {
+      if (resizingTableAxis) {
+        const { slideId, tableIndex, type, index, startX, startY, rect, initialSizes } = resizingTableAxis;
+        if (!rect) return;
+        const segmentCount = Array.isArray(initialSizes) ? initialSizes.length : 0;
+        setEditedSlides((prev) => prev.map((s) => {
+          if (s.id !== slideId) return s;
+          const tables = Array.isArray(s.tables) ? [...s.tables] : [];
+          const t = { ...(tables[tableIndex] || {}) };
+          if (!Array.isArray(initialSizes) || !initialSizes.length) return s;
+          if (type === 'column') {
+            if (!Array.isArray(t.columnWidths) || t.columnWidths.length !== segmentCount) return s;
+            const pairSum = initialSizes[index] + initialSizes[index + 1];
+            if (!pairSum) return s;
+            let delta = (ev.clientX - startX) / rect.width;
+            let first = clampRatio(initialSizes[index] + delta, MIN_COLUMN_RATIO, pairSum - MIN_COLUMN_RATIO);
+            let second = pairSum - first;
+            if (first < MIN_COLUMN_RATIO) {
+              first = MIN_COLUMN_RATIO;
+              second = pairSum - first;
+            }
+            if (second < MIN_COLUMN_RATIO) {
+              second = MIN_COLUMN_RATIO;
+              first = pairSum - second;
+            }
+            const updated = [...t.columnWidths];
+            updated[index] = first;
+            updated[index + 1] = second;
+            const total = updated.reduce((sum, v) => sum + v, 0) || 1;
+            t.columnWidths = updated.map((v) => v / total);
+            t.userResized = true;
+          } else if (type === 'row') {
+            if (!Array.isArray(t.rowHeights) || t.rowHeights.length !== segmentCount) return s;
+            const pairSum = initialSizes[index] + initialSizes[index + 1];
+            if (!pairSum) return s;
+            let delta = (ev.clientY - startY) / rect.height;
+            let first = clampRatio(initialSizes[index] + delta, MIN_ROW_RATIO, pairSum - MIN_ROW_RATIO);
+            let second = pairSum - first;
+            if (first < MIN_ROW_RATIO) {
+              first = MIN_ROW_RATIO;
+              second = pairSum - first;
+            }
+            if (second < MIN_ROW_RATIO) {
+              second = MIN_ROW_RATIO;
+              first = pairSum - second;
+            }
+            const updated = [...t.rowHeights];
+            updated[index] = first;
+            updated[index + 1] = second;
+            const total = updated.reduce((sum, v) => sum + v, 0) || 1;
+            t.rowHeights = updated.map((v) => v / total);
+            t.userResized = true;
+          }
+          tables[tableIndex] = ensureTableSizing(t);
+          return { ...s, tables };
+        }));
+        return;
+      }
+
       if (draggingSticker) {
         const { slideId, index, startX, startY, origX, origY, rect } = draggingSticker;
         const dx = (ev.clientX - startX) / rect.width;
@@ -512,27 +1123,28 @@ export default function EditPreview() {
           const arr = Array.isArray(s.tables) ? [...s.tables] : [];
           const t = { ...(arr[index] || {}) };
           let x = origX || 0, y = origY || 0, w = origW || 0.5, h = origH || 0.3;
-          if (mode === 'se') { w = clamp(w + dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
-          if (mode === 'ne') { w = clamp(w + dx, 0.1, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, 0.1, 1); }
-          if (mode === 'sw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
-          if (mode === 'nw') { x = clamp(x + dx, 0, 1 - w); y = clamp(y + dy, 0, 1 - h); w = clamp(w - dx, 0.1, 1); h = clamp(h - dy, 0.1, 1); }
+          if (mode === 'se') { w = clamp(w + dx, MIN_TABLE_WIDTH, 1); h = clamp(h + dy, MIN_TABLE_HEIGHT, 1); }
+          if (mode === 'ne') { w = clamp(w + dx, MIN_TABLE_WIDTH, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, MIN_TABLE_HEIGHT, 1); }
+          if (mode === 'sw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, MIN_TABLE_WIDTH, 1); h = clamp(h + dy, MIN_TABLE_HEIGHT, 1); }
+          if (mode === 'nw') { x = clamp(x + dx, 0, 1 - w); y = clamp(y + dy, 0, 1 - h); w = clamp(w - dx, MIN_TABLE_WIDTH, 1); h = clamp(h - dy, MIN_TABLE_HEIGHT, 1); }
           t.x = clamp(x, 0, 1 - w);
           t.y = clamp(y, 0, 1 - h);
           t.width = w; t.height = h;
+          t.userResized = true;
           arr[index] = t;
           return { ...s, tables: arr };
         }));
         return;
       }
     };
-    const onPointerUp = () => { setDraggingSticker(null); setResizingSticker(null); setRotatingSticker(null); setDraggingTable(null); setResizingTable(null); };
+  const onPointerUp = () => { setDraggingSticker(null); setResizingSticker(null); setRotatingSticker(null); setDraggingTable(null); setResizingTable(null); setResizingTableAxis(null); };
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [draggingSticker, resizingSticker, rotatingSticker, draggingTable, resizingTable]);
+  }, [draggingSticker, resizingSticker, rotatingSticker, draggingTable, resizingTable, resizingTableAxis]);
 
   // Keyboard support: delete selected sticker with Delete/Backspace
   useEffect(() => {
@@ -560,6 +1172,37 @@ export default function EditPreview() {
     document.addEventListener('pointerdown', onPointerDownGlobal, true);
     return () => document.removeEventListener('pointerdown', onPointerDownGlobal, true);
   }, [selectedSticker]);
+
+  useEffect(() => {
+    if (!tableCreator.slideId) return;
+    const exists = editedSlides.some((s) => s.id === tableCreator.slideId);
+    if (!exists) {
+      setTableCreator({ slideId: null, rows: '3', cols: '3' });
+    }
+  }, [editedSlides, tableCreator.slideId]);
+
+  useEffect(() => {
+    if (!selectedTable) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        handleRemoveTable(selectedTable.slideId, selectedTable.index);
+        setSelectedTable(null);
+      }
+    };
+    const onPointerDownGlobal = (e) => {
+      const inTable = e.target.closest('[data-table-wrapper]');
+      if (!inTable) {
+        setSelectedTable(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDownGlobal, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDownGlobal, true);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTable]);
 
   // Convert hex color like #RRGGBB or #RGB to rgba(...) with given alpha.
   const hexToRgba = (hex, alpha = 1) => {
@@ -794,7 +1437,7 @@ export default function EditPreview() {
             </button>
           </div>
           {/* Right-aligned actions: Stickers & Table */}
-          <div style={{marginLeft:'auto', display:'flex', gap:8, alignItems:'center'}}>
+          <div style={{marginLeft:'auto', display:'flex', gap:8, alignItems: tableCreator.slideId === s.id ? 'flex-start' : 'center', position:'relative'}}>
             <div
               ref={(el) => { if (el) stickerAnchorRefs.current[s.id] = el; }}
               style={{ position:'relative', display:'inline-block' }}
@@ -811,6 +1454,71 @@ export default function EditPreview() {
                     const full = `/stickers/${cat}/${item}`;
                     return <img key={i} src={full} alt={`st-${i}`} onClick={() => handleAddSticker(s.id, full)} style={{ width: 40, height: 40, objectFit: 'contain', cursor: 'pointer' }} onError={(e)=>{ e.currentTarget.style.opacity = 0.3; }} />
                   })}
+                </div>
+              )}
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6, position:'relative' }}>
+              <button
+                className="toolbar-button"
+                title="Insert table"
+                onClick={() => toggleTableCreator(s.id)}
+                style={{ display:'flex', alignItems:'center', gap:6, background: tableCreator.slideId === s.id ? '#2e2e2e' : 'transparent', borderColor: tableCreator.slideId === s.id ? '#555' : undefined }}
+              >
+                <FaTable /> Add Table
+              </button>
+              {tableCreator.slideId === s.id && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                    padding: '14px 16px',
+                    borderRadius: 12,
+                    background: '#161616',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    boxShadow: '0 12px 28px rgba(0,0,0,0.35)',
+                    color: '#f7f7f7',
+                    zIndex: 50,
+                    minWidth: 260
+                  }}
+                >
+                  <span style={{ fontSize: 12, letterSpacing: 0.4, fontWeight: 600, textTransform: 'uppercase', opacity: 0.8 }}>Insert Table</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#f1f5f9' }}>Rows</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={tableCreator.rows}
+                        onChange={(e) => handleTableInputChange('rows', e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmTable(s.id); }}
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: '#1f1f1f', color: '#f7f7f7' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#f1f5f9' }}>Columns</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={tableCreator.cols}
+                        onChange={(e) => handleTableInputChange('cols', e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmTable(s.id); }}
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: '#1f1f1f', color: '#f7f7f7' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                    <button
+                      className="toolbar-button"
+                      style={{ padding: '8px 14px', background: '#2563eb', borderColor: '#2563eb', color: '#fff', fontWeight: 600 }}
+                      onClick={() => handleConfirmTable(s.id)}
+                    >
+                      Create
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -960,13 +1668,286 @@ export default function EditPreview() {
             </div>
           )}
 
-          {/* Tables disabled for now */}
-
-          {/* Stickers overlay container */}
+          {/* Tables & stickers overlay container */}
           <div
             ref={(el) => { if (el) containerRefs.current[s.id] = el; }}
             style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 100 }}
           >
+            {(s.tables || []).map((t, tIdx) => {
+              const isSelected = selectedTable && selectedTable.slideId === s.id && selectedTable.index === tIdx;
+              const cells = ensureTableCells(t.rows || 1, t.cols || 1, t.cells);
+              const resolvedBackground = (!t.background || t.background === 'rgba(255,255,255,0.3)') ? '#ffffff' : t.background;
+              const resolvedBorder = t.borderColor || '#111827';
+              const resolvedBorderWidth = typeof t.borderWidth === 'number' ? t.borderWidth : DEFAULT_BORDER_WIDTH;
+              const resolvedBorderStyle = t.borderStyle || 'solid';
+              const normalizedBorderStyle = resolvedBorderStyle === 'dotted' ? 'dashed' : resolvedBorderStyle;
+              const hexColorRegex = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
+              const backgroundColorForPicker = hexColorRegex.test(resolvedBackground) ? resolvedBackground : '#ffffff';
+              const borderColorForPicker = hexColorRegex.test(resolvedBorder) ? resolvedBorder : '#111827';
+              const rowCount = Math.max(1, t.rows || cells.length || 1);
+              const colCount = Math.max(1, t.cols || (cells[0]?.length ?? 1));
+              const columnWidths = Array.isArray(t.columnWidths) ? ensureSegments(colCount, t.columnWidths, MIN_COLUMN_RATIO) : ensureSegments(colCount, undefined, MIN_COLUMN_RATIO);
+              const rowHeights = Array.isArray(t.rowHeights) ? ensureSegments(rowCount, t.rowHeights, MIN_ROW_RATIO) : ensureSegments(rowCount, undefined, MIN_ROW_RATIO);
+              const densityFactor = Math.max(rowCount - 3, 0) + Math.max(colCount - 3, 0);
+              const cellPadding = clampValue(10 - densityFactor * 1.1, 3, 10);
+              const cellFontSize = clampValue(13 - densityFactor * 0.6, 9, 13);
+              const cellMinHeight = clampValue(28 - Math.max(0, rowCount - 3) * 3, 14, 28);
+              const tableRefKey = `${s.id}-${tIdx}`;
+              const columnBoundaries = [];
+              let columnAccumulator = 0;
+              columnWidths.forEach((portion, idx) => {
+                columnAccumulator += portion;
+                if (idx < columnWidths.length - 1) columnBoundaries.push(columnAccumulator);
+              });
+              const rowBoundaries = [];
+              let rowAccumulator = 0;
+              rowHeights.forEach((portion, idx) => {
+                rowAccumulator += portion;
+                if (idx < rowHeights.length - 1) rowBoundaries.push(rowAccumulator);
+              });
+              return (
+                <div
+                  key={`tbl-${s.id}-${tIdx}`}
+                  data-table-wrapper
+                  ref={(el) => {
+                    if (el) {
+                      tableFrameRefs.current[tableRefKey] = el;
+                    } else {
+                      delete tableFrameRefs.current[tableRefKey];
+                    }
+                  }}
+                  onPointerDown={(ev) => {
+                    if (ev.target.closest('[data-table-cell]')) return;
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                    const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                    try { ev.currentTarget.setPointerCapture && ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) { console.warn('table pointerCapture failed', e); }
+                    setSelectedSticker(null);
+                    setSelectedTable({ slideId: s.id, index: tIdx });
+                    setDraggingTable({ slideId: s.id, index: tIdx, startX: ev.clientX, startY: ev.clientY, origX: t.x || 0, origY: t.y || 0, rect, pointerId: ev.pointerId });
+                  }}
+                  onClick={(ev) => {
+                    if (ev.target.closest('[data-table-cell]')) return;
+                    ev.stopPropagation();
+                    setSelectedSticker(null);
+                    setSelectedTable({ slideId: s.id, index: tIdx });
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: `${(t.x || 0) * 100}%`,
+                    top: `${(t.y || 0) * 100}%`,
+                    width: `${(t.width || 0.5) * 100}%`,
+                    height: `${(t.height || 0.3) * 100}%`,
+                    pointerEvents: 'auto',
+                    touchAction: 'none',
+                    cursor: 'move',
+                    background: resolvedBackground,
+                    border: `${resolvedBorderWidth}px ${normalizedBorderStyle} ${resolvedBorder}`,
+                    borderRadius: 0,
+                    boxShadow: 'none',
+                    overflow: 'visible'
+                  }}
+                >
+                  <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', pointerEvents: 'auto' }}>
+                    <colgroup>
+                      {columnWidths.map((portion, cIdx) => (
+                        <col key={`tbl-${s.id}-${tIdx}-col-${cIdx}`} style={{ width: `${portion * 100}%` }} />
+                      ))}
+                    </colgroup>
+                    <tbody>
+                      {cells.map((row, rowIdx) => (
+                        <tr key={`tbl-${s.id}-${tIdx}-row-${rowIdx}`} style={{ height: `${(rowHeights[rowIdx] || (1 / rowCount)) * 100}%` }}>
+                          {row.map((cellValue, colIdx) => (
+                            <td
+                              key={`tbl-${s.id}-${tIdx}-cell-${rowIdx}-${colIdx}`}
+                              style={{
+                                border: `${resolvedBorderWidth}px ${normalizedBorderStyle} ${resolvedBorder}`,
+                                background: resolvedBackground,
+                                padding: 0,
+                                verticalAlign: 'top'
+                              }}
+                            >
+                              <textarea
+                                data-table-cell
+                                value={cellValue}
+                                onChange={(e) => handleTableCellChange(s.id, tIdx, rowIdx, colIdx, e.target.value)}
+                                onPointerDown={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTableCell({ slideId: s.id, tableIndex: tIdx, rowIndex: rowIdx, colIndex: colIdx });
+                                }}
+                                onFocus={() => {
+                                  setSelectedSticker(null);
+                                  setSelectedTable({ slideId: s.id, index: tIdx });
+                                  setActiveTableCell({ slideId: s.id, tableIndex: tIdx, rowIndex: rowIdx, colIndex: colIdx });
+                                }}
+                                spellCheck={false}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  resize: 'none',
+                                  border: 'none',
+                                  background: 'transparent',
+                                  color: '#111827',
+                                  fontSize: cellFontSize,
+                                  fontFamily: 'inherit',
+                                  textAlign: 'left',
+                                  lineHeight: 1.35,
+                                  outline: 'none',
+                                  padding: `${cellPadding}px`,
+                                  whiteSpace: 'pre-wrap',
+                                  overflow: 'auto',
+                                  cursor: 'text',
+                                  borderRadius: 6,
+                                  boxSizing: 'border-box',
+                                  boxShadow: 'none',
+                                  minHeight: cellMinHeight
+                                }}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {isSelected && (
+                    <>
+                      <div
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        onClick={(ev) => ev.stopPropagation()}
+                        style={{
+                          position: 'absolute',
+                          top: -48,
+                          left: '50%',
+                          transform: 'translate(-50%, -100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 14,
+                          flexWrap: 'wrap',
+                          background: 'rgba(17,17,17,0.92)',
+                          padding: '6px 14px',
+                          borderRadius: 18,
+                          boxShadow: '0 8px 18px rgba(0,0,0,0.35)',
+                          pointerEvents: 'auto',
+                          color: '#f8fafc',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          zIndex: 35
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            onClick={() => handleAddTableRow(s.id, tIdx)}
+                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'inherit', borderRadius: 10, padding: '4px 10px', cursor: 'pointer' }}
+                          >
+                            + Row
+                          </button>
+                          <button
+                            onClick={() => handleAddTableColumn(s.id, tIdx)}
+                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'inherit', borderRadius: 10, padding: '4px 10px', cursor: 'pointer' }}
+                          >
+                            + Col
+                          </button>
+                          <button
+                            onClick={() => handleRemoveTableRow(s.id, tIdx)}
+                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'inherit', borderRadius: 10, padding: '4px 10px', cursor: 'pointer', opacity: (t.rows || 1) <= 1 ? 0.4 : 1 }}
+                            disabled={(t.rows || 1) <= 1}
+                          >
+                            − Row
+                          </button>
+                          <button
+                            onClick={() => handleRemoveTableColumn(s.id, tIdx)}
+                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'inherit', borderRadius: 10, padding: '4px 10px', cursor: 'pointer', opacity: (t.cols || 1) <= 1 ? 0.4 : 1 }}
+                            disabled={(t.cols || 1) <= 1}
+                          >
+                            − Col
+                          </button>
+                        </div>
+                        <div style={{ width: 1, height: 20, background: 'rgba(148,163,184,0.3)' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>Shading</span>
+                            <input
+                              type="color"
+                              value={backgroundColorForPicker}
+                              onChange={(ev) => handleTableBackgroundChange(s.id, tIdx, ev.target.value)}
+                              style={{ width: 28, height: 18, border: 'none', cursor: 'pointer', background: 'transparent' }}
+                            />
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>Border</span>
+                            <input
+                              type="color"
+                              value={borderColorForPicker}
+                              onChange={(ev) => handleTableBorderColorChange(s.id, tIdx, ev.target.value)}
+                              style={{ width: 28, height: 18, border: 'none', cursor: 'pointer', background: 'transparent' }}
+                            />
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>Width</span>
+                            <select
+                              value={String(resolvedBorderWidth)}
+                              onChange={(ev) => handleTableBorderWidthChange(s.id, tIdx, Number(ev.target.value))}
+                              style={{ background: 'rgba(31,41,55,0.9)', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}
+                            >
+                              {BORDER_WIDTH_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>Style</span>
+                            <select
+                              value={normalizedBorderStyle}
+                              onChange={(ev) => handleTableBorderStyleChange(s.id, tIdx, ev.target.value)}
+                              style={{ background: 'rgba(31,41,55,0.9)', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}
+                            >
+                              {BORDER_STYLE_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                      <button
+                        onPointerDown={(ev) => {
+                          ev.stopPropagation();
+                          ev.preventDefault();
+                        }}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          ev.preventDefault();
+                          handleRemoveTable(s.id, tIdx);
+                        }}
+                        style={{ position: 'absolute', top: -28, right: -28, width: 28, height: 28, borderRadius: 14, border: 'none', background: '#ff4757', color: '#fff', cursor: 'pointer', pointerEvents: 'auto', zIndex: 30 }}
+                        title="Remove table (Del)"
+                      >×</button>
+                      {['nw','ne','se','sw'].map((mode) => {
+                        const pos = {
+                          nw: { left: 0, top: 0, transform: 'translate(-50%,-50%)', cursor: 'nwse-resize' },
+                          ne: { right: 0, top: 0, transform: 'translate(50%,-50%)', cursor: 'nesw-resize' },
+                          se: { right: 0, bottom: 0, transform: 'translate(50%,50%)', cursor: 'nwse-resize' },
+                          sw: { left: 0, bottom: 0, transform: 'translate(-50%,50%)', cursor: 'nesw-resize' },
+                        }[mode];
+                        return (
+                          <div
+                            key={mode}
+                            onPointerDown={(ev) => {
+                              ev.stopPropagation();
+                              ev.preventDefault();
+                              const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                              try { ev.currentTarget.setPointerCapture && ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) { console.warn('table resize pointerCapture failed', e); }
+                              setResizingTable({ slideId: s.id, index: tIdx, mode, startX: ev.clientX, startY: ev.clientY, origX: t.x || 0, origY: t.y || 0, origW: t.width || 0.5, origH: t.height || 0.3, rect, pointerId: ev.pointerId });
+                            }}
+                            style={{ position: 'absolute', width: 16, height: 16, background: '#ffffff', border: '1px solid rgba(107,114,128,0.6)', borderRadius: 3, pointerEvents: 'auto', touchAction: 'none', boxShadow: '0 1px 2px rgba(15,23,42,0.15)', zIndex: 25, ...pos }}
+                          />
+                        );
+                      })}
+                      {/* Column and row resize guides removed per request */}
+                    </>
+                  )}
+                </div>
+              );
+            })}
             {(s.stickers || []).map((g, idx) => (
               <div
                 key={`stk-${s.id}-${idx}`}
@@ -978,9 +1959,10 @@ export default function EditPreview() {
                   console.log('[Sticker] pointerDown', { slideId: s.id, index: idx, clientX: ev.clientX, clientY: ev.clientY, rect });
                   try { ev.currentTarget.setPointerCapture && ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) { console.warn('pointerCapture failed', e); }
                   setSelectedSticker({ slideId: s.id, index: idx });
+                  setSelectedTable(null);
                   setDraggingSticker({ slideId: s.id, index: idx, startX: ev.clientX, startY: ev.clientY, origX: g.x || 0, origY: g.y || 0, rect, pointerId: ev.pointerId });
                 }}
-                onClick={(ev) => { ev.stopPropagation(); setSelectedSticker({ slideId: s.id, index: idx }); }}
+                onClick={(ev) => { ev.stopPropagation(); setSelectedSticker({ slideId: s.id, index: idx }); setSelectedTable(null); }}
                 style={{
                   position: 'absolute',
                   left: `${(g.x || 0) * 100}%`,
@@ -1293,6 +2275,9 @@ export default function EditPreview() {
                 const bodyText = (typeof slide.text === 'string' && slide.text.trim().length)
                   ? slide.text
                   : (bulletLines.length ? bulletLines.join('\n') : '');
+                const textAlignValue = slide.styles?.textAlign || 'left';
+                const bodyFontWeight = slide.styles?.textBold ? 700 : 400;
+                const bodyFontStyle = slide.styles?.textItalic ? 'italic' : 'normal';
                 return (
                   <div style={{ position:'relative', width:'100%', minHeight:380, color:textColor, fontFamily: slide.styles?.textFont || currentDesign.font, borderRadius:8, padding:'30px 40px', display:'grid', gridTemplateColumns: columns, gap:40, alignItems:'flex-start', ...modalPreviewStyle }}>
                     {/* Render title and body like the editor slide card: left-aligned title + body, optional image column */}
@@ -1301,14 +2286,14 @@ export default function EditPreview() {
                         <h2 style={{ fontSize: slide.styles?.titleSize || 32, fontFamily: slide.styles?.titleFont || currentDesign.font, color:titleColor, margin:'0 0 16px', fontWeight: slide.styles?.titleBold ? 700 : 500, fontStyle: slide.styles?.titleItalic ? 'italic' : 'normal' }}>{slide.title}</h2>
                         {/* If this is a title layout with paragraph text, show it as left-aligned body (editor shows paragraph inside left content area) */}
                         {bodyText ? (
-                          <div style={{ lineHeight: '1.4', color: textColor }}>{bodyText.split('\n').map((ln, idx) => (
+                          <div style={{ lineHeight: '1.4', color: textColor, textAlign: textAlignValue, fontWeight: bodyFontWeight, fontStyle: bodyFontStyle }}>{bodyText.split('\n').map((ln, idx) => (
                             <div key={idx} style={{ marginBottom: 6 }}>{ln}</div>
                           ))}</div>
                         ) : (
                           bulletLines.map((line,i) => (
-                            <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
-                              <span style={{ fontSize: slide.styles?.textSize || 16, lineHeight:'1.2', color:titleColor }}>•</span>
-                              <span style={{ lineHeight:'1.2' }}>{line}</span>
+                            <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, justifyContent: textAlignValue === 'right' ? 'flex-end' : textAlignValue === 'center' ? 'center' : 'flex-start', marginBottom: 6 }}>
+                              <span style={{ fontSize: slide.styles?.textSize || 16, lineHeight:'1.2', color:titleColor, fontWeight: bodyFontWeight, fontStyle: bodyFontStyle }}>•</span>
+                              <span style={{ lineHeight:'1.2', color: textColor, fontWeight: bodyFontWeight, fontStyle: bodyFontStyle, textAlign: textAlignValue }}>{line}</span>
                             </div>
                           ))
                         )}
@@ -1327,8 +2312,67 @@ export default function EditPreview() {
                         </div>
                       )}
                     </>
-                    {/* Stickers render (absolute overlay using percentage layout) */}
+                    {/* Tables and stickers render (absolute overlay using percentage layout) */}
                     <div style={{ position:'absolute', inset:0, pointerEvents:'none' }}>
+                      {(slide.tables || []).map((tbl, ti) => {
+                        const previewCells = ensureTableCells(tbl.rows || 1, tbl.cols || 1, tbl.cells);
+                        const previewBackground = (!tbl.background || tbl.background === 'rgba(255,255,255,0.3)') ? '#ffffff' : tbl.background;
+                        const previewBorder = tbl.borderColor || '#111827';
+                        const previewBorderWidth = typeof tbl.borderWidth === 'number' ? tbl.borderWidth : DEFAULT_BORDER_WIDTH;
+                        const previewBorderStyle = (tbl.borderStyle === 'dotted') ? 'dashed' : (tbl.borderStyle || 'solid');
+                        const previewRowCount = Math.max(1, tbl.rows || previewCells.length || 1);
+                        const previewColCount = Math.max(1, tbl.cols || (previewCells[0]?.length ?? 1));
+                        const previewDensity = Math.max(previewRowCount - 3, 0) + Math.max(previewColCount - 3, 0);
+                        const previewPadding = clampValue(10 - previewDensity * 1.1, 3, 10);
+                        const previewFontSize = clampValue(13 - previewDensity * 0.6, 9, 13);
+                        const previewColumnWidths = Array.isArray(tbl.columnWidths) ? ensureSegments(previewColCount, tbl.columnWidths, MIN_COLUMN_RATIO) : ensureSegments(previewColCount, undefined, MIN_COLUMN_RATIO);
+                        const previewRowHeights = Array.isArray(tbl.rowHeights) ? ensureSegments(previewRowCount, tbl.rowHeights, MIN_ROW_RATIO) : ensureSegments(previewRowCount, undefined, MIN_ROW_RATIO);
+                        return (
+                          <div
+                          key={`preview-table-${ti}`}
+                          style={{
+                            position:'absolute',
+                            left:`${(tbl.x || 0) * 100}%`,
+                            top:`${(tbl.y || 0) * 100}%`,
+                            width:`${(tbl.width || 0.5) * 100}%`,
+                            height:`${(tbl.height || 0.3) * 100}%`,
+                            pointerEvents:'none',
+                            // Remove clipping so full table shows
+                            overflow:'visible'
+                          }}
+                        >
+                          <table style={{ width:'100%', height:'100%', borderCollapse:'collapse', tableLayout:'fixed', border: `${previewBorderWidth}px ${previewBorderStyle} ${previewBorder}` }}>
+                            <colgroup>
+                              {previewColumnWidths.map((portion, cIdx) => (
+                                <col key={`preview-table-${ti}-col-${cIdx}`} style={{ width: `${portion * 100}%` }} />
+                              ))}
+                            </colgroup>
+                            <tbody>
+                              {previewCells.map((row, rIdx) => (
+                                <tr key={`preview-table-${ti}-row-${rIdx}`} style={{ height: `${(previewRowHeights[rIdx] || (1 / previewRowCount)) * 100}%` }}>
+                                  {row.map((cellValue, cIdx) => (
+                                    <td
+                                      key={`preview-table-${ti}-cell-${rIdx}-${cIdx}`}
+                                      style={{
+                                        border: `${previewBorderWidth}px ${previewBorderStyle} ${previewBorder}`,
+                                        background: previewBackground,
+                                        textAlign: 'left',
+                                        padding: `${previewPadding}px`,
+                                        fontSize: previewFontSize,
+                                        color: '#111827',
+                                        whiteSpace: 'pre-wrap',
+                                        lineHeight: 1.35,
+                                        verticalAlign: 'top'
+                                      }}
+                                    >{cellValue && cellValue.trim() ? cellValue : '\u00a0'}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        );
+                      })}
                       {(slide.stickers || []).map((st, si) => (
                         <div key={si} style={{ position:'absolute', left:`${(st.x||0)*100}%`, top:`${(st.y||0)*100}%`, width:`${(st.width||0.18)*100}%`, height:`${(st.height||0.18)*100}%`, transform:`rotate(${st.rotate||0}deg)`, transformOrigin:'top left' }}>
                           <img src={st.url} alt="st" style={{ width:'100%', height:'100%', objectFit:'contain', userSelect:'none', pointerEvents:'none' }} />
