@@ -14,12 +14,6 @@ module.exports = {
           process: "process/browser",
         })
       );
-      
-      // Disable all CSS minification
-      if (config.optimization) {
-        config.optimization.minimize = false;
-      }
-      
       return config;
     },
   },
