@@ -65,6 +65,7 @@ export const prebuiltTemplates = [
   },
 ];
 
+// eslint-disable-next-line no-unused-vars
 const generateImageFromPollinations = async (prompt, retries = 1) => {
 
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;

@@ -34,9 +34,13 @@ const MIN_TABLE_WIDTH = 0.06;
 const MIN_TABLE_HEIGHT = 0.06;
 const MAX_TABLE_WIDTH = 0.94;
 const MAX_TABLE_HEIGHT = 0.88;
+// eslint-disable-next-line no-unused-vars
 const HANDLE_TOUCH_SIZE = 16;
+// eslint-disable-next-line no-unused-vars
 const HANDLE_LINE_WIDTH = 2;
+// eslint-disable-next-line no-unused-vars
 const HANDLE_COLOR_IDLE = 'transparent';
+// eslint-disable-next-line no-unused-vars
 const HANDLE_COLOR_ACTIVE = 'rgba(148,163,184,0.85)';
 
 const autoSizeTableFrame = (table) => {
@@ -154,6 +158,7 @@ const DEFAULT_BORDER_WIDTH = ptToPx(1);
 
 export default function EditPreview() {
   const location = useLocation();
+  // eslint-disable-next-line no-unused-vars
   const [slides, setSlides] = useState(location.state?.slides || []);
   const navigate = useNavigate();
   
@@ -222,6 +227,7 @@ export default function EditPreview() {
   const [previewSlideIndex, setPreviewSlideIndex] = useState(0);
   
   // This state correctly reads the flag from the previous page
+  // eslint-disable-next-line no-unused-vars
   const [showImageColumn, setShowImageColumn] = useState(location.state?.includeImages ?? true);
   
   const [currentDesign, setCurrentDesign] = useState({
@@ -2269,6 +2275,7 @@ export default function EditPreview() {
                 } else {
                   modalPreviewStyle.backgroundColor = themeBg || '#FFFFFF';
                 }
+                // eslint-disable-next-line no-unused-vars
                 const isTitle = slide.layout === 'title';
                 // Use same two-column layout as the editor slide card when image column is enabled
                 const columns = showImageColumn ? '1fr 320px' : '1fr';

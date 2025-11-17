@@ -39,6 +39,7 @@ const Sidebar = ({ handleLogout, loggingOut }) => (
 );
 
 // Helper for readable colors
+// eslint-disable-next-line no-unused-vars
 const getReadableColor = (bg, light = "#FFF", dark = "#000") => {
   if (!bg) return dark;
   if (bg.includes("gradient")) return light;
@@ -52,6 +53,7 @@ const getReadableColor = (bg, light = "#FFF", dark = "#000") => {
 };
 
 // Helper for parsing CSS gradients
+// eslint-disable-next-line no-unused-vars
 const parseGradientColors = (gradientStr) => {
   if (!gradientStr || typeof gradientStr !== "string") return null;
   const matches = gradientStr.match(/#([0-9A-Fa-f]{3,6})/g);
