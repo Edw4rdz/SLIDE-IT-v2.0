@@ -220,7 +220,6 @@ export default function WordToPPT() {
                 <h3>How it Works</h3>
                 <ul>
                   <li>Summarizes your documents</li>
-                  <li>Imports images and graphics</li>
                   <li>Edit your content for clarity and conciseness</li>
                 </ul>
               </div>

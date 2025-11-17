@@ -29,10 +29,11 @@ const INITIAL_NEW_USER_STATE = {
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
+  const [roleStats, setRoleStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // --- New State for Modal ---
+ 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUserData, setNewUserData] = useState(INITIAL_NEW_USER_STATE);
   const [loadingAction, setLoadingAction] = useState(false); // For modal/delete
@@ -69,6 +70,7 @@ export default function AdminDashboard() {
       ]);
       setUsers(usersData.users || []);
       setStats(analyticsData);
+      setRoleStats(usersData.roleStats || null);
     } catch (err) {
       console.error("Failed to load admin data:", err);
       setError(err.message);
@@ -76,8 +78,6 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
-  
-  // Function to only refresh the user list
   const refreshUsers = async () => {
     try {
       const usersData = await fetchAllUsers();
@@ -91,7 +91,6 @@ export default function AdminDashboard() {
     loadAdminData();
   }, []);
 
-  // --- Modal Handlers ---
   const handleNewUserChange = (e) => {
     const { name, value, type, checked } = e.target;
     setNewUserData(prev => ({
@@ -102,7 +101,7 @@ export default function AdminDashboard() {
   
   const handleNewUserSubmit = async (e) => {
     e.preventDefault();
-    // --- MODIFIED: Updated validation ---
+    // --- New User Creation ---
     if (!newUserData.email || !newUserData.password || !newUserData.username || !newUserData.firstName || !newUserData.lastName || !newUserData.birthday) {
       return alert("Please fill out all fields.");
     }
@@ -231,12 +230,61 @@ export default function AdminDashboard() {
               <p className="admin-stat-number">{loading ? '...' : stats?.totalConversions || 0}</p>
             </div>
           </div>
+
+          {/* Role Statistics Section */}
+          <div className="admin-section-header">
+            <h2>User Roles Distribution</h2>
+          </div>
+          <div className="tools-grid role-stats-grid">
+            <div className="admin-stat-card role-card">
+              <div className="tool-icon student">
+                <i className="fa fa-graduation-cap" />
+              </div>
+              <h3 className="tool-title">Students</h3>
+              <p className="admin-stat-number">{loading ? '...' : roleStats?.student || 0}</p>
+            </div>
+
+            <div className="admin-stat-card role-card">
+              <div className="tool-icon educator">
+                <i className="fa fa-university" />
+              </div>
+              <h3 className="tool-title">Educators</h3>
+              <p className="admin-stat-number">{loading ? '...' : roleStats?.educator || 0}</p>
+            </div>
+
+            <div className="admin-stat-card role-card">
+              <div className="tool-icon professional">
+                <i className="fa fa-briefcase" />
+              </div>
+              <h3 className="tool-title">Professionals</h3>
+              <p className="admin-stat-number">{loading ? '...' : roleStats?.professional || 0}</p>
+            </div>
+
+            <div className="admin-stat-card role-card">
+              <div className="tool-icon other-role">
+                <i className="fa fa-user" />
+              </div>
+              <h3 className="tool-title">Other</h3>
+              <p className="admin-stat-number">{loading ? '...' : roleStats?.other || 0}</p>
+            </div>
+
+            <div className="admin-stat-card role-card">
+              <div className="tool-icon not-set">
+                <i className="fa fa-question-circle" />
+              </div>
+              <h3 className="tool-title">Not Set</h3>
+              <p className="admin-stat-number">{loading ? '...' : roleStats?.notSet || 0}</p>
+            </div>
+          </div>
+
           <div className="admin-content-card">
             <h2>Feature Usage</h2>
             <h3>Most Used: {loading ? '...' : (stats?.mostUsedFeature?.name || 'N/A')}</h3>
             <ul className="feature-list">
               {loading ? <p>Loading...</p> : (
-                stats && Object.entries(stats.allFeatures).map(([name, count]) => (
+                stats && Object.entries(stats.allFeatures)
+                  .filter(([name]) => name !== 'unknown')
+                  .map(([name, count]) => (
                   <li key={name}>
                     <strong>{name}:</strong> {count} uses
                   </li>

@@ -11,27 +11,35 @@ export default function AIGenerator() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
   const [convertedSlides, setConvertedSlides] = useState([]);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [includeImages, setIncludeImages] = useState(false);
  
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
-  // Generate slides (FIXED)
-  const handleGenerate = async () => {
+  // Show image modal before generating
+  const handleGenerateClick = () => {
     if (!topic.trim()) return alert("Please enter a topic first!");
-    
-    // Check for user ID
     if (!loggedInUser?.user_id) return alert("User not logged in. Cannot save history.");
+    
+    setShowImageModal(true);
+  };
 
+ 
+  const handleGenerate = async (includeAIImages) => {
+    setShowImageModal(false);
+    setIncludeImages(includeAIImages);
+    
     setIsLoading(true);
     setLoadingText("Initializing AI generation...");
     setConvertedSlides([]);
 
     try {
-      // 2. Call the clean 'generateSlides' function
       const res = await generateSlides({
         topic,
         slides,
-        userId: loggedInUser.user_id, // <-- 3. ADDED userId
+        userId: loggedInUser.user_id,
+        includeImages: includeAIImages,
       });
 
       if (!res.data) {
@@ -43,8 +51,7 @@ export default function AIGenerator() {
       setConvertedSlides(slidesWithId);
       setLoadingText("Slides generated successfully!");
 
-    } catch (err)
- {
+    } catch (err) {
       console.error(err);
       alert("AI slide generation failed: " + (err.response?.data?.error || err.message));
     } finally {
@@ -59,22 +66,20 @@ export default function AIGenerator() {
       return alert("Please generate slides first!");
     }
 
-    // 4. Navigate without the old 'downloadUrl'
     navigate("/edit-preview", {
       state: {
         slides: convertedSlides,
         topic,
+        imageSource: includeImages ? 'ai' : 'none',
       },
     });
   };
 
   return (
-    // 1. CHANGED "ai-dashboard" to "dashboard" for uniform layout
+ 
     <div className="dashboard">
       
       <Sidebar activePage="dashboard" />
-
-      {/* 2. CHANGED "ai-main" to "main" for uniform layout */}
       <main className="main">
         <div className="ai-container aigenerator">
           <header className="headera">
@@ -99,7 +104,7 @@ export default function AIGenerator() {
 
                 <button
                   className="generateAI-btn"
-                  onClick={handleGenerate}
+                  onClick={handleGenerateClick}
                   disabled={!topic.trim() || isLoading}
                 >
                   {isLoading ? (
@@ -176,6 +181,31 @@ export default function AIGenerator() {
           </div>
         </div>
       </main>
+
+      {/* Image Generation Modal */}
+      {showImageModal && (
+        <div className="ai-image-modal-backdrop" onClick={() => setShowImageModal(false)}>
+          <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Image Generation</h2>
+            <p>Do you want to include AI-generated images in your presentation?</p>
+            
+            <div className="ai-modal-buttons">
+              <button className="ai-modal-btn text-only-btn" onClick={() => handleGenerate(false)}>
+                <span className="btn-icon">📄</span>
+                <span className="btn-text">Text Only</span>
+              </button>
+              <button className="ai-modal-btn include-images-btn" onClick={() => handleGenerate(true)}>
+                <span className="btn-icon">🖼️</span>
+                <span className="btn-text">Include Images</span>
+              </button>
+            </div>
+            
+            <button className="ai-modal-cancel" onClick={() => setShowImageModal(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

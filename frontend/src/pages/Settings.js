@@ -8,10 +8,11 @@ import {
   EmailAuthProvider,
 } from "firebase/auth";
 import { db } from "../firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { getHistory } from "../api";
 import "../styles/settings.css";
 import Sidebar from "../components/Sidebar";
+import RoleSelectionModal from "../components/RoleSelectionModal";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -19,6 +20,8 @@ export default function Settings() {
 
   const [loading, setLoading] = useState(true);
   const [conversionCount, setConversionCount] = useState(0);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [userDocId, setUserDocId] = useState(null);
 
   // Profile info
   const [profile, setProfile] = useState({
@@ -26,13 +29,14 @@ export default function Settings() {
     lastName: "",
     email: "",
     birthday: "",
+    role: "",
+    roleDescription: "",
   });
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  // Feedback form state
   const [fbCategory, setFbCategory] = useState("bug");
   const [fbRating, setFbRating] = useState(5);
   const [fbTitle, setFbTitle] = useState("");
@@ -55,17 +59,29 @@ export default function Settings() {
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-          const data = querySnapshot.docs[0].data();
+          const docSnapshot = querySnapshot.docs[0];
+          const data = docSnapshot.data();
+          setUserDocId(docSnapshot.id);
 
-          const birthday = data.birthday
-            ? new Date(data.birthday).toISOString().split("T")[0]
-            : "";
+          let birthday = "";
+          try {
+            if (data.birthday) {
+              const dateObj = data.birthday.toDate ? data.birthday.toDate() : new Date(data.birthday);
+              if (!isNaN(dateObj.getTime())) {
+                birthday = dateObj.toISOString().split("T")[0];
+              }
+            }
+          } catch (err) {
+            console.warn("Invalid birthday data for user, skipping:", err);
+          }
 
           setProfile({
             firstName: data.firstName || "",
             lastName: data.lastName || "",
             email: data.email || user.email || "",
             birthday,
+            role: data.role || "",
+            roleDescription: data.roleDescription || "",
           });
         } else {
           const displayName = user.displayName || "";
@@ -76,6 +92,8 @@ export default function Settings() {
             lastName,
             email: user.email || "",
             birthday: "",
+            role: "",
+            roleDescription: "",
           });
         }
       } catch (err) {
@@ -142,12 +160,8 @@ export default function Settings() {
       alert("❌ Failed to update password. Please check your current password and try again.");
     }
   };
-
-  // Feedback submit handler - saves to Firestore `feedback` collection
   const handleFeedbackSubmit = async (e) => {
     e && e.preventDefault();
-
-    // Basic validation
     if (!fbMessage || fbMessage.trim().length < 5) {
       setFbStatus({ type: "error", text: "Please enter a helpful message (min 5 characters)." });
       return;
@@ -175,7 +189,6 @@ export default function Settings() {
       await addDoc(collection(db, "feedback"), payload);
 
       setFbStatus({ type: "success", text: "Thanks — your feedback has been submitted." });
-      // clear fields
       setFbCategory("bug");
       setFbRating(5);
       setFbTitle("");
@@ -189,13 +202,64 @@ export default function Settings() {
     }
   };
 
+  const handleRoleUpdate = async (roleData) => {
+    try {
+      if (userDocId) {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("authUID", "==", auth.currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const docRef = querySnapshot.docs[0].ref;
+          await updateDoc(docRef, roleData);
+          
+          setProfile(prev => ({
+            ...prev,
+            role: roleData.role,
+            roleDescription: roleData.roleDescription || "",
+          }));
+          
+          alert("✅ Role updated successfully!");
+        }
+      }
+      setShowRoleModal(false);
+    } catch (err) {
+      console.error("Error updating role:", err);
+      alert("❌ Failed to update role. Please try again.");
+    }
+  };
+
+  const handleRoleSkip = () => {
+    setShowRoleModal(false);
+  };
+
+  const getRoleDisplay = () => {
+    if (!profile.role || profile.role.trim() === "") return "Not set";
+    
+    const roleLabels = {
+      student: "Student 🎓",
+      educator: "Educator/Faculty 👨‍🏫",
+      professional: "Professional 💼",
+      other: profile.roleDescription ? `Other: ${profile.roleDescription} ✨` : "Other ✨"
+    };
+    
+    return roleLabels[profile.role] || profile.role;
+  };
+
   if (loading) return <div>Loading profile...</div>;
 
   return (
-    <div className="dashboard">
-      <Sidebar activePage="settings" />
+    <>
+      <RoleSelectionModal
+        isOpen={showRoleModal}
+        onSubmit={handleRoleUpdate}
+        onSkip={handleRoleSkip}
+      />
+      
+      <div className="dashboard">
+        <Sidebar activePage="settings" />
 
-      <main className="settings-main">
+        <main className="settings-main">
         <div className="settings-container">
           <header className="settings-header">
             <div className="header-icon">⚙️</div>
@@ -228,6 +292,21 @@ export default function Settings() {
               <div className="form-group">
                 <label>Birthday</label>
                 <input type="date" value={profile.birthday} readOnly />
+              </div>
+
+              {/* User Role */}
+              <div className="form-group">
+                <label>User Role</label>
+                <div className="role-display-container">
+                  <input type="text" value={getRoleDisplay()} readOnly />
+                  <button 
+                    type="button" 
+                    className="change-role-btn"
+                    onClick={() => setShowRoleModal(true)}
+                  >
+                    {profile.role ? "Change Role" : "Set Role"}
+                  </button>
+                </div>
               </div>
 
               {/* ✅ Added current password field above new password */}
@@ -321,5 +400,6 @@ export default function Settings() {
         </div>
       </main>
     </div>
+    </>
   );
 }

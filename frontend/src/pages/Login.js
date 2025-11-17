@@ -3,6 +3,7 @@ import { FaEnvelope, FaLock, FaGoogle } from "react-icons/fa";
 import loginImg from "../assets/loginImg.jpg";
 import "../styles/login.css";
 import { useNavigate } from "react-router-dom";
+import RoleSelectionModal from "../components/RoleSelectionModal";
 
 import {
   signInWithEmailAndPassword,
@@ -18,7 +19,7 @@ import {
   query,
   where,
   getDocs,
-  updateDoc, // <-- 1. IMPORT updateDoc
+  updateDoc, 
 } from "firebase/firestore";
 
 export default function Login() {
@@ -26,21 +27,56 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  
+  // Role selection modal state
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [pendingUserData, setPendingUserData] = useState(null);
+  const [pendingDocId, setPendingDocId] = useState(null);
 
-  // <-- 2. ADD A HELPER FUNCTION to update the lastLogin timestamp -->
   const updateUserLogin = async (docId) => {
     try {
       const userDocRef = doc(db, "users", docId);
-      // We use updateDoc to add/update just this one field
+  
       await updateDoc(userDocRef, {
         lastLogin: new Date() // Set lastLogin to the current server time
       });
     } catch (err) {
-      // This is not a critical error, so we just log a warning
       console.warn("Could not update lastLogin time:", err.message);
     }
+  }
+
+  const handleRoleSubmit = async (roleData) => {
+    try {
+      if (pendingDocId) {
+        const userDocRef = doc(db, "users", pendingDocId);
+        await updateDoc(userDocRef, roleData);
+      }
+      
+      setShowRoleModal(false);
+      alert("Welcome to SLIDE-IT!");
+      
+      if (pendingUserData?.isAdmin === true) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      console.error("Error saving role:", err);
+      alert("Failed to save role. Please try again.");
+    }
   };
-  // <-- End of helper function -->
+
+
+  const handleRoleSkip = () => {
+    setShowRoleModal(false);
+    alert("You can set your role later in Settings.");
+    
+    if (pendingUserData?.isAdmin === true) {
+      navigate("/admin");
+    } else {
+      navigate("/dashboard");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,13 +89,11 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Sign in
+ 
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
-      // Try to find the user's Firestore doc
       let userDataFromDb = null;
-      let userDocId = null; // <-- 3. We need the document ID
+      let userDocId = null; 
 
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("authUID", "==", user.uid));
@@ -68,23 +102,17 @@ export default function Login() {
       if (!querySnapshot.empty) {
         const docSnap = querySnapshot.docs[0];
         userDataFromDb = { id: docSnap.id, ...docSnap.data() };
-        userDocId = docSnap.id; // <-- 4. Get ID from query
+        userDocId = docSnap.id;
       } else {
-        // fallback: maybe some accounts were stored at users/{uid}
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           userDataFromDb = { id: userDoc.id, ...userDoc.data() };
           userDocId = userDoc.id; // <-- 5. Get ID from doc
         }
       }
-
-      // <-- 6. CALL lastLogin UPDATE -->
       if (userDocId) {
         await updateUserLogin(userDocId);
       }
-      // <-- End of new call -->
-
-      // Build a consistent localStorage object
       const localUser = {
         username: userDataFromDb?.username || user.displayName || user.email,
         firstName: userDataFromDb?.firstName || null,
@@ -96,6 +124,15 @@ export default function Login() {
       };
 
       localStorage.setItem("user", JSON.stringify(localUser));
+      
+      // Check if user needs to select a role
+      if (!userDataFromDb?.role && userDataFromDb?.isAdmin !== true) {
+        setPendingUserData({ ...localUser, isAdmin: userDataFromDb?.isAdmin || false });
+        setPendingDocId(userDocId);
+        setShowRoleModal(true);
+        return; 
+      }
+      
       alert("Login successful!");
       
       if (userDataFromDb?.isAdmin === true) {
@@ -143,7 +180,7 @@ export default function Login() {
       const user = result.user;
 
       let userDataFromDb = null;
-      let userDocId = null; // <-- 3. We need the document ID
+      let userDocId = null; 
 
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("authUID", "==", user.uid));
@@ -152,16 +189,15 @@ export default function Login() {
       if (!querySnapshot.empty) {
         const docSnap = querySnapshot.docs[0];
         userDataFromDb = docSnap.data();
-        userDocId = docSnap.id; // <-- 4. Get ID from query
+        userDocId = docSnap.id; 
       } else {
         const uidRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(uidRef);
-        userDocId = user.uid; // <-- 5. The ID is the uid
+        userDocId = user.uid; 
         
         if (docSnap.exists()) {
           userDataFromDb = docSnap.data();
         } else {
-          // 3. User is new, create a document for them
           userDataFromDb = {
             name: user.displayName,
             email: user.email,
@@ -172,11 +208,7 @@ export default function Login() {
           await setDoc(uidRef, userDataFromDb);
         }
       }
-
-      // <-- 6. CALL lastLogin UPDATE -->
       await updateUserLogin(userDocId);
-      // <-- End of new call -->
-
       const localUser = {
         username: userDataFromDb?.name || user.displayName || user.email,
         email: userDataFromDb?.email || user.email,
@@ -186,6 +218,13 @@ export default function Login() {
       };
 
       localStorage.setItem("user", JSON.stringify(localUser));
+      if (!userDataFromDb?.role && userDataFromDb?.isAdmin !== true) {
+        setPendingUserData({ ...localUser, isAdmin: userDataFromDb?.isAdmin || false });
+        setPendingDocId(userDocId);
+        setShowRoleModal(true);
+        return; 
+      }
+      
       alert("Welcome, " + (localUser.username) + "!");
 
       if (userDataFromDb?.isAdmin === true) {
@@ -222,8 +261,15 @@ export default function Login() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-container">
+    <>
+      <RoleSelectionModal
+        isOpen={showRoleModal}
+        onSubmit={handleRoleSubmit}
+        onSkip={handleRoleSkip}
+      />
+      
+      <div className="login-page">
+        <div className="login-container">
         {/* Left side */}
         <div className="login-left">
           <h2 className="title">
@@ -290,5 +336,6 @@ export default function Login() {
         </div>
       </div>
     </div>
+    </>
   );
 }

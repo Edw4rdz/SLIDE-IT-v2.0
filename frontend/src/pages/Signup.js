@@ -1,13 +1,13 @@
-// src/pages/Signup.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaEnvelope, FaLock, FaUser, FaCalendarAlt } from "react-icons/fa";
 import signupImg from "../assets/signupImg.jpg";
 import "../styles/signup.css";
+import RoleSelectionModal from "../components/RoleSelectionModal";
 
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
-import { doc, setDoc, runTransaction } from "firebase/firestore";
+import { doc, setDoc, runTransaction, updateDoc } from "firebase/firestore";
 
 export default function Signup() {
   const [username, setUsername] = useState("");
@@ -21,6 +21,9 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [pendingDocId, setPendingDocId] = useState(null);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const nameRegex = /^[A-Za-z\s'-]+$/;
@@ -51,6 +54,27 @@ export default function Signup() {
     if (password !== confirmPassword) return "Passwords do not match.";
 
     return "";
+  };
+
+  const handleRoleSubmit = async (roleData) => {
+    try {
+      if (pendingDocId) {
+        const userDocRef = doc(db, "users", pendingDocId);
+        await updateDoc(userDocRef, roleData);
+      }
+      
+      setShowRoleModal(false);
+      alert("Account Registration Successful! Welcome to SLIDE-IT!");
+      navigate("/login");
+    } catch (err) {
+      console.error("Error saving role:", err);
+      alert("Failed to save role. Please try again.");
+    }
+  }
+  const handleRoleSkip = () => {
+    setShowRoleModal(false);
+    alert("Account created! You can set your role later in Settings.");
+    navigate("/login");
   };
 
   const handleRegister = async () => {
@@ -105,8 +129,8 @@ export default function Signup() {
         })
       );
 
-      alert("Account Registration Successful!");
-      navigate("/Login");
+      setPendingDocId(newUserId.toString());
+      setShowRoleModal(true);
     } catch (err) {
       console.error("❌ Firebase Signup Error:", err);
       let errorMessage = "An error occurred. Please try again.";
@@ -130,8 +154,15 @@ export default function Signup() {
   };
 
   return (
-    <div className="signup-page">
-      <div className="signup-container">
+    <>
+      <RoleSelectionModal
+        isOpen={showRoleModal}
+        onSubmit={handleRoleSubmit}
+        onSkip={handleRoleSkip}
+      />
+      
+      <div className="signup-page">
+        <div className="signup-container">
         <div className="cover">
           <img src={signupImg} alt="Signup background" />
           <div className="text">
@@ -260,6 +291,7 @@ export default function Signup() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

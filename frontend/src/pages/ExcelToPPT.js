@@ -217,7 +217,6 @@ export default function ExcelToPPT() {
                 <h3>Tips</h3>
                 <ul>
                   <li>Include well-structured headers for better results.</li>
-                  <li>Charts are automatically converted into slides.</li>
                   <li>Keep large files under 50MB.</li>
                   <li>Use 5–15 slides for balanced detail.</li>
                 </ul>

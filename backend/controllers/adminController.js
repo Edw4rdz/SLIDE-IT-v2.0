@@ -13,6 +13,15 @@ export const getAllUsers = async (req, res) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Role statistics
+    const roleStats = {
+      student: 0,
+      educator: 0,
+      professional: 0,
+      other: 0,
+      notSet: 0
+    };
+
     usersSnap.forEach((doc) => {
       const data = doc.data();
       if (doc.id === 'userCounter' || !data || !data.email || !data.authUID) {
@@ -26,6 +35,23 @@ export const getAllUsers = async (req, res) => {
         }
       }
 
+      // Count roles - normalize to lowercase and check against predefined roles
+      const userRole = data.role?.toLowerCase()?.trim();
+      console.log(`User ${data.username} (${data.email}) has role: "${data.role}" -> normalized: "${userRole}"`);
+      
+      if (!userRole) {
+        roleStats.notSet++;
+      } else if (userRole === 'student') {
+        roleStats.student++;
+        console.log('✓ Counted as student');
+      } else if (userRole === 'educator' || userRole === 'faculty') {
+        roleStats.educator++;
+      } else if (userRole === 'professional') {
+        roleStats.professional++;
+      } else {
+        roleStats.other++;
+      }
+
       users.push({
         id: doc.id, 
         username: data.username || "N/A",
@@ -37,9 +63,12 @@ export const getAllUsers = async (req, res) => {
       });
     });
 
+    console.log('Final role stats:', roleStats);
+
     res.json({
       totalUsers: users.length,
       users: users,
+      roleStats: roleStats
     });
     
   } catch (err) {

@@ -280,9 +280,6 @@ body {
   background-color: #4338ca;
   transform: scale(1.05);
 }
-/* --- END ADDED --- */
-
-/* --- ADDED: STYLES FOR PROGRESS BAR (BLUE THEME) --- */
 
 .convertw-btn .progress-bar-container {
   width: 100%;
@@ -318,7 +315,6 @@ body {
   animation: indeterminate-progress 1.5s ease-in-out infinite;
 }
 
-/* This animation is used by all progress bars */
 @keyframes indeterminate-progress {
   0% {
     left: -60%; 
@@ -336,12 +332,6 @@ body {
   min-height: 220px; 
 }
 
-/* --- END ADDED STYLES --- */
-
-/* =================================
-  Word to PPT - BLUE THEME
-  =================================
-*/
 .slide-input-group {
   display: flex;
   align-items: center;
@@ -412,6 +402,7 @@ body {
 
 .wordtoppt .slide-input {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Centering fixes */
@@ -435,9 +426,7 @@ body {
 .ai-card #slide-count {
   text-align: center;
 }
-/* --- END OF NEW STYLES --- */
 
-/* Modal styles (copied from pdftoppt.css for uniformity) */
 .modal-backdrop {
   position: fixed;
   top: 0;
