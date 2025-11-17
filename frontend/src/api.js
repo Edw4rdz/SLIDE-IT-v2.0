@@ -3,7 +3,10 @@ import axios from "axios";
 import PptxGenJS from "pptxgenjs";
 import { Buffer } from "buffer";
 
-const API_BASE = "http://localhost:5000/api";
+// Use environment variable for API base URL, fallback to localhost for development
+const API_BASE = process.env.REACT_APP_BACKEND_URL 
+  ? `${process.env.REACT_APP_BACKEND_URL}/api` 
+  : "http://localhost:5000/api";
 
 
 export const registerUser = (data) => axios.post(`${API_BASE}/register`, data);

@@ -19,7 +19,10 @@ const app = express();
 const __dirname = path.resolve(); // For serving static files
 
 // --- MIDDLEWARE ---
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json({ limit: "25mb" })); // Increase limit for PDF base64
 app.use(express.urlencoded({ extended: true }));
 
@@ -27,6 +30,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --- ROUTES ---
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ message: 'SLIDE-IT API is running', status: 'OK' });
+});
+
 // All your application's routes are now cleanly organized
 app.use("/api", googleAuthRoutes);
 app.use("/api", googleTemplateRoutes);

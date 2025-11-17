@@ -1,6 +1,9 @@
 import { getAuth } from "firebase/auth";
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+// Use environment variable for API base URL, fallback to localhost for development
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL 
+  ? `${process.env.REACT_APP_BACKEND_URL}/api` 
+  : 'http://localhost:5000/api';
 
 /**
  * Helper: Get the current user's ID token.
