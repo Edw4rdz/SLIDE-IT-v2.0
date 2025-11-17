@@ -5,7 +5,7 @@ import { Buffer } from "buffer";
 
 // Use environment variable for API base URL, fallback to localhost for development
 const API_BASE = process.env.REACT_APP_BACKEND_URL 
-  ? `${process.env.REACT_APP_BACKEND_URL}/api` 
+  ? `${process.env.REACT_APP_BACKEND_URL.replace(/\/$/, '')}/api` 
   : "http://localhost:5000/api";
 
 
