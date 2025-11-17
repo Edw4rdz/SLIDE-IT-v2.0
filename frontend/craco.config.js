@@ -15,11 +15,9 @@ module.exports = {
         })
       );
       
-      // Temporarily disable CSS minification to generate unminified CSS for inspection
-      if (config.optimization && config.optimization.minimizer) {
-        config.optimization.minimizer = config.optimization.minimizer.filter(
-          plugin => plugin.constructor.name !== 'CssMinimizerPlugin'
-        );
+      // Disable all CSS minification
+      if (config.optimization) {
+        config.optimization.minimize = false;
       }
       
       return config;
