@@ -18,11 +18,11 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar"; 
 
 const tools = [
-  { title: "AI PowerPoint Generator", desc: "Create professional slides from any topic using AI.", icon: "fa-cogs", colorClass: "plus", path: "/ai-generator" },
-  { title: "PDF to PPT", desc: "Convert PDF files into editable PowerPoint presentations.", icon: "fa-file-pdf-o", colorClass: "pdf", path: "/pdftoppt" },
-  { title: "Word to PPT", desc: "Convert Word documents into engaging presentations.", icon: "fa-file-word-o", colorClass: "word", path: "/wordtoppt" },
-  { title: "Text to PPT", desc: "Turn plain text files into styled slides quickly.", icon: "fa-file-text-o", colorClass: "text", path: "/texttoppt" },
-  { title: "Excel to PPT", desc: "Convert Excel data into presentation-ready charts and tables.", icon: "fa-file-excel-o", colorClass: "excel", path: "/exceltoppt" },
+  { title: "AI PowerPoint Generator", desc: "Create professional slides from any topic using AI.", icon: "fas fa-robot", colorClass: "plus", path: "/ai-generator" },
+    { title: "PDF to PPT", desc: "Convert PDF files into editable PowerPoint presentations.", icon: "fas fa-file-pdf", colorClass: "pdf", path: "/pdftoppt" },
+    { title: "Word to PPT", desc: "Convert Word documents into engaging presentations.", icon: "fas fa-file-word", colorClass: "word", path: "/wordtoppt" },
+    { title: "Text to PPT", desc: "Turn plain text files into styled slides quickly.", icon: "fas fa-file-alt", colorClass: "text", path: "/texttoppt" },
+    { title: "Excel to PPT", desc: "Convert Excel data into presentation-ready charts and tables.", icon: "fas fa-file-excel", colorClass: "excel", path: "/exceltoppt" },
 ];
 
 export default function Dashboard() {
