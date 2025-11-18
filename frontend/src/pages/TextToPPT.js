@@ -6,7 +6,7 @@ import "../styles/texttoppt.css";
 import Sidebar from "../components/Sidebar"; // <-- 1. IMPORTED SIDEBAR
 
 export default function TextToPPT() {
-  const [slides, setSlides] = useState(8);
+  const [slides, setSlides] = useState(15);
   const [file, setFile] = useState(null);
   const [fileContent, setFileContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -112,16 +112,18 @@ export default function TextToPPT() {
             <div className="ai-left">
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Text File</h2>
-                <div
-                  className="uploadp-area"
-                  onClick={() => fileInputRef.current.click()}
-                >
+                <div className="uploadp-area">
                   <div className="uploadp-icon">⬆</div>
-                  {file ? (
-                    <p className="file-name">📑 {file.name}</p>
-                  ) : (
-                    <h3>Drop or browse your .txt file</h3>
-                  )}
+                  <h3>
+                    Drop your text file here, or{" "}
+                    <span
+                      className="browsep"
+                      onClick={() => fileInputRef.current.click()}
+                    >
+                      browse
+                    </span>
+                  </h3>
+                  <p>Supports text files.</p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -129,6 +131,7 @@ export default function TextToPPT() {
                     onChange={handleFileChange}
                     style={{ display: "none" }}
                   />
+                  {file && <p className="file-name">📄 {file.name}</p>}
                 </div>
 
                 <button
@@ -233,28 +236,23 @@ export default function TextToPPT() {
 
       {/* ✅ Modal */}
       {isModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal-content">
+        <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
+          <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
-            <div className="modal-buttons">
-              <button
-                className="modal-btn btn-text"
-                onClick={() => handleConversionStart(false)}
-              >
-                <FaFileAlt /> Text Only
+            
+            <div className="ai-modal-buttons">
+              <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
+                <span className="btn-icon">📄</span>
+                <span className="btn-text">Text Only</span>
               </button>
-              <button
-                className="modal-btn btn-image"
-                onClick={() => handleConversionStart(true)}
-              >
-                <FaImages /> Include Images
+              <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
+                <span className="btn-icon">🖼️</span>
+                <span className="btn-text">Include Images</span>
               </button>
             </div>
-            <button
-              className="modal-btn-cancel"
-              onClick={() => setIsModalOpen(false)}
-            >
+            
+            <button className="ai-modal-cancel" onClick={() => setIsModalOpen(false)}>
               Cancel
             </button>
           </div>

@@ -89,7 +89,7 @@ export default function PDFToPPT() {
       <main className="main">
         <div className="ai-container pdftoppt">
            <header className="headerp">
-             <div className="headerp-icon">📄</div>
+             <div className="headerp-icon">PDF</div>
              <div>
                <h1>PDF to PowerPoint Converter</h1>
                <p>Transform your PDFs into editable and AI-enhanced slides</p>
@@ -111,7 +111,7 @@ export default function PDFToPPT() {
                        browse
                      </span>
                    </h3>
-                   <p>Supports up to 25MB PDF files</p>
+                   <p>Supports pdf files up to 25MB.</p>
                    <input
                      ref={fileInputRef}
                      type="file"
@@ -232,30 +232,23 @@ export default function PDFToPPT() {
       </main>
 
       {isModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal-content">
+        <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
+          <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
-            <div className="modal-buttons">
-              <button
-                className="modal-btn btn-text"
-                onClick={() => handleConversionStart(false)} 
-              >
-                <FaFileAlt />
-                Text Only
+            
+            <div className="ai-modal-buttons">
+              <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
+                <span className="btn-icon">📄</span>
+                <span className="btn-text">Text Only</span>
               </button>
-              <button
-                className="modal-btn btn-image"
-                onClick={() => handleConversionStart(true)} 
-              >
-                <FaImages />
-                Include Images
+              <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
+                <span className="btn-icon">🖼️</span>
+                <span className="btn-text">Include Images</span>
               </button>
             </div>
-            <button
-              className="modal-btn-cancel"
-              onClick={() => setIsModalOpen(false)} 
-            >
+            
+            <button className="ai-modal-cancel" onClick={() => setIsModalOpen(false)}>
               Cancel
             </button>
           </div>

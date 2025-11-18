@@ -97,8 +97,8 @@ export default function WordToPPT() {
 
       {/* 6. CHANGED to 'main' */}
       <main className="main">
-        <div className="containerw wordtoppt">
-          <header className="header">
+        <div className="ai-container wordtoppt">
+          <header className="headerp">
             <div className="headerw-icon">DOCX</div>
             <div>
               <h1>Word to PPT Converter</h1>
@@ -106,7 +106,7 @@ export default function WordToPPT() {
             </div>
           </header>
 
-          <div className="contentw-grid">
+          <div className="ai-content">
             {/* Left Column */}
             <div className="ai-left">
               <div className="ai-card ai-card-top">
@@ -240,28 +240,23 @@ export default function WordToPPT() {
 
       {/* Modal for Image/Text choice */}
       {isModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal-content">
+        <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
+          <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
-            <div className="modal-buttons">
-              <button
-                className="modal-btn btn-text"
-                onClick={() => handleConversionStart(false)}
-              >
-                <FaFileAlt /> Text Only
+            
+            <div className="ai-modal-buttons">
+              <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
+                <span className="btn-icon">📄</span>
+                <span className="btn-text">Text Only</span>
               </button>
-              <button
-                className="modal-btn btn-image"
-                onClick={() => handleConversionStart(true)}
-              >
-                <FaImages /> Include Images
+              <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
+                <span className="btn-icon">🖼️</span>
+                <span className="btn-text">Include Images</span>
               </button>
             </div>
-            <button
-              className="modal-btn-cancel"
-              onClick={() => setIsModalOpen(false)}
-            >
+            
+            <button className="ai-modal-cancel" onClick={() => setIsModalOpen(false)}>
               Cancel
             </button>
           </div>

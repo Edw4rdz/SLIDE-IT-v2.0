@@ -43,6 +43,7 @@
 .sidebar .logo {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   padding: 0 20px;
   margin-bottom: 30px;
@@ -51,19 +52,22 @@
   color: #fff; 
 }
 .sidebar .logo div {
-  margin-left: 12px;
+  margin-left: 0;
+  text-align: center;
 }
 .sidebar .logo h2 {
-  font-size: 20px;
+  font-size: 28px;
   font-weight: 800;
   margin: 0;
-  line-height: 1;
+  line-height: 1.2;
   color: #fff;
+  white-space: nowrap;
 }
 .sidebar .logo p {
-  font-size: 12px;
+  font-size: 13px;
   color: #d1d5db;
-  margin: 4px 0 0;
+  margin: 2px 0 0;
+  opacity: 0.8;
 }
 
 .sidebar nav a {

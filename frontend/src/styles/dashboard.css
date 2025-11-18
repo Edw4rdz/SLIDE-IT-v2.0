@@ -139,18 +139,19 @@ body {
   flex-direction: column;
   flex: 1;
   width: 100%;
-  padding: 20px;
+  padding: 40px 60px;
 }
 
 /* Header */
 .dashboard .header {
-  text-align: center;
-  margin-bottom: 20px;
+  text-align: left;
+  margin-bottom: 40px;
 }
 
 .dashboard .header h1 {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
+  margin-bottom: 8px;
 }
 
 .dashboard .header h1 span {
@@ -159,7 +160,7 @@ body {
 
 .dashboard .header p {
   color: #666;
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
 /* Tools Grid */

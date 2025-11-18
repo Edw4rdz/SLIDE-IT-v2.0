@@ -29,10 +29,10 @@ export default function Sidebar({ activePage, isAdmin }) {
 
   return (
     <aside className="sidebar">
-      <div className="fa fa-magic logo">
+      <div className="logo">
         <div>
           <h2>SLIDE-IT</h2>
-          <p>Convert & Generate</p>
+          <p className="subtext">Convert & Generate</p>
         </div>
       </div>
 

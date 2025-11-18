@@ -460,8 +460,8 @@ textarea.slide-edit-bullets {
 }
 
 .aigenerator .slide-btn {
-  background: linear-gradient(135deg, #6c63ff, #7f74ff);
-  color: #fff;
+  background: linear-gradient(135deg, #6c63ff, #7f74ff) !important;
+  color: #fff !important;
   border: none;
   border-radius: 10px;
   width: 42px;
@@ -479,7 +479,7 @@ textarea.slide-edit-bullets {
 }
 
 .aigenerator .slide-btn:hover {
-  background: linear-gradient(135deg, #5b52f2, #6c63ff);
+  background: linear-gradient(135deg, #5b52f2, #6c63ff) !important;
   transform: scale(1.05);
 }
 

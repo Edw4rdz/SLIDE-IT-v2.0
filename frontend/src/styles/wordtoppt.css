@@ -40,15 +40,24 @@ body {
   width: 100%;
 }
 
-.header {
+/* Container */
+.ai-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+}
+
+/* Header */
+.headerp {
   display: flex;
   gap: 15px;
   margin-bottom: 20px;
   align-items: center;
 }
 
-.headerw-icon {
-  width: 60px;
+.wordtoppt .headerw-icon {
+  width: 50px;
   height: 50px;
   background: #3b82f6;
   color: white;
@@ -60,11 +69,10 @@ body {
 }
 
 /* Content */
-.contentw-grid {
+.ai-content {
   display: flex;
   gap: 20px;
   flex: 1;
-  width: 100%;
 }
 
 /* Left Column */
@@ -103,40 +111,35 @@ body {
   margin-bottom: 6px;
 }
 
-.uploadw-area {
-  border: 2px dashed #3b82f6; 
+.wordtoppt .uploadw-area {
+  border: 2px dashed #3b82f6;
   border-radius: 10px;
   padding: 25px;
   text-align: center;
-  margin-bottom: 16px;
   position: relative;
+  transition: background 0.3s;
 }
 
-.uploadw-area:hover {
-  background: #94b2e2; 
+.wordtoppt .uploadw-area:hover {
+  background: #dbeafe;
 }
 
-.uploadw-icon {
-  font-size: 32px;
-  color: #3b82f6; 
-  margin-bottom: 12px;
-}
-
-.browsew {
-  background: none;
-  border: none;
-  color: #3b82f6; 
-  cursor: pointer;
-  text-decoration: underline;
-  font-weight: 500;
+.wordtoppt .uploadw-icon {
+  font-size: 2rem;
+  color: #3b82f6;
+  margin-bottom: 10px;
 }
 
 .file-input {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
   opacity: 0;
+  cursor: pointer;
+}
+
+.browsew {
+  color: #3b82f6;
+  text-decoration: underline;
   cursor: pointer;
 }
 
@@ -235,10 +238,10 @@ body {
   color: #666;
 }
 
-.convertw-btn {
-  display: flex; 
-  justify-content: center; 
-  align-items: center; 
+.wordtoppt .convertw-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: 100%;
   padding: 10px;
   background: #3b82f6;
@@ -248,12 +251,12 @@ body {
   cursor: pointer;
   margin-top: 15px;
   transition: background 0.3s;
-  min-height: 45px; 
-  font-weight: 600; 
+  min-height: 45px;
+  font-weight: 600;
 }
 
-.convertw-btn:hover {
-  background: #94b2e2;
+.wordtoppt .convertw-btn:hover {
+  background: #2563eb;
 }
 
 /* Success Card Styling */
@@ -352,32 +355,33 @@ body {
   transform: scale(1.05);
 }
 
-.convertw-btn .progress-bar-container {
+.wordtoppt .convertw-btn .progress-bar-container {
   width: 100%;
-  height: 25px; 
-  background-color: #2563eb; 
+  height: 25px;
+  background-color: #1e40af !important;
   border-radius: 12px;
   overflow: hidden;
-  position: relative; 
+  position: relative;
   
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.convertw-btn .progress-text {
+.wordtoppt .convertw-btn .progress-text {
   color: white;
   font-weight: 600;
   font-size: 0.9rem;
-  position: relative; 
+  position: relative;
   z-index: 2;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.3); 
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
 }
 
-.convertw-btn .progress-bar-indeterminate {
-  width: 60%; 
+.wordtoppt .convertw-btn .progress-bar-indeterminate {
+  width: 60%;
   height: 100%;
-  background-color: #3b82f6; 
+  background-color: #3b82f6 !important;
+  background-image: none !important;
   position: absolute;
   top: 0;
   z-index: 1;
@@ -429,8 +433,8 @@ body {
 }
 
 .wordtoppt .slide-btn {
-  background-color: #3b82f6;
-  color: white;
+  background-color: #3b82f6 !important;
+  color: white !important;
   border: none;
   cursor: pointer;
   transition: 0.2s ease;
@@ -447,21 +451,21 @@ body {
 }
 
 .wordtoppt .slide-btn:hover {
-  background-color: #2563eb;
+  background-color: #2563eb !important;
 }
 
 .wordtoppt .slide-btn:active {
   transform: scale(0.95);
-  background-color: #1d4ed8;
+  background-color: #1d4ed8 !important;
 }
 
 .wordtoppt .slide-btn.plus {
-  background-color: #3b82f6;
+  background-color: #3b82f6 !important;
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
 }
 
 .wordtoppt .slide-btn.minus {
-  background-color: #3b82f6;
+  background-color: #3b82f6 !important;
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
 }
 
@@ -592,4 +596,133 @@ body {
 .modal-btn-cancel:hover {
   color: #333;
   text-decoration: underline;
+}
+
+/* AI Modal Styles */
+.ai-modal-buttons {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ai-modal-btn {
+  flex: 1;
+  padding: 24px 16px;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  background: #f8f8f8;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-modal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.text-only-btn {
+  background: #f8f8f8;
+  border-color: #e5e5e5;
+}
+
+.text-only-btn:hover {
+  background: #f0f0f0;
+  border-color: #d0d0d0;
+}
+
+.include-images-btn {
+  background: #f0f0ff;
+  border-color: #6366f1;
+}
+
+.include-images-btn:hover {
+  background: #e8e8ff;
+  border-color: #4f46e5;
+}
+
+.ai-modal-btn .btn-icon {
+  font-size: 2.5rem;
+}
+
+.ai-modal-btn .btn-text {
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.include-images-btn .btn-text {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.ai-modal-cancel {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #666;
+  transition: all 0.2s ease;
+  text-decoration: underline;
+}
+
+.ai-modal-cancel:hover {
+  color: #333;
+}
+
+/* AI Image Modal */
+.ai-image-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ai-image-modal-content {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  animation: modalSlideIn 0.3s ease-out;
+  text-align: center;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-image-modal-content h2 {
+  margin-bottom: 12px;
+  color: #1a1a1a;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.ai-image-modal-content p {
+  margin-bottom: 30px;
+  color: #666;
+  line-height: 1.5;
+  font-size: 0.95rem;
 }

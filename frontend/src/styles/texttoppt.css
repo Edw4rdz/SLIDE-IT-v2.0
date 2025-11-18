@@ -106,6 +106,12 @@ body {
   margin-bottom: 12px;
 }
 
+.texttoppt .browsep {
+  color: #f59e0b !important;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .file-name {
   margin-top: 10px;
   font-size: 0.9rem;
@@ -334,7 +340,7 @@ textarea {
   box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
 }
 
-.slide-btn {
+.texttoppt .slide-btn {
   background-color: #f97316; 
   color: white;
   border: none;
@@ -352,20 +358,20 @@ textarea {
   line-height: 1; 
 }
 
-.slide-btn:hover {
+.texttoppt .slide-btn:hover {
   background-color: #ea580c; 
 }
 
-.slide-btn:active {
+.texttoppt .slide-btn:active {
   transform: scale(0.95);
 }
 
-.slide-btn.plus {
+.texttoppt .slide-btn.plus {
   background-color: #f97316; 
   box-shadow: 0 0 10px rgba(249, 115, 22, 0.8);
 }
 
-.slide-btn.minus {
+.texttoppt .slide-btn.minus {
   background-color: #f97316; 
   box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
 }
@@ -377,6 +383,7 @@ textarea {
 }
 .slide-input {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .ai-card:has(.slide-control) { 
@@ -513,7 +520,7 @@ textarea {
 
 .texttoppt .uploadp-btn {
   background: #facc15 !important;
-  color: #1f2937 !important;
+  color: white !important;
 }
 
 .texttoppt .uploadp-btn:hover {
@@ -522,7 +529,7 @@ textarea {
 
 .texttoppt .uploadp-btn:disabled {
   background: #fde68a !important;
-  color: #9ca3af !important;
+  color: white !important;
 }
 
 .texttoppt .uploadp-btn .progress-bar-container {
@@ -533,22 +540,6 @@ textarea {
   background-color: #facc15 !important;
 }
 
-.texttoppt .slide-btn,
-.texttoppt .slide-btn.plus,
-.texttoppt .slide-btn.minus {
-  background-color: #facc15 !important;
-  color: #1f2937 !important;
-  box-shadow: 0 0 10px rgba(250, 204, 21, 0.5) !important;
-}
-
-.texttoppt .slide-btn:hover {
-  background-color: #fbbf24 !important;
-}
-
-.texttoppt .slide-btn:active {
-  background-color: #f59e0b !important;
-}
-
 .texttoppt .slide-input {
   border-color: #facc15 !important;
 }
@@ -556,4 +547,133 @@ textarea {
 .texttoppt .slide-input:focus {
   box-shadow: 0 0 8px rgba(250, 204, 21, 0.5) !important;
   border-color: #facc15 !important;
+}
+
+/* AI Modal Styles */
+.ai-modal-buttons {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ai-modal-btn {
+  flex: 1;
+  padding: 24px 16px;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  background: #f8f8f8;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-modal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.text-only-btn {
+  background: #f8f8f8;
+  border-color: #e5e5e5;
+}
+
+.text-only-btn:hover {
+  background: #f0f0f0;
+  border-color: #d0d0d0;
+}
+
+.include-images-btn {
+  background: #f0f0ff;
+  border-color: #6366f1;
+}
+
+.include-images-btn:hover {
+  background: #e8e8ff;
+  border-color: #4f46e5;
+}
+
+.ai-modal-btn .btn-icon {
+  font-size: 2.5rem;
+}
+
+.ai-modal-btn .btn-text {
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.include-images-btn .btn-text {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.ai-modal-cancel {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #666;
+  transition: all 0.2s ease;
+  text-decoration: underline;
+}
+
+.ai-modal-cancel:hover {
+  color: #333;
+}
+
+/* AI Image Modal */
+.ai-image-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ai-image-modal-content {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  animation: modalSlideIn 0.3s ease-out;
+  text-align: center;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-image-modal-content h2 {
+  margin-bottom: 12px;
+  color: #1a1a1a;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.ai-image-modal-content p {
+  margin-bottom: 30px;
+  color: #666;
+  line-height: 1.5;
+  font-size: 0.95rem;
 }
