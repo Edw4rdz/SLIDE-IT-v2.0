@@ -4,7 +4,7 @@ export const PREBUILT_TEMPLATES = [
     id: "tpl-tech-01",
     name: "Futuristic Tech Couture",
     thumbnail:
-      "https://media.slidesgo.com/storage/76624478/conversions/0-futuristic-background-thumb.jpg",
+      "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop",
     link: "https://docs.google.com/presentation/d/1FuturisticTechDemo/copy",
     slides: [
       /* ... slide content ... */
@@ -35,7 +35,7 @@ export const PREBUILT_TEMPLATES = [
     id: "tpl-business-01",
     name: "Elegant Dark Business",
     thumbnail:
-      "https://media.slidesgo.com/storage/5068851/conversions/0-dark-elegance-thumb.jpg",
+      "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?q=80&w=800&auto=format&fit=crop",
     link: "https://docs.google.com/presentation/d/1ElegantDarkBusiness/copy",
     slides: [
       /* ... slide content ... */

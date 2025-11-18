@@ -5,6 +5,16 @@ import { getTemplates, uploadTemplate } from '../api';
 import '../styles/uploadTemplate.css'; // Main styles for this page
 import '../styles/dashboard.css'; // Shared dashboard styles
 
+// Thumbnail overrides for known templates with broken images
+const TEMPLATE_THUMB_OVERRIDES = {
+  "Elegant Dark Business":
+    "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?q=80&w=800&auto=format&fit=crop",
+  "Futuristic Tech Couture":
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop",
+  "Modern Corporate Blue":
+    "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=800&auto=format&fit=crop",
+};
+
 export default function UploadTemplate() {
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
@@ -242,7 +252,7 @@ export default function UploadTemplate() {
                       onClick={() => handleSelectTemplate(tpl)}
                     >
                       <img
-                        src={tpl.thumbnail}
+                        src={TEMPLATE_THUMB_OVERRIDES[tpl.name] || tpl.thumbnail}
                         alt={tpl.name}
                         onError={(e) => { /* Keep onError logic */
                            e.target.onerror = null; e.target.style.display = 'none';

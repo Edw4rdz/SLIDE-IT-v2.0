@@ -156,6 +156,36 @@ const BORDER_STYLE_OPTIONS = [
 ];
 const DEFAULT_BORDER_WIDTH = ptToPx(1);
 
+// Override/fallback thumbnails for templates with broken or mismatched images
+const TEMPLATE_THUMB_OVERRIDES = {
+  "Elegant Dark Business":
+    "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?q=80&w=800&auto=format&fit=crop",
+  "Futuristic Tech Couture":
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop",
+  // Requested: corporate-looking image for this template
+  "Modern Corporate Blue":
+    "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=800&auto=format&fit=crop",
+};
+
+const buildTemplateFallbackThumb = (name = "Template") => {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640; canvas.height = 360;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 640, 360);
+    grad.addColorStop(0, '#111827');
+    grad.addColorStop(1, '#1f2937');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 640, 360);
+    ctx.fillStyle = '#93c5fd'; ctx.font = 'bold 28px Arial';
+    ctx.fillText(String(name).slice(0, 40), 24, 56);
+    ctx.fillStyle = '#e5e7eb'; ctx.font = '14px Arial';
+    ctx.fillText('Preview not available', 24, 88);
+    return canvas.toDataURL('image/png', 0.9);
+  } catch {
+    return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+  }
+};
+
 export default function EditPreview() {
   const location = useLocation();
   // eslint-disable-next-line no-unused-vars
@@ -2171,7 +2201,19 @@ export default function EditPreview() {
                   }`}
                   onClick={() => handleTemplateChange(tpl.id, templates)}
                 >
-                  <img src={tpl.thumbnail} alt={tpl.name} />
+                  {(() => {
+                    const src = TEMPLATE_THUMB_OVERRIDES[tpl.name] || tpl.thumbnail;
+                    return (
+                      <img
+                        src={src}
+                        alt={tpl.name}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = buildTemplateFallbackThumb(tpl.name);
+                        }}
+                      />
+                    );
+                  })()}
                   <p>{tpl.name}</p>
                 </div>
               ))}
@@ -2279,28 +2321,77 @@ export default function EditPreview() {
                 const isTitle = slide.layout === 'title';
                 // Use same two-column layout as the editor slide card when image column is enabled
                 const columns = showImageColumn ? '1fr 320px' : '1fr';
+                // Only treat as paragraph text if explicit slide.text provided.
+                // Do NOT auto-merge bullet arrays into one paragraph so preview matches editor.
                 const bodyText = (typeof slide.text === 'string' && slide.text.trim().length)
                   ? slide.text
-                  : (bulletLines.length ? bulletLines.join('\n') : '');
+                  : '';
                 const textAlignValue = slide.styles?.textAlign || 'left';
                 const bodyFontWeight = slide.styles?.textBold ? 700 : 400;
                 const bodyFontStyle = slide.styles?.textItalic ? 'italic' : 'normal';
+                const bodyFontFamily = (slide.styles?.textFont === 'Courier New')
+                  ? '"Courier New", Courier, monospace'
+                  : (slide.styles?.textFont || currentDesign.font);
                 return (
-                  <div style={{ position:'relative', width:'100%', minHeight:380, color:textColor, fontFamily: slide.styles?.textFont || currentDesign.font, borderRadius:8, padding:'30px 40px', display:'grid', gridTemplateColumns: columns, gap:40, alignItems:'flex-start', ...modalPreviewStyle }}>
+                  <div style={{ position:'relative', width:'100%', minHeight:380, color:textColor, fontFamily: bodyFontFamily, borderRadius:8, padding:'30px 40px', display:'grid', gridTemplateColumns: columns, gap:40, alignItems:'flex-start', ...modalPreviewStyle }}>
                     {/* Render title and body like the editor slide card: left-aligned title + body, optional image column */}
                     <>
-                      <div style={{ fontSize: slide.styles?.textSize || 16, display:'flex', flexDirection:'column', gap:10 }}>
+                      <div style={{ fontSize: slide.styles?.textSize || 16, display:'flex', flexDirection:'column', gap:10, fontFamily: bodyFontFamily }}>
                         <h2 style={{ fontSize: slide.styles?.titleSize || 32, fontFamily: slide.styles?.titleFont || currentDesign.font, color:titleColor, margin:'0 0 16px', fontWeight: slide.styles?.titleBold ? 700 : 500, fontStyle: slide.styles?.titleItalic ? 'italic' : 'normal' }}>{slide.title}</h2>
                         {/* If this is a title layout with paragraph text, show it as left-aligned body (editor shows paragraph inside left content area) */}
                         {bodyText ? (
-                          <div style={{ lineHeight: '1.4', color: textColor, textAlign: textAlignValue, fontWeight: bodyFontWeight, fontStyle: bodyFontStyle }}>{bodyText.split('\n').map((ln, idx) => (
-                            <div key={idx} style={{ marginBottom: 6 }}>{ln}</div>
-                          ))}</div>
+                          <div
+                            style={{
+                              lineHeight: '1.4',
+                              color: textColor,
+                              textAlign: textAlignValue,
+                              fontWeight: bodyFontWeight,
+                              fontStyle: bodyFontStyle,
+                              fontFamily: bodyFontFamily,
+                              fontSize: slide.styles?.textSize || 16
+                            }}
+                          >
+                            {bodyText.split('\n').map((ln, idx) => (
+                              <div key={idx} style={{ marginBottom: 6, fontFamily: bodyFontFamily }}>{ln}</div>
+                            ))}
+                          </div>
                         ) : (
                           bulletLines.map((line,i) => (
-                            <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, justifyContent: textAlignValue === 'right' ? 'flex-end' : textAlignValue === 'center' ? 'center' : 'flex-start', marginBottom: 6 }}>
-                              <span style={{ fontSize: slide.styles?.textSize || 16, lineHeight:'1.2', color:titleColor, fontWeight: bodyFontWeight, fontStyle: bodyFontStyle }}>•</span>
-                              <span style={{ lineHeight:'1.2', color: textColor, fontWeight: bodyFontWeight, fontStyle: bodyFontStyle, textAlign: textAlignValue }}>{line}</span>
+                            <div
+                              key={i}
+                              style={{
+                                display:'flex',
+                                alignItems:'flex-start',
+                                gap:8,
+                                justifyContent: textAlignValue === 'right' ? 'flex-end' : textAlignValue === 'center' ? 'center' : 'flex-start',
+                                marginBottom: 6
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: slide.styles?.textSize || 16,
+                                  lineHeight:'1.2',
+                                  color:titleColor,
+                                  fontWeight: bodyFontWeight,
+                                  fontStyle: bodyFontStyle,
+                                  fontFamily: bodyFontFamily
+                                }}
+                              >
+                                •
+                              </span>
+                              <span
+                                style={{
+                                  lineHeight:'1.2',
+                                  color: textColor,
+                                  fontWeight: bodyFontWeight,
+                                  fontStyle: bodyFontStyle,
+                                  textAlign: textAlignValue,
+                                  fontFamily: bodyFontFamily,
+                                  fontSize: slide.styles?.textSize || 16
+                                }}
+                              >
+                                {line}
+                              </span>
                             </div>
                           ))
                         )}
