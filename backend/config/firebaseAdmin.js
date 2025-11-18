@@ -1,15 +1,19 @@
 import admin from "firebase-admin";
-import dotenv from "dotenv";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// Initialize Firebase Admin using environment variables
+// Load service account key
+const serviceAccount = JSON.parse(
+  readFileSync(join(__dirname, "serviceAccountkey.json"), "utf8")
+);
+
+// Initialize Firebase Admin
 admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  })
+  credential: admin.credential.cert(serviceAccount)
 });
 
 // Export the Firestore database instance

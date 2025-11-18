@@ -140,7 +140,14 @@ export default function TextToPPT() {
                 </button>
 
                 {convertedSlides && (
-                  <div className="after-convert-actions">
+                  <div className="success-card">
+                    <div className="success-header">
+                      <div className="success-icon">✓</div>
+                      <div className="success-text">
+                        <h3>Slides Generated!</h3>
+                        <p>Your {convertedSlides.length} slides are ready to edit.</p>
+                      </div>
+                    </div>
                     <button
                       className="edit-preview-btn"
                       onClick={() =>
