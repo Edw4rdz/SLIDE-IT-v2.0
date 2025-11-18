@@ -67,7 +67,7 @@ export default function Sidebar({ activePage, isAdmin }) {
 
           {/* Upload Template Button */}
           <Link to="/uploadTemplate" className="upload-btn">
-            <FaUpload className="icon" /> Upload Template
+            <FaUpload className="icon" /> Manage Template
           </Link>
         </div>
 

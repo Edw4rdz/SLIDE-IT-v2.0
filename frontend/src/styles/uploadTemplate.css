@@ -286,3 +286,88 @@
     flex-grow: 1;
     overflow-y: auto; /* Allow scrolling in main content */
 }
+
+/* -------- Redesign overrides (visual only) -------- */
+.main-upload-template {
+  padding: 24px 24px 40px;
+  background: linear-gradient(180deg, #f4f7fc 0%, #ffffff 60%);
+  gap: 20px;
+}
+
+.templates-hero {
+  background: linear-gradient(135deg, #e7e8ff, #f6f0ff);
+  border: 1px solid rgba(101, 120, 255, 0.15);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+.templates-title {
+  margin: 0 0 6px 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: linear-gradient(90deg, #6b8cff, #9159ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.templates-subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.templates-container {
+  max-width: 1220px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.templates-section {
+  padding: 22px;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.template-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 22px;
+}
+.template-grid--comfortable { gap: 24px; }
+
+.template-card {
+  border-radius: 14px;
+  background-color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  min-height: 190px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, outline-color 0.2s;
+}
+.template-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.12);
+}
+.template-card.selected {
+  outline: 3px solid #6578ff;
+  box-shadow: 0 16px 34px rgba(101, 120, 255, 0.25);
+}
+
+.prebuilt-card img {
+  height: 140px;
+  background: #eef2ff;
+}
+
+.template-name {
+  padding: 12px 14px;
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-overlay {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.55) 70%);
+}
+.use-button-overlay:hover { background-color: #f3f4f6; }

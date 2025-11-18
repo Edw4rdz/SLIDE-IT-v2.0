@@ -10,7 +10,7 @@ import "../styles/dashboard.css";
 // Sidebar Component
 const Sidebar = ({ handleLogout, loggingOut }) => (
   <aside className="sidebar neon-glow">
-    <div className="fa fa-magic logo">
+    <div className="logo">
       <div>
         <h2>SLIDE-IT</h2>
         <p>Convert & Generate</p>
@@ -22,7 +22,7 @@ const Sidebar = ({ handleLogout, loggingOut }) => (
         <Link to="/conversion"><i className="fa fa-history" /> Drafts</Link>
         <Link to="/settings"><i className="fa fa-cog" /> Settings</Link>
         <Link to="/uploadTemplate" className="upload-btn">
-          <FaUpload className="icon" /> Upload Template
+          <FaUpload className="icon" /> Manage Template
         </Link>
         <Link to="/customize-template" className="upload-btn active">
           <i className="fa fa-pencil" /> Customize
