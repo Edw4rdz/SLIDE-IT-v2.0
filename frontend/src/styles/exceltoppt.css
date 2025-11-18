@@ -291,36 +291,36 @@ textarea {
 }
 
 /* Progress Bar (Green Theme) */
-.uploadp-btn .progress-bar-container {
-  width: 100%;
-  height: 25px;
-  background-color: #14532d; /* Dark green */
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.exceltoppt .uploadp-btn .progress-bar-container {
+  width: 100% !important;
+  height: 25px !important;
+  background-color: #14532d !important; /* Dark green */
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
 }
 
-.uploadp-btn .progress-text {
-  color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
-  position: relative;
-  z-index: 2;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+.exceltoppt .uploadp-btn .progress-text {
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  position: relative !important;
+  z-index: 2 !important;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
 }
 
-.uploadp-btn .progress-bar-indeterminate {
-  width: 60%;
-  height: 100%;
-  background-color: #16a34a; /* Green */
-  position: absolute;
-  top: 0;
-  z-index: 1;
-  border-radius: 12px;
-  animation: indeterminate-progress 1.5s ease-in-out infinite;
+.exceltoppt .uploadp-btn .progress-bar-indeterminate {
+  width: 60% !important;
+  height: 100% !important;
+  background-color: #16a34a !important; /* Green */
+  position: absolute !important;
+  top: 0 !important;
+  z-index: 1 !important;
+  border-radius: 12px !important;
+  animation: indeterminate-progress 1.5s ease-in-out infinite !important;
 }
 
 @keyframes indeterminate-progress {

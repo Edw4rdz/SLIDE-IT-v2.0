@@ -258,7 +258,9 @@ export default function EditPreview() {
   
   // This state correctly reads the flag from the previous page
   // eslint-disable-next-line no-unused-vars
-  const [showImageColumn, setShowImageColumn] = useState(location.state?.includeImages ?? true);
+  const [showImageColumn, setShowImageColumn] = useState(
+    location.state?.includeImages === true || location.state?.includeImages === 'true'
+  );
   
   const [currentDesign, setCurrentDesign] = useState({
     font: "Arial",

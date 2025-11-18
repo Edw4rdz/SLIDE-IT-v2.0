@@ -60,7 +60,11 @@ export default function Conversions() {
   // ✅ Edit Conversion
   const handleEdit = (conv) => {
     navigate("/edit-preview", {
-      state: { slides: conv.slides || [], topic: conv.fileName },
+      state: { 
+        slides: conv.slides || [], 
+        topic: conv.fileName,
+        includeImages: conv.includeImages === true || conv.includeImages === 'true'
+      },
     });
   };
 
@@ -143,6 +147,11 @@ export default function Conversions() {
     if (!conv) return null;
     if (conv.previewThumb) return conv.previewThumb;
 
+    // If conversion was TEXT ONLY, show empty placeholder
+    if (conv.includeImages === false || conv.includeImages === 'false') {
+      return null;
+    }
+
     if (conv.slides && conv.slides.length > 0) {
       const first = conv.slides[0];
       if (first.imageUrl) return first.imageUrl;
@@ -151,7 +160,6 @@ export default function Conversions() {
         const encoded = encodeURIComponent(first.imagePrompt.trim());
         return `https://image.pollinations.ai/prompt/${encoded}`;
       }
-   
       const title = first.title || conv.fileName || "Presentation";
       return createTextThumb(title, conv.conversionType || conv.type);
     }
@@ -173,7 +181,7 @@ export default function Conversions() {
       <main className="main">
         <div className="container">
           <header className="conversion-header">
-            <h1> Drafts </h1>
+            <h1>DRAFTS</h1>
             <p>Track all your uploaded files, AI processing status, and download completed presentations.</p>
           </header>
 
@@ -208,7 +216,7 @@ export default function Conversions() {
                   <h3 className="file-name">{conv.fileName || 'Untitled Conversion'}</h3>
 
                   {/* Thumbnail */}
-                  {thumbnails[conv.id] && (
+                  {thumbnails[conv.id] ? (
                     <div className="history-thumb-wrapper">
                       <img
                         src={thumbnails[conv.id]}
@@ -217,6 +225,10 @@ export default function Conversions() {
                         loading="lazy"
                         onError={(e) => { e.currentTarget.style.display='none'; }}
                       />
+                    </div>
+                  ) : (
+                    <div className="history-thumb-wrapper empty-thumb">
+                      {/* Show empty placeholder if TEXT ONLY */}
                     </div>
                   )}
 

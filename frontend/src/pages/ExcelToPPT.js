@@ -68,13 +68,23 @@ export default function ExcelToPPT() {
           includeImages: includeImages,
         });
 
-        if (response.data && Array.isArray(response.data)) {
-          const slidesWithId = response.data.map((s, idx) => ({ ...s, id: idx }));
+        const payload = response?.data;
+        const slideArray = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.slides)
+          ? payload.slides
+          : [];
+
+        if (slideArray.length) {
+          const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
           setConvertedSlides(slidesWithId);
           setTopic(file.name.replace(/\.(xlsx|xls)/i, ""));
           alert("✅ Conversion successful! You can now preview or edit it.");
         } else {
-          alert("Conversion failed: Invalid response from server.");
+          const errorMsg = payload?.error || response?.error || "Conversion failed: Invalid response from server.";
+          alert(errorMsg);
         }
       } catch (err) {
         console.error("Excel conversion error:", err);

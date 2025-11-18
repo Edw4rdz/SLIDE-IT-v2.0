@@ -17,7 +17,7 @@ const getFileBuffer = (file) => {
 export const generateFromPdf = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: "No PDF file uploaded." });
+      return res.status(400).json({ success: false, data: [], error: "No PDF file uploaded." });
     }
 
     const slideCount = req.body.slideCount || 10;
@@ -27,7 +27,14 @@ export const generateFromPdf = async (req, res) => {
     const buffer = getFileBuffer(req.file);
 
     console.log(`Processing PDF: ${req.file.originalname}`);
-    const slides = await convertPdfToSlides(buffer, slideCount);
+    let slides = [];
+    try {
+      slides = await convertPdfToSlides(buffer, slideCount);
+    } catch (err) {
+      console.error("PDF conversion error:", err);
+      // Return empty array but still success false
+      return res.status(200).json({ success: false, data: [], error: err.message });
+    }
     try {
       if (userId) {
         const saved = await saveHistory({
@@ -43,10 +50,10 @@ export const generateFromPdf = async (req, res) => {
     } catch (e) {
       console.error('Failed to save PDF history:', e.message);
     }
-    res.json({ success: true, data: slides });
+    res.json({ success: true, data: Array.isArray(slides) ? slides : [], error: null });
   } catch (error) {
     console.error("Controller PDF Error:", error);
-    res.status(500).json({ error: "Failed to generate slides from PDF.", details: error.message });
+    res.status(500).json({ success: false, data: [], error: "Failed to generate slides from PDF.", details: error.message });
   }
 };
 

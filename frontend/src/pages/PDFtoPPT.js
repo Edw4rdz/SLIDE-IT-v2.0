@@ -53,8 +53,8 @@ export default function PDFToPPT() {
       formData.append("userId", String(loggedInUser.user_id));
       formData.append("includeImages", String(includeImages));
 
+      setLoadingText("Processing PDF...");
       const response = await convertPDF(formData);
-
       const payload = response?.data;
       const slideArray = Array.isArray(payload)
         ? payload
@@ -64,16 +64,18 @@ export default function PDFToPPT() {
         ? payload.slides
         : [];
 
-      if (!slideArray.length) {
-        throw new Error("Conversion failed: unexpected server response");
+      if (slideArray.length) {
+        const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
+        setConvertedSlides(slidesWithId);
+        setTopic(file.name.replace(/\.pdf$/i, ""));
+        alert("✅ Conversion successful! You can now preview or edit it.");
+      } else {
+        // Only show error if backend explicitly failed
+        const errorMsg = payload?.error || response?.error || "Conversion failed: Invalid response from server.";
+        alert(errorMsg);
       }
-
-      const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
-      setConvertedSlides(slidesWithId);
-      setTopic(file.name.replace(/\.pdf$/i, ""));
-      alert("✅ Conversion successful! You can now preview or edit it.");
     } catch (err) {
-      console.error(err);
+      console.error("PDF conversion error:", err);
       alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
     } finally {
       setIsLoading(false);
