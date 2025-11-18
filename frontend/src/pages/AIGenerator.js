@@ -37,17 +37,26 @@ export default function AIGenerator() {
     try {
       const res = await generateSlides({
         topic,
-        slides,
+        slideCount: slides,
         userId: loggedInUser.user_id,
         includeImages: includeAIImages,
       });
 
-      if (!res.data) {
-        throw new Error("Failed to generate slides (empty response)");
+      const payload = res?.data;
+      const slideArray = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.slides)
+        ? payload.slides
+        : [];
+
+      if (!slideArray.length) {
+        throw new Error("Failed to generate slides (unexpected response)");
       }
 
       setLoadingText("Generating slide content...");
-      const slidesWithId = res.data.map((s, idx) => ({ ...s, id: idx }));
+      const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
       setConvertedSlides(slidesWithId);
       setLoadingText("Slides generated successfully!");
 

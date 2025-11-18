@@ -37,61 +37,45 @@ export default function ExcelToPPT() {
     if (!file) return alert("Please select an Excel file first");
     if (file.size > 50 * 1024 * 1024) return alert("File too large (max 50MB)");
 
-    // --- 1. ADDED USER CHECK ---
     if (!loggedInUser?.user_id) {
       return alert("You must be logged in to convert and save history.");
     }
 
     setIsLoading(true);
-    setLoadingText("Reading Excel file...");
+    setLoadingText("Uploading Excel file...");
 
-    const reader = new FileReader();
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("slideCount", String(slidesCount));
+      formData.append("userId", String(loggedInUser.user_id));
 
-    reader.onload = async () => {
-      try {
-        setLoadingText("Converting Excel to slides...");
-        const base64Excel = reader.result.split(",")[1];
+      const response = await convertExcel(formData);
 
-        // This API call is already correct!
-        const response = await convertExcel({
-          base64Excel,
-          slides: slidesCount,
-          userId: loggedInUser.user_id, // This is correct
-          fileName: file.name,         // This is correct
-        });
+      const payload = response?.data;
+      const slideArray = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.slides)
+        ? payload.slides
+        : [];
 
-        // --- 2. FIXED RESPONSE HANDLING ---
-        // The backend now sends the slide array directly.
-        // 'response.data' IS the array of slides.
-        if (response.data && Array.isArray(response.data)) {
-          
-          // Add unique IDs for the EditPreview page
-          const slidesWithId = response.data.map((s, idx) => ({ ...s, id: idx }));
-
-          setConvertedSlides(slidesWithId);
-          setTopic(file.name.replace(/\.(xlsx|xls)/i, ""));
-          alert("✅ Conversion successful! You can now preview or edit it.");
-        } else {
-          // This will be caught by the catch block, but as a fallback:
-          alert("Conversion failed: Invalid response from server.");
-        }
-      } catch (err) {
-        console.error("Excel conversion error:", err);
-        alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
-      } finally {
-        setIsLoading(false);
-        setLoadingText("");
+      if (!slideArray.length) {
+        throw new Error("Conversion failed: unexpected server response");
       }
-    };
 
-    reader.onerror = () => {
-      console.error("Error reading the Excel file");
-      alert("Error reading the file. Please try again.");
+      const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
+      setConvertedSlides(slidesWithId);
+      setTopic(file.name.replace(/\.(xlsx|xls)$/i, ""));
+      alert("✅ Conversion successful! You can now preview or edit it.");
+    } catch (err) {
+      console.error("Excel conversion error:", err);
+      alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
+    } finally {
       setIsLoading(false);
       setLoadingText("");
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   return (

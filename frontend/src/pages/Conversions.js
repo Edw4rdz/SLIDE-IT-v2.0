@@ -188,7 +188,21 @@ export default function Conversions() {
                   <div className="card-header">
                     {/* Display status and type from history data */}
                     <span className={`status-badge ${conv.status?.toLowerCase() || 'unknown'}`}>{conv.status || 'Unknown'}</span>
-                    <p className="file-type">{conv.conversionType || conv.type || 'Unknown Type'}</p>
+                    <p className="file-type">{
+                      (() => {
+                        const raw = (conv.conversionType || conv.type || '').toUpperCase();
+                        const map = {
+                          TOPIC: 'AI-Generated PPTs',
+                          PDF: 'PDF-to-PPTs',
+                          WORD: 'DOCX/WORD-to-PPTs',
+                          DOCX: 'DOCX/WORD-to-PPTs',
+                          TEXT: 'TxT-to-PPTs',
+                          TXT: 'TxT-to-PPTs',
+                          EXCEL: 'Excel-to-PPTs'
+                        };
+                        return map[raw] || raw || 'Unknown Type';
+                      })()
+                    }</p>
                   </div>
 
                   <h3 className="file-name">{conv.fileName || 'Untitled Conversion'}</h3>

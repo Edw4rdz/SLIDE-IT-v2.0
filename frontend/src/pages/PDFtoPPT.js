@@ -42,56 +42,43 @@ export default function PDFToPPT() {
 
   const handleConversionStart = async (includeImages) => {
     setIsModalOpen(false);
-    setIncludeImagesChoice(includeImages); 
+    setIncludeImagesChoice(includeImages);
     setIsLoading(true);
-    setLoadingText("Reading PDF file...");
+    setLoadingText("Uploading PDF...");
 
-    const reader = new FileReader();
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("slideCount", String(slides));
+      formData.append("userId", String(loggedInUser.user_id));
+      formData.append("includeImages", String(includeImages));
 
-    reader.onload = async () => {
-      try {
-        setLoadingText("Converting document...");
-        const base64PDF = reader.result.split(",")[1];
-        
-        // Build a lightweight preview thumb from first page (client-side canvas)
-        let previewThumb = null;
-        // Placeholder: generate a real page thumbnail later using pdf.js
+      const response = await convertPDF(formData);
 
-        const response = await convertPDF({
-          base64PDF,
-          slides,
-          userId: loggedInUser.user_id, 
-          fileName: file.name,
-          includeImages: includeImages,
-          previewThumb
-        });
+      const payload = response?.data;
+      const slideArray = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.slides)
+        ? payload.slides
+        : [];
 
-        if (response.data && Array.isArray(response.data)) {
-          const slidesWithId = response.data.map((s, idx) => ({ ...s, id: idx }));
-
-          setConvertedSlides(slidesWithId); 
-          setTopic(file.name.replace(".pdf", ""));
-          alert("✅ Conversion successful! You can now preview or edit it.");
-        } else {
-          alert("Conversion failed: Invalid response from server.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
-      } finally {
-        setIsLoading(false);
-        setLoadingText(""); 
+      if (!slideArray.length) {
+        throw new Error("Conversion failed: unexpected server response");
       }
-    };
-    
-    reader.onerror = () => {
-        console.error("Error reading the file.");
-        alert("Error reading the file. Please try again.");
-        setIsLoading(false);
-        setLoadingText("");
-    };
 
-    reader.readAsDataURL(file);
+      const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
+      setConvertedSlides(slidesWithId);
+      setTopic(file.name.replace(/\.pdf$/i, ""));
+      alert("✅ Conversion successful! You can now preview or edit it.");
+    } catch (err) {
+      console.error(err);
+      alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setIsLoading(false);
+      setLoadingText("");
+    }
   };
 
   return (

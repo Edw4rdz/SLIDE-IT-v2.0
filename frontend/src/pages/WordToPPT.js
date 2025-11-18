@@ -48,48 +48,43 @@ export default function WordToPPT() {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
     setIsLoading(true);
-    setLoadingText("Reading Word file...");
+    setLoadingText("Uploading Word file...");
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("slideCount", String(slides));
+      formData.append("userId", String(loggedInUser.user_id));
+      formData.append("includeImages", String(includeImages));
 
-    reader.onload = async () => {
-      setLoadingText("Converting Word to slides...");
-      const base64Word = reader.result.split(",")[1];
+      const response = await convertWord(formData);
 
-      try {
-        const response = await convertWord({
-          base64Word,
-          slides,
-          userId: loggedInUser.user_id,
-          fileName: file.name,
-          includeImages: includeImages,
-        });
+      const payload = response?.data;
+      const slideArray = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.slides)
+        ? payload.slides
+        : [];
 
-        if (response.data && Array.isArray(response.data)) {
-          const slidesWithId = response.data.map((s, idx) => ({ ...s, id: idx }));
-          setConvertedSlides(slidesWithId);
-          setTopic(file.name.replace(/\.(docx|doc)/i, ""));
-          setLoadingText("Conversion completed!");
-          alert("✅ Conversion successful! You can now preview or edit it.");
-        } else {
-          setLoadingText("Conversion failed.");
-          alert("Conversion failed: Invalid response from server.");
-        }
-      } catch (err) {
-        console.error("Word conversion error:", err);
-        setLoadingText("Conversion failed.");
-        alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
-      } finally {
-        setIsLoading(false);
+      if (!slideArray.length) {
+        throw new Error("Conversion failed: unexpected server response");
       }
-    };
 
-    reader.onerror = () => {
-      alert("Failed to read Word file. Please try again.");
+      const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
+      setConvertedSlides(slidesWithId);
+      setTopic(file.name.replace(/\.(docx|doc)$/i, ""));
+      setLoadingText("Conversion completed!");
+      alert("✅ Conversion successful! You can now preview or edit it.");
+    } catch (err) {
+      console.error("Word conversion error:", err);
+      setLoadingText("Conversion failed.");
+      alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
+    } finally {
       setIsLoading(false);
       setLoadingText("");
-    };
+    }
   };
 
   // const handleLogout = () => { ... }; // <-- 3. REMOVED

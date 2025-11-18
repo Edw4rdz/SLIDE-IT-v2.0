@@ -76,7 +76,6 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-
 export const getAnalytics = async (req, res) => {
 
   try {
@@ -89,7 +88,6 @@ export const getAnalytics = async (req, res) => {
       "DOCX/WORD-to-PPTs": 0,
       "TxT-to-PPTs": 0,
       "Excel-to-PPTs": 0,
-      "unknown": 0
     };
 
     historySnap.forEach((doc) => {
@@ -120,8 +118,6 @@ export const getAnalytics = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 
 /**

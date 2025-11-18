@@ -1,175 +1,191 @@
-import { saveHistory } from "../services/historyService.js";
-import {
-  convertPdfToSlides,
-  convertTextToSlides,
-  convertWordToSlides,
+import { 
+  convertPdfToSlides, 
+  convertWordToSlides, 
   convertExcelToSlides,
-  generateTopicsToSlides
+  convertTextFileToSlides, 
+  generateTopicsToSlides 
 } from "../services/aiService.js";
+import fs from "fs";
+import { saveHistory } from "../services/historyService.js";
 
-export const handlePdfConversion = async (req, res) => {
+const getFileBuffer = (file) => {
+  if (file.buffer) return file.buffer;
+  if (file.path) return fs.readFileSync(file.path);
+  throw new Error("File buffer not found. Check multer configuration.");
+};
+
+export const generateFromPdf = async (req, res) => {
   try {
-    // 1. Get userId and fileName from the frontend
-    const { base64PDF, slides, userId, fileName } = req.body;
-    
-    if (!base64PDF || !slides) {
-      return res.status(400).json({ error: "Missing PDF or slides number" });
-    }
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required to save history" });
+    if (!req.file) {
+      return res.status(400).json({ error: "No PDF file uploaded." });
     }
 
-    // 2. Call the AI service
-    const slideData = await convertPdfToSlides(base64PDF, slides);
+    const slideCount = req.body.slideCount || 10;
+    const userId = req.body.userId || null;
+    const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
+    const previewThumb = req.body.previewThumb || null;
+    const buffer = getFileBuffer(req.file);
 
-    // 3.Save to history
-    // Optional previewThumb passed by client (e.g., first page image)
-    const { previewThumb } = req.body;
-    await saveHistory({
-      userId: userId,
-      fileName: fileName || "PDF Conversion", 
-      conversionType: "PDF-to-PPTs", // 
-      slides: slideData, 
-      previewThumb: previewThumb || null
-    });
-
-    // 4. Send response
-    res.json(slideData);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.log(`Processing PDF: ${req.file.originalname}`);
+    const slides = await convertPdfToSlides(buffer, slideCount);
+    try {
+      if (userId) {
+        const saved = await saveHistory({
+          userId,
+          fileName: req.file.originalname || 'PDF Presentation',
+          conversionType: 'PDF-to-PPTs',
+          includeImages,
+          previewThumb,
+          slides,
+        });
+        console.log(`[History] Saved PDF for userId=${userId} file=${req.file.originalname} id=${saved.id}`);
+      }
+    } catch (e) {
+      console.error('Failed to save PDF history:', e.message);
+    }
+    res.json({ success: true, data: slides });
+  } catch (error) {
+    console.error("Controller PDF Error:", error);
+    res.status(500).json({ error: "Failed to generate slides from PDF.", details: error.message });
   }
 };
 
-export const handleTextConversion = async (req, res) => {
+export const generateFromWord = async (req, res) => {
   try {
-    // 1. Get userId
-    const { text, slides, userId } = req.body;
-    
-    if (!text || !slides) {
-      return res.status(400).json({ error: "Missing text or slides number" });
-    }
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required to save history" });
+    if (!req.file) {
+      return res.status(400).json({ error: "No Word document uploaded." });
     }
 
-    // 2. Call the AI service
-    const slideData = await convertTextToSlides(text, slides);
-    
-    // 3. Save to history
-    const { previewThumb } = req.body;
-    await saveHistory({
-      userId: userId,
-      fileName: text.substring(0, 40) + "...", 
-      conversionType: "TxT-to-PPTs", 
-      slides: slideData,
-      previewThumb: previewThumb || null
-    });
+    const slideCount = req.body.slideCount || 10;
+    const userId = req.body.userId || null;
+    const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
+    const previewThumb = req.body.previewThumb || null;
+    const buffer = getFileBuffer(req.file);
 
-    // 4. Send response
-    res.json(slideData);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.log(`Processing Word Doc: ${req.file.originalname}`);
+    const slides = await convertWordToSlides(buffer, slideCount);
+    console.log(`[WORD] Generated ${slides.length} slides, userId=${userId}`);
+    try {
+      if (userId) {
+        console.log(`[WORD] Attempting to save history for userId=${userId}`);
+        const saved = await saveHistory({
+          userId,
+          fileName: req.file.originalname || 'Word Presentation',
+          conversionType: 'DOCX/WORD-to-PPTs',
+          includeImages,
+          previewThumb,
+          slides,
+        });
+        console.log(`[WORD History SAVED] userId=${userId} file=${req.file.originalname} conversionType=WORD id=${saved.id}`);
+      } else {
+        console.log(`[WORD] No userId provided, skipping history save`);
+      }
+    } catch (e) {
+      console.error('[WORD History FAILED]:', e.message);
+    }
+    res.json({ success: true, data: slides });
+  } catch (error) {
+    console.error("Controller Word Error:", error);
+    res.status(500).json({ error: "Failed to generate slides from Word.", details: error.message });
   }
 };
 
-export const handleWordConversion = async (req, res) => {
+export const generateFromExcel = async (req, res) => {
   try {
-    // 1. Get userId and fileName
-    const { base64Word, slides, userId, fileName } = req.body;
-    
-    if (!base64Word || !slides) {
-      return res.status(400).json({ error: "Missing Word data or slides number" });
-    }
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required to save history" });
+    if (!req.file) {
+      return res.status(400).json({ error: "No Excel file uploaded." });
     }
 
-    // 2. Call the AI service
-    const slideData = await convertWordToSlides(base64Word, slides);
+    const slideCount = req.body.slideCount || 10;
+    const userId = req.body.userId || null;
+    const buffer = getFileBuffer(req.file);
 
-    // 3. Save to history
-    const { previewThumb } = req.body;
-    await saveHistory({
-      userId: userId,
-      fileName: fileName || "Word Conversion",
-      conversionType: "DOCX/WORD-to-PPTs", 
-      slides: slideData,
-      previewThumb: previewThumb || null
-    });
-
-    // 4. Send response
-    res.json(slideData);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.log(`Processing Excel: ${req.file.originalname}`);
+    const slides = await convertExcelToSlides(buffer, slideCount);
+    try {
+      if (userId) {
+        const saved = await saveHistory({
+          userId,
+          fileName: req.file.originalname || 'Excel Presentation',
+          conversionType: 'Excel-to-PPTs',
+          slides,
+        });
+        console.log(`[History] Saved EXCEL for userId=${userId} file=${req.file.originalname} id=${saved.id}`);
+      }
+    } catch (e) {
+      console.error('Failed to save Excel history:', e.message);
+    }
+    res.json({ success: true, data: slides });
+  } catch (error) {
+    console.error("Controller Excel Error:", error);
+    res.status(500).json({ error: "Failed to generate slides from Excel.", details: error.message });
   }
 };
 
-export const handleExcelConversion = async (req, res) => {
+export const generateFromTopic = async (req, res) => {
   try {
-    // 1. Get userId and fileName
-    const { base64Excel, slides, userId, fileName } = req.body;
-    
-    if (!base64Excel || !slides) {
-      return res.status(400).json({ error: "Missing Excel data or slides number" });
-    }
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required to save history" });
+    const { topic, slideCount, userId, includeImages, previewThumb } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({ error: "No topic provided." });
     }
 
-    // 2. Call the AI service
-    const slideData = await convertExcelToSlides(base64Excel, slides);
-    
-    // 3. Save to history
-    const { previewThumb } = req.body;
-    await saveHistory({
-      userId: userId,
-      fileName: fileName || "Excel Conversion",
-      conversionType: "Excel-to-PPTs", 
-      slides: slideData,
-      previewThumb: previewThumb || null
-    });
-
-    // 4. Send response
-    res.json(slideData);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.log(`Processing Topic: "${topic}"`);
+    const slides = await generateTopicsToSlides(topic, slideCount || 10);
+    try {
+      if (userId) {
+        const saved = await saveHistory({
+          userId,
+          fileName: String(topic).slice(0, 80) || 'AI Topic Presentation',
+          conversionType: 'AI-Generated PPTs',
+          includeImages: !!includeImages,
+          previewThumb: previewThumb || null,
+          slides,
+        });
+        console.log(`[History] Saved TOPIC for userId=${userId} topic="${String(topic).slice(0,40)}" id=${saved.id}`);
+      }
+    } catch (e) {
+      console.error('Failed to save Topic history:', e.message);
+    }
+    res.json({ success: true, data: slides });
+  } catch (error) {
+    console.error("Controller Topic Error:", error);
+    res.status(500).json({ error: "Failed to generate slides from topic.", details: error.message });
   }
 };
 
-export const handleTopicGeneration = async (req, res) => {
+export const generateFromTextFile = async (req, res) => {
   try {
-    // 1. Get userId
-    const { topic, slides, userId } = req.body; 
-    
-    if (!topic || !slides) {
-      return res.status(400).json({ error: "Missing topic or slides number" });
-    }
-    if (!userId) {
-        return res.status(400).json({ error: "User ID is required to save history" });
+    if (!req.file) {
+      return res.status(400).json({ error: "No text file uploaded." });
     }
 
-    // 2. Call the AI service
-    const slideData = await generateTopicsToSlides(topic, slides);
-    
-    // 3. (NEW) Save to history
-    const { previewThumb } = req.body;
-    await saveHistory({
-      userId: userId,
-      fileName: topic, 
-      conversionType: "AI-Generated PPTs", 
-      slides: slideData,
-      previewThumb: previewThumb || null
-    });
+    const slideCount = req.body.slideCount || 10;
+    const userId = req.body.userId || null;
+    const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
+    const previewThumb = req.body.previewThumb || null;
+    const buffer = getFileBuffer(req.file);
 
-    // 4. Send response
-    res.json(slideData);
-    
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.log(`Processing Text File: ${req.file.originalname}`);
+    const slides = await convertTextFileToSlides(buffer, slideCount);
+    try {
+      if (userId) {
+        const saved = await saveHistory({
+          userId,
+          fileName: req.file.originalname || 'Text Presentation',
+          conversionType: 'TxT-to-PPTs',
+          includeImages,
+          previewThumb,
+          slides,
+        });
+        console.log(`[History] Saved TEXT for userId=${userId} file=${req.file.originalname} id=${saved.id}`);
+      }
+    } catch (e) {
+      console.error('Failed to save Text history:', e.message);
+    }
+    res.json({ success: true, data: slides });
+  } catch (error) {
+    console.error("Controller Text File Error:", error);
+    res.status(500).json({ error: "Failed to generate slides from text file.", details: error.message });
   }
 };

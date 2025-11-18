@@ -11,6 +11,7 @@ export const saveHistory = async (historyData) => {
     // Add a server-side timestamp
     const dataWithTimestamp = {
       ...historyData,
+      userId: String(historyData.userId || ''),
       status: "Completed",
       progress: 100,
       uploadedAt: Timestamp.now()
@@ -34,10 +35,10 @@ export const getHistory = async (userId) => {
     if (!userId) {
       throw new Error("User ID is required");
     }
-    
+    const uid = String(userId);
     // Query the database for documents where userId matches
     const snapshot = await historyCollection
-      .where('userId', '==', userId)
+      .where('userId', '==', uid)
       .orderBy('uploadedAt', 'desc') // Show newest first
       .get();
       

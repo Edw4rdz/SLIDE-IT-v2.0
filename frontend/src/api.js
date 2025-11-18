@@ -1,33 +1,43 @@
-
 import axios from "axios";
 import PptxGenJS from "pptxgenjs";
 import { Buffer } from "buffer";
 
-// Use environment variable for API base URL, fallback to localhost for development
+// --- CONFIGURATION ---
+
 const API_BASE = process.env.REACT_APP_BACKEND_URL 
   ? `${process.env.REACT_APP_BACKEND_URL.replace(/\/$/, '')}/api` 
   : "http://localhost:5000/api";
 
-
+// --- AUTH & USER ENDPOINTS ---
 export const registerUser = (data) => axios.post(`${API_BASE}/register`, data);
 export const loginUser = (data) => axios.post(`${API_BASE}/login`, data);
 export const checkEmailExists = (email) => axios.post(`${API_BASE}/check-email`, { email });
+
+// --- AI GENERATION ENDPOINTS (Grok 4.1) ---
+// IMPORTANT: 'data' for file conversions must be a FormData object containing 'file' and 'slideCount'
 export const convertPDF = (data) => axios.post(`${API_BASE}/convert-pdf`, data);
 export const convertWord = (data) => axios.post(`${API_BASE}/convert-word`, data);
-export const convertText = (data) => axios.post(`${API_BASE}/convert-text`, data);
+export const convertText = (data) => axios.post(`${API_BASE}/convert-text`, data); 
 export const convertExcel = (data) => axios.post(`${API_BASE}/convert-excel`, data);
+
+// IMPORTANT: 'data' for topics is a JSON object: { topic: "...", slideCount: 10 }
 export const generateSlides = (data) => axios.post(`${API_BASE}/generate-topics`, data);
+
+// --- TEMPLATE & HISTORY ENDPOINTS ---
 export const uploadTemplate = (formData) =>
   axios.post(`${API_BASE}/upload-template`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+
 export const getTemplates = () => axios.get(`${API_BASE}/templates/list`);
+
 export const getHistory = (userId) =>
   axios.get(`${API_BASE}/conversions`, { params: { userId } });
+
 export const deleteHistory = (id, userId) =>
   axios.delete(`${API_BASE}/conversions/${id}`, { params: { userId } });
 
-// Example prebuilt templates (you might have this in /src/api.js or /src/data/templates.js)
+// --- STATIC DATA ---
 export const prebuiltTemplates = [
   {
     id: 'template1',
@@ -65,12 +75,12 @@ export const prebuiltTemplates = [
   },
 ];
 
-// eslint-disable-next-line no-unused-vars
+// --- IMAGE GENERATION HELPER ---
 const generateImageFromPollinations = async (prompt, retries = 1) => {
-
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;
   const encodedPrompt = encodeURIComponent(prompt.trim());
   const url = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
+  
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await axios.get(url, {
@@ -88,14 +98,11 @@ const generateImageFromPollinations = async (prompt, retries = 1) => {
   return null;
 };
 
-
-// 🧠 Converts slides & current design to PowerPoint exactly like Gamma
-// 🧠 Converts slides & current design to PowerPoint exactly like the preview & edit
+// --- POWERPOINT EXPORT LOGIC ---
 export const downloadPPTX = async (slides, design, fileName, includeImages = true) => {
   try {
     const pptx = new PptxGenJS();
 
-    // --- Fix UNKNOWN-LAYOUT issue ---
     const LAYOUT_NAME = "LAYOUT_16x9_CUSTOM";
     pptx.defineLayout({ name: LAYOUT_NAME, width: 10.0, height: 5.625 });
     pptx.layout = LAYOUT_NAME;
@@ -103,7 +110,6 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
     const SLIDE_WIDTH_IN = 10.0;
     const SLIDE_HEIGHT_IN = 5.625;
 
-    // Helper: make gradient → image dataURL
     const createGradientDataURL = (colors) => {
       if (!Array.isArray(colors) || colors.length === 0) return null;
       const canvas = document.createElement("canvas");
@@ -117,7 +123,6 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
       return canvas.toDataURL("image/png");
     };
 
-    // Helper: safely fetch remote image → dataURL
     const fetchAsDataURL = async (url) => {
       try {
         const response = await fetch(url, { mode: "cors" });
@@ -133,12 +138,10 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
       }
     };
 
-    // Helper: rasterize SVG data URL to PNG data URL for PowerPoint compatibility
     const rasterizeSvgDataUrl = async (dataUrl, width = 512, height = 512) => {
       try {
         if (!dataUrl || !dataUrl.startsWith('data:image/svg')) return dataUrl;
         const img = new Image();
-        // Important for some browsers when drawing SVGs
         img.crossOrigin = 'anonymous';
         const loaded = await new Promise((resolve, reject) => {
           img.onload = () => resolve(true);
@@ -186,7 +189,6 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
       return 'solid';
     };
 
-    // Helper: normalize bullets/text like the editor preview does
     const getBulletLines = (sdata) => {
       if (!sdata) return [];
       if (Array.isArray(sdata.bullets)) return sdata.bullets.filter(Boolean).map((b) => String(b).trim()).filter(Boolean);
@@ -236,9 +238,8 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
       const titleBold = slideStyles.titleBold !== undefined ? slideStyles.titleBold : true;
       const titleItalic = slideStyles.titleItalic || false;
 
-  // Determine image presence and position
-  // Include images on title slides as well so export matches the editor/preview layout
-  const hasImage = includeImages && (sdata.uploadedImage || sdata.imagePrompt);
+      // Determine image presence and position
+      const hasImage = includeImages && (sdata.uploadedImage || sdata.imagePrompt);
       const imagePosition = sdata.imagePosition || "right";
 
       const imgW = 3.0;
@@ -261,7 +262,6 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
 
       // Add title & body
       if (layoutType === 'title') {
-        // Render title slide like the editor: left-aligned title within the body area, with optional image column
         const titleFontSize = (sdata.styles && sdata.styles.titleSize) || titleSize;
         const titleFontFace = (sdata.styles && sdata.styles.titleFont) || titleFont;
         const titleX = hasImage ? bodyX : 0.5;
@@ -279,7 +279,6 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
           align: 'left',
         });
 
-        // Body text or bullets (left-aligned)
         let bodyText = typeof sdata.text === 'string' ? sdata.text.trim() : '';
         if (!bodyText && bulletLines.length) bodyText = bulletLines.join('\n');
         if (bodyText) {
@@ -312,7 +311,6 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
           });
         }
       } else {
-        // Content slide: title aligned left within body region
         const titleX = hasImage ? bodyX : 0.5;
         const titleW = hasImage ? bodyW : 9;
         slide.addText(sdata.title || '', {
@@ -328,7 +326,6 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
           align: 'left',
         });
 
-        // Content slide: add bullets if any
         if (bulletLines.length) {
           slide.addText(bulletLines.map((b) => `• ${b}`).join('\n'), {
             x: bodyX,
@@ -392,6 +389,7 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
         }
       }
 
+      // ---- TABLES ----
       const tables = Array.isArray(sdata.tables) ? sdata.tables : [];
       if (tables.length) {
         const tableTextColor = colorToHex(layoutStyle.textColor || design?.globalTextColor || '#333333', '#333333');

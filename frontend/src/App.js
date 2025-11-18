@@ -18,7 +18,7 @@ import Settings from "./pages/Settings";
 // <-- 1. ADD IMPORTS (Assuming AdminRoute is in a 'components' folder)
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRoute from "./components/AdminRoute";
-
+import Generator from './pages/Generator';
 export default function App() {
   return (
     <Router>
@@ -40,7 +40,7 @@ export default function App() {
         <Route path="/uploadTemplate" element={<UploadTemplate />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/customize-template" element={<CustomizeTemplate />} />
-
+        <Route path="/generator" element={<Generator />} />
         <Route 
           path="/admin" 
           element={

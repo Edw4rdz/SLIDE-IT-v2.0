@@ -1,204 +1,141 @@
-import { geminiModel } from "../config/geminiConfig.js";
-import mammoth from "mammoth"; 
-import * as XLSX from "xlsx";
+import { grokClient, GROK_MODEL } from "../config/grokConfig.js";
+import mammoth from "mammoth"; // For Word docs
+import * as XLSX from "xlsx";   // For Excel files
+import pdf from "pdf-parse";    // For PDFs
 
+// --- Helper: Clean & Parse JSON Response ---
 const parseAIResponse = (responseText) => {
   try {
-    const parsed = JSON.parse(responseText);
-    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].title !== undefined && parsed[0].bullets !== undefined && parsed[0].imagePrompt !== undefined) {
-      return cleanMarkdownFromSlides(parsed);
+    // Remove markdown formatting if present
+    const cleanText = responseText.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleanText);
+    
+    if (!Array.isArray(parsed)) {
+      throw new Error("AI did not return an array of slides.");
     }
-    console.warn("Parsed JSON structure might not be as expected:", parsed);
-    if (Array.isArray(parsed)) return cleanMarkdownFromSlides(parsed);
-    throw new Error("Parsed JSON does not match expected array format.");
+    return parsed;
   } catch (error) {
-    console.warn("Failed initial JSON parse:", error.message);
-    const markdownMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-    if (markdownMatch && markdownMatch[1]) {
-      try {
-        console.log("Attempting to parse JSON from markdown block...");
-        const parsedMarkdown = JSON.parse(markdownMatch[1]);
-        if (Array.isArray(parsedMarkdown) && parsedMarkdown.length > 0 && parsedMarkdown[0].title !== undefined && parsedMarkdown[0].bullets !== undefined && parsedMarkdown[0].imagePrompt !== undefined) {
-          console.log("Successfully parsed JSON from markdown.");
-          return cleanMarkdownFromSlides(parsedMarkdown);
-        }
-        console.warn("Parsed markdown JSON structure might not be as expected:", parsedMarkdown);
-        if (Array.isArray(parsedMarkdown)) return cleanMarkdownFromSlides(parsedMarkdown); 
-      } catch (markdownError) {
-        console.error("Failed to parse JSON extracted from markdown block:", markdownError);
-      }
-    }
-    console.error("AI returned unparsable content:", responseText);
-    throw new Error(`AI returned invalid or unparsable JSON format. Check AI service or prompt.`);
+    console.error("JSON Parse Error. Raw AI Output:", responseText);
+    throw new Error("Failed to parse AI response. Please try again.");
   }
 };
-const cleanMarkdownFromSlides = (slides) => {
-  return slides.map(slide => ({
-    ...slide,
-    title: slide.title ? slide.title.replace(/\*\*|__|\*|_/g, '').trim() : slide.title,
-    imagePrompt: slide.imagePrompt ? slide.imagePrompt.replace(/\*\*|__|\*|_/g, '').trim() : slide.imagePrompt,
-    bullets: Array.isArray(slide.bullets) 
-      ? slide.bullets.map(bullet => bullet.replace(/\*\*|__|\*|_/g, '').trim())
-      : slide.bullets
-  }));
+
+// --- Helper: Standard Prompt Generators ---
+const createSystemPrompt = () => {
+  return "You are an expert presentation designer. You must output ONLY valid JSON code. Do not add conversational text.";
 };
 
+const createUserPrompt = (context, slideCount, sourceType) => {
+  return `
+    I need to create a presentation with approximately ${slideCount} slides based on the ${sourceType} provided below.
+    
+    For each slide, provide:
+    1. "title": A catchy, professional title.
+    2. "bullets": An array of 3-5 concise bullet points summarizing key facts.
+    3. "imagePrompt": A detailed description for an AI image generator to create a background image.
 
-export const convertPdfToSlides = async (base64PDF, slides) => {
+    Output Format: JSON Array of objects.
+    Example: [{"title": "Intro", "bullets": ["Point 1", "Point 2"], "imagePrompt": "A futuristic office"}]
+
+    SOURCE CONTENT:
+    """
+    ${context}
+    """
+  `;
+};
+
+// --- Helper: Centralized API Call ---
+const callGrok = async (userContent) => {
+  const completion = await grokClient.chat.completions.create({
+    model: GROK_MODEL,
+    messages: [
+      { role: "system", content: createSystemPrompt() },
+      { role: "user", content: userContent }
+    ],
+    temperature: 0.7, 
+  });
+  return completion.choices[0].message.content;
+};
+
+// --- EXPORTED FUNCTIONS (Ensure all 5 are present) ---
+
+// 1. Handle PDF
+export const convertPdfToSlides = async (fileBuffer, slides) => {
   try {
-    const prompt = `
-      Extract text from this PDF and organize it into approximately ${slides} slides.
-      For each slide, provide a concise 'title', a list of 'bullets' (3-5 points), AND a simple 'imagePrompt' (a few keywords describing a relevant image, suitable for an AI image generator).
-      Return ONLY JSON in the format: [{ "title": "...", "bullets": ["...", "..."], "imagePrompt": "..." }]
-    `;
-    const result = await geminiModel.generateContent({
-      contents: [{
-        role: "user",
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: "application/pdf", data: base64PDF } }
-        ]
-      }],
-      generationConfig: { responseMimeType: "application/json" }
-    });
-    return parseAIResponse(result.response.text());
+    const data = await pdf(fileBuffer);
+    const text = data.text;
+    const truncatedText = text.length > 100000 ? text.substring(0, 100000) + "..." : text;
+    
+    const prompt = createUserPrompt(truncatedText, slides, "PDF text");
+    const rawResponse = await callGrok(prompt);
+    return parseAIResponse(rawResponse);
   } catch (err) {
-    console.error("Error in AI Service (PDF):", err);
-    throw new Error(`Failed to convert PDF using AI: ${err.message}`);
+    console.error("PDF Error:", err);
+    throw new Error(`PDF Processing Failed: ${err.message}`);
   }
 };
-export const convertTextToSlides = async (text, slides) => {
+
+// 2. Handle Word (DOCX)
+export const convertWordToSlides = async (fileBuffer, slides) => {
   try {
-    const prompt = `
-      Take this text: "${text}".
-      Organize it into approximately ${slides} slides.
-      For each slide, provide a concise 'title', a list of 'bullets' (3-5 points), AND a simple 'imagePrompt' (a few keywords describing a relevant image).
-      Return ONLY JSON in the format: [{ "title": "...", "bullets": ["...", "..."], "imagePrompt": "..." }]
-    `;
-    const result = await geminiModel.generateContent({
-      contents: [{
-        role: "user",
-        parts: [{ text: prompt }]
-      }],
-      generationConfig: { responseMimeType: "application/json" }
-    });
-    return parseAIResponse(result.response.text());
+    const result = await mammoth.extractRawText({ buffer: fileBuffer });
+    const text = result.value;
+    
+    const prompt = createUserPrompt(text, slides, "Word Document");
+    const rawResponse = await callGrok(prompt);
+    return parseAIResponse(rawResponse);
   } catch (err) {
-    console.error("Error in AI Service (Text):", err);
-    throw new Error(`Failed to convert text using AI: ${err.message}`);
+    console.error("Word Error:", err);
+    throw new Error(`Word Doc Processing Failed: ${err.message}`);
   }
 };
 
-export const convertWordToSlides = async (base64Word, slides) => {
+// 3. Handle Excel
+export const convertExcelToSlides = async (fileBuffer, slides) => {
   try {
-    console.log("Decoding base64 Word document...");
-    const buffer = Buffer.from(base64Word, "base64");
-    console.log("Extracting text from Word buffer...");
-    const { value: extractedText } = await mammoth.extractRawText({ buffer });
-
-    if (!extractedText || extractedText.trim().length === 0) {
-      throw new Error("No readable text found in the Word document.");
-    }
-    console.log(`Extracted ${extractedText.length} characters.`);
-    const prompt = `
-      Based on the following text extracted from a Word document, organize the content into approximately ${slides} slides.
-      For each slide, provide a concise 'title', a list of 'bullets' (3-5 points), AND a simple 'imagePrompt' (a few keywords describing a relevant image).
-      Return ONLY JSON in the format: [{ "title": "...", "bullets": ["...", "..."], "imagePrompt": "..." }]
-
-      EXTRACTED TEXT:
-      ---
-      ${extractedText}
-      ---
-    `;
-    console.log("Sending extracted text to Gemini AI...");
-    const result = await geminiModel.generateContent({
-      contents: [{
-        role: "user",
-        parts: [{ text: prompt }] 
-      }],
-      generationConfig: { responseMimeType: "application/json" }
+    const workbook = XLSX.read(fileBuffer, { type: "buffer" });
+    let excelData = "";
+    
+    workbook.SheetNames.forEach(sheet => {
+      const data = XLSX.utils.sheet_to_csv(workbook.Sheets[sheet]);
+      excelData += `\n--- Sheet: ${sheet} ---\n${data}`;
     });
 
-    console.log("Parsing Gemini AI response...");
-    return parseAIResponse(result.response.text());
+    const prompt = createUserPrompt(excelData, slides, "Excel Data");
+    const rawResponse = await callGrok(prompt);
+    return parseAIResponse(rawResponse);
   } catch (err) {
-    console.error("Error in AI Service (Word):", err);
-    if (err.message.includes("mammoth")) {
-        throw new Error(`Failed to extract text from Word document: ${err.message}`);
-    }
-    throw new Error(`Failed to convert Word doc using AI: ${err.message}`);
+    console.error("Excel Error:", err);
+    throw new Error(`Excel Processing Failed: ${err.message}`);
   }
 };
-export const convertExcelToSlides = async (base64Excel, slides) => {
+
+// 4. Handle Text Files (.txt uploads)
+export const convertTextFileToSlides = async (fileBuffer, slides) => {
   try {
-    console.log("Decoding base64 Excel document...");
-    const buffer = Buffer.from(base64Excel, "base64");
-    console.log("Parsing Excel buffer...");
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const text = fileBuffer.toString("utf-8");
 
-    let combinedText = "";
-    workbook.SheetNames.forEach((sheetName) => {
-      console.log(`Extracting text from sheet: ${sheetName}`);
-      const sheet = workbook.Sheets[sheetName];
-   
-      const sheetData = XLSX.utils.sheet_to_csv(sheet, { skipHidden: true });
-      combinedText += `\n--- Sheet: ${sheetName} ---\n${sheetData}\n`;
-    });
-
-    if (combinedText.trim().length === 0) {
-      throw new Error("No readable data found in the Excel document.");
+    if (!text || text.trim().length === 0) {
+      throw new Error("The uploaded text file is empty.");
     }
-    console.log(`Extracted ${combinedText.length} characters from Excel.`);
-    const prompt = `
-      Based on the following text extracted from an Excel spreadsheet (represented sheet by sheet in CSV-like format), organize the key insights into approximately ${slides} slides. Focus on summaries, trends, totals, or important data points.
-      For each slide, provide a concise 'title', a list of 'bullets' (3-5 points summarizing information), AND a simple 'imagePrompt' (keywords describing a relevant chart, graph, or data visualization).
-      Return ONLY JSON in the format: [{ "title": "...", "bullets": ["...", "..."], "imagePrompt": "..." }]
 
-      EXTRACTED EXCEL DATA:
-      ---
-      ${combinedText}
-      ---
-    `;
-   console.log("Sending extracted Excel text to Gemini AI...");
-    const result = await geminiModel.generateContent({
-      contents: [{
-        role: "user",
-        parts: [{ text: prompt }] 
-      }],
-      generationConfig: { responseMimeType: "application/json" }
-    });
-
-    console.log("Parsing Gemini AI response for Excel conversion...");
-    return parseAIResponse(result.response.text());
-
+    const prompt = createUserPrompt(text, slides, "Plain Text File");
+    const rawResponse = await callGrok(prompt);
+    return parseAIResponse(rawResponse);
   } catch (err) {
-    console.error("Error in AI Service (Excel):", err);
-    if (err.message.includes("xlsx")) {
-        throw new Error(`Failed to parse Excel document: ${err.message}`);
-    }
-    throw new Error(`Failed to convert Excel sheet using AI: ${err.message}`);
+    console.error("Text File Error:", err);
+    throw new Error(`Text File Processing Failed: ${err.message}`);
   }
 };
 
-
+// 5. Handle Topic (Raw String Input) - THIS WAS MISSING
 export const generateTopicsToSlides = async (topic, slides) => {
   try {
-    const prompt = `
-      Generate a presentation about this topic: "${topic}".
-      Create content for approximately ${slides} slides.
-      For each slide, provide a concise 'title', a list of 'bullets' (3-5 points), AND a simple 'imagePrompt' (a few keywords describing a relevant image).
-      Return ONLY JSON in the format: [{ "title": "...", "bullets": ["...", "..."], "imagePrompt": "..." }]
-    `;
-    const result = await geminiModel.generateContent({
-      contents: [{
-        role: "user",
-        parts: [{ text: prompt }]
-      }],
-      generationConfig: { responseMimeType: "application/json" }
-    });
-     return parseAIResponse(result.response.text());
+    const prompt = createUserPrompt(topic, slides, "Topic Description");
+    const rawResponse = await callGrok(prompt);
+    return parseAIResponse(rawResponse);
   } catch (err) {
-    console.error("Error in AI Service (Topics):", err);
-    throw new Error(`Failed to generate topics using AI: ${err.message}`);
+    console.error("Topic Error:", err);
+    throw new Error(`Topic Generation Failed: ${err.message}`);
   }
 };

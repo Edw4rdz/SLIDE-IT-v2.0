@@ -17,7 +17,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "adm-zip": "^0.5.16",
     "admin": "^1.4.1",
     "aws-sdk": "^2.1692.0",
@@ -34,8 +33,9 @@
     "mammoth": "^1.11.0",
     "multer": "^2.0.2",
     "mysql2": "^3.15.2",
+    "openai": "^6.9.1",
     "path": "^0.12.7",
-    "pdf-parse": "^1.1.1",
+    "pdf-parse": "^1.1.4",
     "pdfjs-dist": "^5.4.296",
     "pptxgenjs": "^4.0.1",
     "xlsx": "^0.18.5"

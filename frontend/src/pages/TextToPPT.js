@@ -57,25 +57,34 @@ export default function TextToPPT() {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
     setIsLoading(true);
-    setLoadingText("Converting text to slides...");
+    setLoadingText("Uploading text file...");
 
     try {
-      const response = await convertText({
-        text: fileContent,
-        slides,
-        userId: loggedInUser.user_id,
-        fileName: file.name,
-        includeImages: includeImages, // ✅ Added choice flag
-      });
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("slideCount", String(slides));
+      formData.append("userId", String(loggedInUser.user_id));
+      formData.append("includeImages", String(includeImages));
 
-      if (response.data && Array.isArray(response.data)) {
-        const slidesWithId = response.data.map((s, idx) => ({ ...s, id: idx }));
-        setConvertedSlides(slidesWithId);
-        setTopic(file.name.replace(".txt", ""));
-        alert("✅ Conversion successful! You can now preview or edit slides.");
-      } else {
-        alert("Conversion failed: Invalid response from server.");
+      const response = await convertText(formData);
+
+      const payload = response?.data;
+      const slideArray = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.slides)
+        ? payload.slides
+        : [];
+
+      if (!slideArray.length) {
+        throw new Error("Conversion failed: unexpected server response");
       }
+
+      const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
+      setConvertedSlides(slidesWithId);
+      setTopic(file.name.replace(/\.txt$/i, ""));
+      alert("✅ Conversion successful! You can now preview or edit slides.");
     } catch (err) {
       console.error(err);
       alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
