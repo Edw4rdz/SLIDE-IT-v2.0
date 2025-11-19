@@ -174,10 +174,9 @@ export default function AdminDashboard() {
       
       {/* --- Admin-Only Sidebar --- */}
       <aside className="sidebar">
-        <div className="fa fa-magic logo">
+        <div className="logo">
           <div>
             <h2>SLIDE-IT</h2>
-            <p>Admin Panel</p> 
           </div>
         </div>
 

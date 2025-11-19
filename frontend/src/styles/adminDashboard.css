@@ -166,6 +166,30 @@
   color: #fff;
 }
 
+/* Admin dashboard: ensure the SLIDE-IT logo block is centered and aligned */
+.dashboard .sidebar .logo {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* center the title horizontally */
+  gap: 8px;
+  padding: 18px 12px;
+  margin-bottom: 4px; /* small gap below logo so Admin Panel sits slightly lower */
+  text-align: center;
+}
+.dashboard .sidebar .logo > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.dashboard .sidebar .logo h2 {
+  font-size: 18px;
+  margin: 0;
+  line-height: 1;
+  color: #ffffff;
+  letter-spacing: 0.6px;
+}
+
 .user-management-header {
   display: flex;
   justify-content: space-between;
@@ -327,4 +351,11 @@
 }
 .modal-content .input-row .input-group {
   flex: 1; 
+}
+.dashboard .sidebar .sidebar-links {
+  padding-top: 0px; /* tighter top padding inside links container */
+}
+.dashboard .sidebar .admin-link {
+  margin-top: -4px; /* pull the Admin Panel up slightly (less than before) */
+  padding: 8px 16px; /* slightly tighter padding */
 }
