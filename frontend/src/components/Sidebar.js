@@ -73,10 +73,16 @@ export default function Sidebar({ activePage, isAdmin }) {
 
         {/* Logout always at bottom */}
         <div className="bottom-links">
-          <div className="logout-btn" onClick={handleLogout}>
-            <FaSignOutAlt className="icon" /> Logout
-            {loggingOut && <div className="spinner-small"></div>}
-          </div>
+          <button
+            className="logout-btn"
+            type="button"
+            onClick={handleLogout}
+            aria-label="Logout"
+          >
+            <FaSignOutAlt className="icon" />
+            <span className="logout-text">Logout</span>
+            {loggingOut && <div className="spinner-small" aria-hidden="true"></div>}
+          </button>
         </div>
       </nav>
     </aside>

@@ -102,29 +102,60 @@
 .bottom-links {
   margin-top: auto;
   padding: 0 10px 10px 10px;
-  border-top: 1px solid var(--sb-divider);
+  border-top: none; /* removed divider line above logout button */
 }
 
 .logout-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 20px;
-  color: var(--sb-muted);
+  justify-content: center;
+  width: calc(100% - 20px);
+  margin: 10px;
+  padding: 10px 14px;
+  color: #ffffff;
+  background: #dc2626; /* solid red */
+  border: none;
+  border-radius: 999px;
   text-decoration: none;
-  transition: background 0.25s, color 0.25s, border-color 0.25s;
-  border-left: 3px solid transparent;
+  transition: none;
   cursor: pointer;
+  font-weight: 600;
+  box-shadow: none;
+  border-left: none;
 }
 
-.logout-btn:hover {
-  background: var(--sb-active);
-  border-left: 3px solid var(--sb-accent);
-  color: var(--sb-text);
+.logout-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.12);
+  outline-offset: 2px;
+}
+
+/* Force no hover change for logout button (override other global styles) */
+.sidebar .bottom-links .logout-btn:hover,
+.sidebar .logout-btn:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Ensure logout text and icon are always white and no color transitions occur */
+.sidebar .logout-btn,
+.sidebar .logout-btn .logout-text,
+.sidebar .logout-btn .icon {
+  color: #ffffff !important;
+  transition: none !important;
 }
 
 .logout-btn .icon {
-  margin-right: 8px;
+  margin-right: 6px;
+  font-size: 16px;
+  opacity: 1;
+  color: #ffffff;
+}
+
+.logout-text {
+  line-height: 1;
 }
 
 .logout-btn .spinner-small {
