@@ -79,6 +79,7 @@ export default function AIGenerator() {
       state: {
         slides: convertedSlides,
         topic,
+        includeImages: !!includeImages, // ensure EditPreview shows image column
         imageSource: includeImages ? 'ai' : 'none',
       },
     });
