@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged} from "firebase/auth"; 
 import {
   doc,
@@ -26,7 +26,15 @@ const tools = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [userName, setUserName] = useState("Loading...");
+    // Redirect to login if not authenticated
+    useEffect(() => {
+      const user = localStorage.getItem('user') || sessionStorage.getItem('user');
+      if (!user) {
+        navigate('/login', { replace: true });
+      }
+    }, [navigate]);
   const [isAdmin, setIsAdmin] = useState(false); 
   const [feedbacks, setFeedbacks] = useState([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
