@@ -1,7 +1,6 @@
 // backend/services/pptxService.js
 import PptxGenJS from "pptxgenjs";
 import axios from "axios";
-import getContrastYIQ from "./colorUtils.js";
 
 /**
  * Helper to get the AI image URL (copied from your frontend)

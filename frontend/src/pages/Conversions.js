@@ -215,7 +215,6 @@ export default function Conversions() {
               </p>
             </div>
           ) : (
-<<<<<<< HEAD
             <div className="conversion-grid">
               {history.map((conv) => {
                 // Load draft if present
@@ -254,42 +253,6 @@ export default function Conversions() {
                           return map[raw] || raw || 'Unknown Type';
                         })()
                       }</p>
-=======
-            <div className="conversion-grid">{history.map((conv) => (
-                <div className="conversion-card" key={conv.id}>
-                  <div className="card-header">
-                    {/* Display status and type from history data */}
-                    <span className={`status-badge ${conv.status?.toLowerCase() || 'unknown'}`}>{conv.status || 'Unknown'}</span>
-                    <p className="file-type">{
-                      (() => {
-                        const raw = (conv.conversionType || conv.type || '').toUpperCase();
-                        const map = {
-                          TOPIC: 'AI-Generated PPTs',
-                          PDF: 'PDF-to-PPTs',
-                          WORD: 'DOCX/WORD-to-PPTs',
-                          DOCX: 'DOCX/WORD-to-PPTs',
-                          TEXT: 'TxT-to-PPTs',
-                          TXT: 'TxT-to-PPTs',
-                          EXCEL: 'Excel-to-PPTs'
-                        };
-                        return map[raw] || raw || 'Unknown Type';
-                      })()
-                    }</p>
-                  </div>
-
-                  <h3 className="file-name">{conv.fileName || 'Untitled Conversion'}</h3>
-
-                  {/* Thumbnail */}
-                  {thumbnails[conv.id] ? (
-                    <div className="history-thumb-wrapper">
-                      <img
-                        src={thumbnails[conv.id]}
-                        alt={`Preview for ${conv.fileName}`}
-                        className="history-thumb"
-                        loading="lazy"
-                        onError={(e) => { e.currentTarget.style.display='none'; }}
-                      />
->>>>>>> 7906b5699953963aa2ca931556662042eb059ea0
                     </div>
 
                     <h3 className="file-name">{displayTitle}</h3>
