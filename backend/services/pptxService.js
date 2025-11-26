@@ -130,11 +130,16 @@ export const generatePptxFromData = async (requestBody) => {
 
     // 4. ADD TEXT TO SLIDE
     pptxSlide.addText(slide.title || '', titleOpts);
-    
-    // Only add bullets if they exist and it's not a title slide
-    if (slide.bullets && slide.bullets.length > 0 && slideLayout !== 'title') {
-       const bulletPoints = slide.bullets.map(b => b.trim()).filter(b => b);
-       pptxSlide.addText(bulletPoints, bodyOpts);
+
+    // Always add body text, even for title slides, and always use high-contrast color
+    let hasBullets = slide.bullets && slide.bullets.length > 0;
+    let hasText = slide.text && slide.text.trim().length > 0;
+    if (hasBullets) {
+      const bulletPoints = slide.bullets.map(b => b.trim()).filter(b => b);
+      pptxSlide.addText(bulletPoints, { ...bodyOpts, bullet: slideLayout !== 'title', color: textColor });
+    }
+    if (hasText) {
+      pptxSlide.addText(slide.text, { ...bodyOpts, bullet: false, color: textColor });
     }
   }
 
