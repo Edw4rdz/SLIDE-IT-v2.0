@@ -48,6 +48,22 @@ app.use(cors({
 app.use(express.json({ limit: "25mb" })); // Increase limit for PDF base64
 app.use(express.urlencoded({ extended: true }));
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`\n[${timestamp}] ${req.method} ${req.path}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    const bodyLog = { ...req.body };
+    // Don't log file buffers or large data
+    if (bodyLog.file) bodyLog.file = '[FILE DATA]';
+    if (bodyLog.slides && Array.isArray(bodyLog.slides)) {
+      bodyLog.slides = `[${bodyLog.slides.length} slides]`;
+    }
+    console.log('Body:', bodyLog);
+  }
+  next();
+});
+
 // Serve static files from the 'uploads' directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 

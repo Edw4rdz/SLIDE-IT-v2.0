@@ -40,7 +40,9 @@ export const generatePptxFromData = async (requestBody) => {
   }
 
   let pptx = new PptxGenJS();
-  pptx.layout = 'LAYOUT_16X9'; // Standard 16:9 layout
+  // Set layout using the correct method
+  pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
+  pptx.layout = 'LAYOUT_16x9';
 
   // Use a 'for...of' loop to handle async image fetching
   for (const slide of slides) {
@@ -127,14 +129,40 @@ export const generatePptxFromData = async (requestBody) => {
     
     // Only add bullets if they exist and it's not a title slide
     if (slide.bullets && slide.bullets.length > 0 && slideLayout !== 'title') {
-       const bulletPoints = slide.bullets.map(b => b.trim()).filter(b => b);
-       pptxSlide.addText(bulletPoints, bodyOpts);
+       // Format bullets as objects with text property for PptxGenJS
+       const bulletPoints = slide.bullets
+         .map(b => typeof b === 'string' ? b.trim() : (b?.text || ''))
+         .filter(b => b)
+         .map(text => ({ text }));
+       
+       if (bulletPoints.length > 0) {
+         pptxSlide.addText(bulletPoints, bodyOpts);
+       }
     }
   }
 
   // 5. RETURN THE FILE BUFFER
   // This generates the file in memory
-  console.log("PPTX generation complete. Returning buffer.");
-  const pptxBuffer = await pptx.write();
+  console.log("PPTX generation complete. Generating buffer...");
+  const pptxData = await pptx.write();
+  
+  // Convert to Buffer if it's a Blob or other type
+  let pptxBuffer;
+  if (Buffer.isBuffer(pptxData)) {
+    pptxBuffer = pptxData;
+  } else if (pptxData instanceof Uint8Array) {
+    pptxBuffer = Buffer.from(pptxData);
+  } else if (pptxData instanceof Blob) {
+    // Convert Blob to Buffer
+    const arrayBuffer = await pptxData.arrayBuffer();
+    pptxBuffer = Buffer.from(arrayBuffer);
+  } else if (typeof pptxData === 'string') {
+    // Base64 string
+    pptxBuffer = Buffer.from(pptxData, 'base64');
+  } else {
+    throw new Error('Unknown PPTX data format returned from pptxgenjs');
+  }
+  
+  console.log(`PPTX buffer ready, size: ${pptxBuffer.length} bytes`);
   return pptxBuffer;
 };
