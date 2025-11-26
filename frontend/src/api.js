@@ -8,6 +8,40 @@ const API_BASE = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL.replace(/\/$/, '')}/api` 
   : "http://localhost:5000/api";
 
+// --- SIMPLE CACHE ---
+const cache = {
+  data: {},
+  timestamps: {},
+  TTL: 5 * 60 * 1000, // 5 minutes
+  
+  get(key) {
+    const now = Date.now();
+    if (this.data[key] && (now - this.timestamps[key]) < this.TTL) {
+      console.log(`[Cache HIT] ${key}`);
+      return this.data[key];
+    }
+    console.log(`[Cache MISS] ${key}`);
+    return null;
+  },
+  
+  set(key, value) {
+    this.data[key] = value;
+    this.timestamps[key] = Date.now();
+  },
+  
+  invalidate(pattern) {
+    Object.keys(this.data).forEach(key => {
+      if (key.includes(pattern)) {
+        delete this.data[key];
+        delete this.timestamps[key];
+      }
+    });
+  }
+};
+
+// Export cache for manual invalidation after conversions
+export { cache };
+
 // --- AUTH & USER ENDPOINTS ---
 export const registerUser = (data) => axios.post(`${API_BASE}/register`, data);
 export const loginUser = (data) => axios.post(`${API_BASE}/login`, data);
@@ -31,11 +65,21 @@ export const uploadTemplate = (formData) =>
 
 export const getTemplates = () => axios.get(`${API_BASE}/templates/list`);
 
-export const getHistory = (userId) =>
-  axios.get(`${API_BASE}/conversions`, { params: { userId } });
+export const getHistory = async (userId) => {
+  const cacheKey = `history-${userId}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  
+  const response = await axios.get(`${API_BASE}/conversions`, { params: { userId } });
+  cache.set(cacheKey, response);
+  return response;
+};
 
-export const deleteHistory = (id, userId) =>
-  axios.delete(`${API_BASE}/conversions/${id}`, { params: { userId } });
+export const deleteHistory = async (id, userId) => {
+  const response = await axios.delete(`${API_BASE}/conversions/${id}`, { params: { userId } });
+  cache.invalidate(`history-${userId}`); // Clear cache after delete
+  return response;
+};
 
 // --- STATIC DATA ---
 export const prebuiltTemplates = [

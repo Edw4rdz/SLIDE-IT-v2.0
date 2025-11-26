@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaImages, FaFileAlt } from "react-icons/fa";
-import { convertExcel } from "../api";
+import { convertExcel, cache } from "../api";
 import "../styles/exceltoppt.css";
 import Sidebar from "../components/Sidebar";
 
@@ -81,6 +81,13 @@ export default function ExcelToPPT() {
           const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
           setConvertedSlides(slidesWithId);
           setTopic(file.name.replace(/\.(xlsx|xls)/i, ""));
+          
+          // Invalidate cache
+          const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
+          if (loggedInUser?.user_id) {
+            cache.invalidate(`history-${loggedInUser.user_id}`);
+          }
+          
           alert("✅ Conversion successful! You can now preview or edit it.");
         } else {
           const errorMsg = payload?.error || response?.error || "Conversion failed: Invalid response from server.";
