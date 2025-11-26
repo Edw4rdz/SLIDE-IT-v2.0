@@ -2,14 +2,15 @@
 import PptxGenJS from "pptxgenjs";
 import axios from "axios";
 
+
 /**
  * Helper to get the AI image URL (copied from your frontend)
  */
-const getPollinationsImageUrl = (prompt) => {
+function getPollinationsImageUrl(prompt) {
   if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;
   const encodedPrompt = encodeURIComponent(prompt.trim());
   return `https://image.pollinations.ai/prompt/${encodedPrompt}`;
-};
+}
 
 /**
  * Fetches an image from a URL and returns it as a base64 string.
