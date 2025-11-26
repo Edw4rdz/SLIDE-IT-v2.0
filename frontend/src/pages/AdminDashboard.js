@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+// 1. Import DB and Firestore tools for Real-Time listening
+import { db } from "../firebase";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+
 import { 
-  fetchAllUsers, 
+  // fetchAllUsers, // Removed: We now use real-time listeners instead
   fetchAnalytics, 
   createUser, 
   deleteUser, 
@@ -10,11 +14,9 @@ import {
 } from "../adminApi";
 import "../styles/adminDashboard.css"; 
 
-
 import { FaSignOutAlt, FaPlus } from "react-icons/fa"; 
 import { getAuth, signOut } from "firebase/auth";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-
 
 const INITIAL_NEW_USER_STATE = {
   username: "",
@@ -29,15 +31,20 @@ const INITIAL_NEW_USER_STATE = {
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
-  const [roleStats, setRoleStats] = useState(null);
+  const [roleStats, setRoleStats] = useState({
+    student: 0,
+    educator: 0,
+    professional: 0,
+    other: 0,
+    notSet: 0
+  });
   const [loading, setLoading] = useState(true);
   // eslint-disable-next-line no-unused-vars
   const [error, setError] = useState(null);
   
- 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUserData, setNewUserData] = useState(INITIAL_NEW_USER_STATE);
-  const [loadingAction, setLoadingAction] = useState(false); // For modal/delete
+  const [loadingAction, setLoadingAction] = useState(false); 
   
   // --- Sidebar Logic ---
   const navigate = useNavigate();
@@ -59,38 +66,59 @@ export default function AdminDashboard() {
       setLoggingOut(false);
     }
   };
-  // --- End of sidebar logic ---
   
-  const loadAdminData = async () => {
-    setLoading(true); 
-    setError(null);
-    try {
-      const [usersData, analyticsData] = await Promise.all([
-        fetchAllUsers(),
-        fetchAnalytics()
-      ]);
-      setUsers(usersData.users || []);
-      setStats(analyticsData);
-      setRoleStats(usersData.roleStats || null);
-    } catch (err) {
-      console.error("Failed to load admin data:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const refreshUsers = async () => {
-    try {
-      const usersData = await fetchAllUsers();
-      setUsers(usersData.users || []);
-    } catch (err) {
-      alert(`Error refreshing users: ${err.message}`);
-    }
-  };
-
+  // --- Real-Time Data Loading ---
   useEffect(() => {
-    loadAdminData();
+    setLoading(true);
+
+    // 1. Fetch Analytics (Non-realtime data)
+    const loadStaticData = async () => {
+      try {
+        const analyticsData = await fetchAnalytics();
+        setStats(analyticsData);
+      } catch (err) {
+        console.error("Failed to load analytics:", err);
+      }
+    };
+    loadStaticData();
+
+    // 2. Real-Time Listener for Users
+    // We order by 'lastLogin' to show active users first
+    const q = query(collection(db, "users"), orderBy("lastLogin", "desc"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const userList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // A. Update Users State
+      setUsers(userList);
+
+      // B. Calculate Role Stats Live
+      const newRoleStats = { student: 0, educator: 0, professional: 0, other: 0, notSet: 0 };
+      userList.forEach(user => {
+        const role = user.role ? user.role.toLowerCase() : 'notset';
+        if (role === 'student') newRoleStats.student++;
+        else if (role === 'educator') newRoleStats.educator++;
+        else if (role === 'professional') newRoleStats.professional++;
+        else if (role === 'notset') newRoleStats.notSet++;
+        else newRoleStats.other++;
+      });
+      setRoleStats(newRoleStats);
+
+      setLoading(false);
+    }, (error) => {
+      console.error("Real-time listener error:", error);
+      setError(error.message);
+      setLoading(false);
+    });
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, []);
+
+  // --- Handlers ---
 
   const handleNewUserChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -102,14 +130,13 @@ export default function AdminDashboard() {
   
   const handleNewUserSubmit = async (e) => {
     e.preventDefault();
-    // --- New User Creation ---
     if (!newUserData.email || !newUserData.password || !newUserData.username || !newUserData.firstName || !newUserData.lastName || !newUserData.birthday) {
       return alert("Please fill out all fields.");
     }
     setLoadingAction(true);
     try {
-      const newUser = await createUser(newUserData);
-      setUsers(prevUsers => [newUser, ...prevUsers]); 
+      await createUser(newUserData);
+      // Success! Listener will update the table.
       setIsModalOpen(false);
       setNewUserData(INITIAL_NEW_USER_STATE);
     } catch (err) {
@@ -119,30 +146,20 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- Table Action Handlers ---
   const handleRoleChange = async (docId, newIsAdmin) => {
- 
     const user = users.find(u => u.id === docId);
     const newRole = newIsAdmin ? "Admin" : "User";
     
     if (!window.confirm(`Are you sure you want to change ${user.username}'s role to ${newRole}?`)) {
-    
-      refreshUsers();
       return;
     }
     
     try {
       await updateUserRole(docId, newIsAdmin);
-
-      setUsers(prevUsers => 
-        prevUsers.map(u => 
-          u.id === docId ? { ...u, isAdmin: newIsAdmin } : u
-        )
-      );
       alert("User role updated!");
+      // Listener will auto-update
     } catch (err) {
       alert(`Error updating role: ${err.message}`);
-      refreshUsers(); 
     }
   };
   
@@ -154,9 +171,8 @@ export default function AdminDashboard() {
     setLoadingAction(true); 
     try {
       await deleteUser(user.id, user.authUID);
-     
-      setUsers(prevUsers => prevUsers.filter(u => u.id !== user.id));
       alert("User deleted successfully.");
+      // Listener will auto-update
     } catch (err) {
       alert(`Error deleting user: ${err.message}`);
     } finally {
@@ -164,12 +180,17 @@ export default function AdminDashboard() {
     }
   };
   
+  // Helper to format timestamps
+  const formatTime = (timestamp) => {
+    if (!timestamp) return "N/A";
+    // Check if it's a Firestore Timestamp (has .toDate()) or a standard Date string
+    if (timestamp.toDate) return timestamp.toDate().toLocaleString();
+    return new Date(timestamp).toLocaleString();
+  };
 
-  
-  const activeUsers = users.filter(user => user.status === 'active').length;
+  const activeUsersCount = users.filter(user => user.isOnline).length; 
 
   return (
-
     <div className="dashboard"> 
       
       {/* --- Admin-Only Sidebar --- */}
@@ -201,7 +222,7 @@ export default function AdminDashboard() {
         <div className="content">
           <div className="header">
             <h1>Admin Dashboard</h1>
-            <p>App analytics and user management</p>
+            <p>Real-time user monitoring & analytics</p>
           </div>
 
           <div className="tools-grid">
@@ -218,8 +239,8 @@ export default function AdminDashboard() {
               <div className="tool-icon active">
                 <i className="fa fa-heartbeat" />
               </div>
-              <h3 className="tool-title">Active Users (30d)</h3>
-              <p className="admin-stat-number">{loading ? '...' : activeUsers}</p>
+              <h3 className="tool-title">Online Now</h3>
+              <p className="admin-stat-number">{loading ? '...' : activeUsersCount}</p>
             </div>
 
             <div className="admin-stat-card">
@@ -294,7 +315,7 @@ export default function AdminDashboard() {
           </div>
           <div className="admin-content-card">
             <div className="user-management-header">
-              <h2>User Management</h2>
+              <h2>Real-Time User Monitoring</h2>
               <button className="add-user-btn" onClick={() => setIsModalOpen(true)}>
                 <FaPlus /> Add New User
               </button>
@@ -310,6 +331,7 @@ export default function AdminDashboard() {
                       <th>Email</th>
                       <th>Role</th>
                       <th>Last Login</th>
+                      <th>Last Logout</th> 
                       <th>Actions</th> 
                     </tr>
                   </thead>
@@ -317,15 +339,33 @@ export default function AdminDashboard() {
                     {users.map((user) => (
                       <tr key={user.id}>
                         <td>
-                          <span className={`status-dot ${user.status}`}></span>
-                          {user.status}
+                          {/* Real-time Status Indicator */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span 
+                              style={{
+                                height: "10px",
+                                width: "10px",
+                                borderRadius: "50%",
+                                backgroundColor: user.isOnline ? "#2ecc71" : "#95a5a6",
+                                display: "inline-block"
+                              }}
+                            ></span>
+                            <span style={{ 
+                              color: user.isOnline ? "#2ecc71" : "#7f8c8d",
+                              fontWeight: "bold",
+                              fontSize: "0.9rem"
+                            }}>
+                              {user.isOnline ? "Online" : "Offline"}
+                            </span>
+                          </div>
                         </td>
                         <td>{user.username}</td>
                         <td>{user.email}</td>
                         <td>
+                          {/* FIX: Safely handle undefined isAdmin */}
                           <select 
                             className="role-select" 
-                            value={user.isAdmin.toString()}
+                            value={(user.isAdmin || false).toString()} 
                             onChange={(e) => handleRoleChange(user.id, e.target.value === 'true')}
                             disabled={loadingAction} 
                           >
@@ -333,9 +373,8 @@ export default function AdminDashboard() {
                             <option value="true">Admin</option>
                           </select>
                         </td>
-                        <td>
-                          {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
-                        </td>
+                        <td>{formatTime(user.lastLogin)}</td>
+                        <td>{formatTime(user.lastLogout)}</td>
                         <td>
                           <button 
                             className="delete-user-btn"
@@ -355,13 +394,12 @@ export default function AdminDashboard() {
         </div>
       </main>
 
+      {/* Modal for Creating New User */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>Add New User</h2>
             <form onSubmit={handleNewUserSubmit}>
-
-              {/* --- NEW: First and Last Name Inputs --- */}
               <div className="input-row"> 
                 <div className="input-group">
                   <label htmlFor="firstName">First Name</label>
@@ -420,8 +458,6 @@ export default function AdminDashboard() {
                   required
                 />
               </div>
-
-              {/* --- Birthday Input --- */}
               <div className="input-group">
                 <label htmlFor="birthday">Birthday</label>
                 <input

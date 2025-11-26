@@ -3,7 +3,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import { getAuth, signOut } from "firebase/auth";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-import "./Sidebar.css"; // We will create this CSS file next
+import "./Sidebar.css";
+
+// Unified imports (Removed duplicates)
+import { 
+  getFirestore, 
+  doc, 
+  updateDoc, 
+  serverTimestamp, 
+  collection, 
+  query, 
+  where, 
+  getDocs 
+} from "firebase/firestore";
 
 // We accept 'activePage' and 'isAdmin' as props
 export default function Sidebar({ activePage, isAdmin }) {
@@ -15,14 +27,42 @@ export default function Sidebar({ activePage, isAdmin }) {
     if (!confirmLogout) return;
 
     setLoggingOut(true);
+    const auth = getAuth();
+    const db = getFirestore();
+    const user = auth.currentUser;
+
     try {
-      const auth = getAuth();
+      if (user) {
+        // 1. Try to find the user document using the Auth ID
+        let userDocRef = doc(db, "users", user.uid);
+        
+        // Check if the user is stored under a different ID but has the authUID field
+        const userDocSnap = await getDocs(query(collection(db, "users"), where("authUID", "==", user.uid)));
+
+        // 2. If found via query (authUID), switch to that reference
+        if (!userDocSnap.empty) {
+          userDocRef = doc(db, "users", userDocSnap.docs[0].id);
+        }
+
+        // 3. Update the correct document
+        await updateDoc(userDocRef, {
+          isOnline: false,
+          lastLogout: serverTimestamp()
+        });
+      }
+
+      // 4. Sign out and clean up
       await signOut(auth);
       localStorage.removeItem("user");
       sessionStorage.removeItem("user");
       navigate("/login");
     } catch (err) {
       console.error("Logout error:", err);
+      // Force logout even if DB update fails
+      await signOut(auth);
+      localStorage.removeItem("user");
+      navigate("/login");
+    } finally {
       setLoggingOut(false);
     }
   };
