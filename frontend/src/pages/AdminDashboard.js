@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-// 1. Import DB and Firestore tools for Real-Time listening
 import { db } from "../firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, limit } from "firebase/firestore";
 
 import { 
-  // fetchAllUsers, // Removed: We now use real-time listeners instead
   fetchAnalytics, 
   createUser, 
   deleteUser, 
@@ -70,8 +67,6 @@ export default function AdminDashboard() {
   // --- Real-Time Data Loading ---
   useEffect(() => {
     setLoading(true);
-
-    // 1. Fetch Analytics (Non-realtime data)
     const loadStaticData = async () => {
       try {
         const analyticsData = await fetchAnalytics();
@@ -82,9 +77,11 @@ export default function AdminDashboard() {
     };
     loadStaticData();
 
-    // 2. Real-Time Listener for Users
-    // We order by 'lastLogin' to show active users first
-    const q = query(collection(db, "users"), orderBy("lastLogin", "desc"));
+    const q = query(
+      collection(db, "users"), 
+      orderBy("lastLogin", "desc"), 
+      limit(10) 
+    );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const userList = snapshot.docs.map(doc => ({
@@ -113,8 +110,6 @@ export default function AdminDashboard() {
       setError(error.message);
       setLoading(false);
     });
-
-    // Cleanup listener on unmount
     return () => unsubscribe();
   }, []);
 
@@ -136,7 +131,6 @@ export default function AdminDashboard() {
     setLoadingAction(true);
     try {
       await createUser(newUserData);
-      // Success! Listener will update the table.
       setIsModalOpen(false);
       setNewUserData(INITIAL_NEW_USER_STATE);
     } catch (err) {
@@ -157,7 +151,6 @@ export default function AdminDashboard() {
     try {
       await updateUserRole(docId, newIsAdmin);
       alert("User role updated!");
-      // Listener will auto-update
     } catch (err) {
       alert(`Error updating role: ${err.message}`);
     }
@@ -172,7 +165,6 @@ export default function AdminDashboard() {
     try {
       await deleteUser(user.id, user.authUID);
       alert("User deleted successfully.");
-      // Listener will auto-update
     } catch (err) {
       alert(`Error deleting user: ${err.message}`);
     } finally {
@@ -180,10 +172,8 @@ export default function AdminDashboard() {
     }
   };
   
-  // Helper to format timestamps
   const formatTime = (timestamp) => {
     if (!timestamp) return "N/A";
-    // Check if it's a Firestore Timestamp (has .toDate()) or a standard Date string
     if (timestamp.toDate) return timestamp.toDate().toLocaleString();
     return new Date(timestamp).toLocaleString();
   };

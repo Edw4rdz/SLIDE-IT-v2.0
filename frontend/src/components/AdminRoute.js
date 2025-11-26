@@ -23,7 +23,6 @@ export default function AdminRoute({ children }) {
         // This logic is based on your Dashboard.js user fetching
         //
         try {
-          // 1. Try to get doc by auth.uid
           const byUidRef = doc(db, "users", user.uid);
           const byUidSnap = await getDoc(byUidRef);
 
