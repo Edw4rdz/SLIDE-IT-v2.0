@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaImages, FaFileAlt } from "react-icons/fa";
-import { convertPDF } from "../api"; 
+import { convertPDF, cache } from "../api"; 
 import "../styles/pdftoppt.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar"; 
@@ -68,6 +68,13 @@ export default function PDFToPPT() {
         const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
         setConvertedSlides(slidesWithId);
         setTopic(file.name.replace(/\.pdf$/i, ""));
+        
+        // Invalidate cache so history refreshes
+        const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
+        if (loggedInUser?.user_id) {
+          cache.invalidate(`history-${loggedInUser.user_id}`);
+        }
+        
         alert("✅ Conversion successful! You can now preview or edit it.");
       } else {
         // Only show error if backend explicitly failed

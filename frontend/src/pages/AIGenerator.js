@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaMagic, FaEdit } from "react-icons/fa";
-import { generateSlides } from "../api"; // <-- 3. RE-ADDED THIS MISSING IMPORT
+import { generateSlides, cache } from "../api"; // <-- Added cache import
 import "../styles/ai-generator.css";
 import Sidebar from "../components/Sidebar"; 
 
@@ -59,6 +59,11 @@ export default function AIGenerator() {
       const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
       setConvertedSlides(slidesWithId);
       setLoadingText("Slides generated successfully!");
+      
+      // Invalidate history cache so next fetch gets updated data
+      if (loggedInUser?.user_id) {
+        cache.invalidate(`history-${loggedInUser.user_id}`);
+      }
 
     } catch (err) {
       console.error(err);

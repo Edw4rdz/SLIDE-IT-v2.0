@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom"; // Link, FaSignOutAlt, FaUpload removed
 import { FaImages, FaFileAlt } from "react-icons/fa";
-import { convertWord } from "../api";
+import { convertWord, cache } from "../api";
 import "../styles/wordtoppt.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar"; // <-- 1. IMPORTED SIDEBAR
@@ -76,6 +76,13 @@ export default function WordToPPT() {
       setConvertedSlides(slidesWithId);
       setTopic(file.name.replace(/\.(docx|doc)$/i, ""));
       setLoadingText("Conversion completed!");
+      
+      // Invalidate cache
+      const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
+      if (loggedInUser?.user_id) {
+        cache.invalidate(`history-${loggedInUser.user_id}`);
+      }
+      
       alert("✅ Conversion successful! You can now preview or edit it.");
     } catch (err) {
       console.error("Word conversion error:", err);

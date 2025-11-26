@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom"; // Link, FaSignOutAlt, FaUpload removed
 import { FaImages, FaFileAlt } from "react-icons/fa";
-import { convertText } from "../api";
+import { convertText, cache } from "../api";
 import "../styles/texttoppt.css";
 import Sidebar from "../components/Sidebar"; // <-- 1. IMPORTED SIDEBAR
 
@@ -84,6 +84,13 @@ export default function TextToPPT() {
       const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
       setConvertedSlides(slidesWithId);
       setTopic(file.name.replace(/\.txt$/i, ""));
+      
+      // Invalidate cache
+      const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
+      if (loggedInUser?.user_id) {
+        cache.invalidate(`history-${loggedInUser.user_id}`);
+      }
+      
       alert("✅ Conversion successful! You can now preview or edit slides.");
     } catch (err) {
       console.error(err);
