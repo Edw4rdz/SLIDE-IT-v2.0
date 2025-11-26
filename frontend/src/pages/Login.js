@@ -19,7 +19,8 @@ import {
   query,
   where,
   getDocs,
-  updateDoc, 
+  updateDoc,
+  serverTimestamp, 
 } from "firebase/firestore";
 
 export default function Login() {
@@ -33,12 +34,14 @@ export default function Login() {
   const [pendingUserData, setPendingUserData] = useState(null);
   const [pendingDocId, setPendingDocId] = useState(null);
 
+  // <--- 2. Updated this function to track online status
   const updateUserLogin = async (docId) => {
     try {
       const userDocRef = doc(db, "users", docId);
   
       await updateDoc(userDocRef, {
-        lastLogin: new Date() // Set lastLogin to the current server time
+        isOnline: true,             // Mark user as online
+        lastLogin: serverTimestamp() // Use server time for accuracy
       });
     } catch (err) {
       console.warn("Could not update lastLogin time:", err.message);
@@ -107,12 +110,15 @@ export default function Login() {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           userDataFromDb = { id: userDoc.id, ...userDoc.data() };
-          userDocId = userDoc.id; // <-- 5. Get ID from doc
+          userDocId = userDoc.id; 
         }
       }
+      
+      // Update login status if user found
       if (userDocId) {
         await updateUserLogin(userDocId);
       }
+
       const localUser = {
         username: userDataFromDb?.username || user.displayName || user.email,
         firstName: userDataFromDb?.firstName || null,
@@ -208,7 +214,10 @@ export default function Login() {
           await setDoc(uidRef, userDataFromDb);
         }
       }
+      
+      // Update login status
       await updateUserLogin(userDocId);
+      
       const localUser = {
         username: userDataFromDb?.name || user.displayName || user.email,
         email: userDataFromDb?.email || user.email,
