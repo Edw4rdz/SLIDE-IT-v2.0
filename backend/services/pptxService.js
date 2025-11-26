@@ -1,6 +1,7 @@
 // backend/services/pptxService.js
 import PptxGenJS from "pptxgenjs";
 import axios from "axios";
+import getContrastYIQ from "./colorUtils.js";
 
 /**
  * Helper to get the AI image URL (copied from your frontend)
@@ -53,9 +54,12 @@ export const generatePptxFromData = async (requestBody) => {
     const layoutStyles = design.layouts?.[slideLayout] || {};
     
     // Get colors and remove the '#' for pptxgenjs
-    const bgColor = (layoutStyles.background || design.globalBackground || '#ffffff').replace('#', '');
-    const titleColor = (layoutStyles.titleColor || design.globalTitleColor || '#000000').replace('#', '');
-    const textColor = (layoutStyles.textColor || design.globalTextColor || '#333333').replace('#', '');
+
+    // Always use background color for contrast calculation
+    const bgColorHex = layoutStyles.background || design.globalBackground || '#ffffff';
+    const bgColor = bgColorHex.startsWith('#') ? bgColorHex : `#${bgColorHex}`;
+    const titleColor = getContrastYIQ(bgColor);
+    const textColor = getContrastYIQ(bgColor);
     const font = design.font || 'Arial';
 
     // Set slide background color (This applies your template's blue color)
@@ -129,15 +133,8 @@ export const generatePptxFromData = async (requestBody) => {
     
     // Only add bullets if they exist and it's not a title slide
     if (slide.bullets && slide.bullets.length > 0 && slideLayout !== 'title') {
-       // Format bullets as objects with text property for PptxGenJS
-       const bulletPoints = slide.bullets
-         .map(b => typeof b === 'string' ? b.trim() : (b?.text || ''))
-         .filter(b => b)
-         .map(text => ({ text }));
-       
-       if (bulletPoints.length > 0) {
-         pptxSlide.addText(bulletPoints, bodyOpts);
-       }
+       const bulletPoints = slide.bullets.map(b => b.trim()).filter(b => b);
+       pptxSlide.addText(bulletPoints, bodyOpts);
     }
   }
 

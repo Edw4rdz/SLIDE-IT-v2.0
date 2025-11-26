@@ -59,11 +59,18 @@ export default function Conversions() {
 
   // ✅ Edit Conversion
   const handleEdit = (conv) => {
+    // Try to load draft for this conversion
+    const draftKey = conv.id ? `slideit_draft_${conv.id}` : `slideit_draft_${conv.fileName}`;
+    let draft = null;
+    try {
+      draft = JSON.parse(localStorage.getItem(draftKey));
+    } catch {}
     navigate("/edit-preview", {
       state: { 
-        slides: conv.slides || [], 
-        topic: conv.fileName,
-        includeImages: conv.includeImages === true || conv.includeImages === 'true'
+        slides: draft?.slides || conv.slides || [], 
+        topic: draft?.topic || conv.fileName,
+        includeImages: conv.includeImages === true || conv.includeImages === 'true',
+        convId: conv.id || conv.fileName
       },
     });
   };
@@ -74,7 +81,7 @@ export default function Conversions() {
       return alert("No slide data found to download.");
     }
     // Calls the PPTX generator function from api.js
-    downloadPPTX(conv.slides, conv.fileName);
+    downloadPPTX(conv.slides, conv.design, conv.fileName, conv.includeImages);
   };
 
   // ✅ Preview Slides (Only shows title and bullets count for brevity)
@@ -191,84 +198,101 @@ export default function Conversions() {
             <p className="info-text">No conversions yet. Start using the tools to save drafts here.</p>
           ) : (
             <div className="conversion-grid">
-              {history.map((conv) => (
-                <div className="conversion-card" key={conv.id}>
-                  <div className="card-header">
-                    {/* Display status and type from history data */}
-                    <span className={`status-badge ${conv.status?.toLowerCase() || 'unknown'}`}>{conv.status || 'Unknown'}</span>
-                    <p className="file-type">{
-                      (() => {
-                        const raw = (conv.conversionType || conv.type || '').toUpperCase();
-                        const map = {
-                          TOPIC: 'AI-Generated PPTs',
-                          PDF: 'PDF-to-PPTs',
-                          WORD: 'DOCX/WORD-to-PPTs',
-                          DOCX: 'DOCX/WORD-to-PPTs',
-                          TEXT: 'TxT-to-PPTs',
-                          TXT: 'TxT-to-PPTs',
-                          EXCEL: 'Excel-to-PPTs'
-                        };
-                        return map[raw] || raw || 'Unknown Type';
-                      })()
-                    }</p>
-                  </div>
-
-                  <h3 className="file-name">{conv.fileName || 'Untitled Conversion'}</h3>
-
-                  {/* Thumbnail */}
-                  {thumbnails[conv.id] ? (
-                    <div className="history-thumb-wrapper">
-                      <img
-                        src={thumbnails[conv.id]}
-                        alt={`Preview for ${conv.fileName}`}
-                        className="history-thumb"
-                        loading="lazy"
-                        onError={(e) => { e.currentTarget.style.display='none'; }}
-                      />
+              {history.map((conv) => {
+                // Load draft if present
+                const draftKey = conv.id ? `slideit_draft_${conv.id}` : `slideit_draft_${conv.fileName}`;
+                // Always re-read the latest draft from localStorage for each render
+                let draft = null;
+                try {
+                  draft = JSON.parse(localStorage.getItem(draftKey));
+                } catch {}
+                const displaySlides = draft?.slides || conv.slides;
+                const displayTitle = draft?.topic || conv.fileName || 'Untitled Conversion';
+                // Prefer first slide's uploadedImage from draft if present
+                let thumbUrl = null;
+                if (displaySlides && displaySlides.length > 0 && displaySlides[0].uploadedImage) {
+                  thumbUrl = displaySlides[0].uploadedImage;
+                } else if (thumbnails[conv.id]) {
+                  thumbUrl = thumbnails[conv.id];
+                }
+                return (
+                  <div className="conversion-card" key={conv.id}>
+                    <div className="card-header">
+                      {/* Display status and type from history data */}
+                      <span className={`status-badge ${conv.status?.toLowerCase() || 'unknown'}`}>{conv.status || 'Unknown'}</span>
+                      <p className="file-type">{
+                        (() => {
+                          const raw = (conv.conversionType || conv.type || '').toUpperCase();
+                          const map = {
+                            TOPIC: 'AI-Generated PPTs',
+                            PDF: 'PDF-to-PPTs',
+                            WORD: 'DOCX/WORD-to-PPTs',
+                            DOCX: 'DOCX/WORD-to-PPTs',
+                            TEXT: 'TxT-to-PPTs',
+                            TXT: 'TxT-to-PPTs',
+                            EXCEL: 'Excel-to-PPTs'
+                          };
+                          return map[raw] || raw || 'Unknown Type';
+                        })()
+                      }</p>
                     </div>
-                  ) : (
-                    <div className="history-thumb-wrapper empty-thumb">
-                      {/* Show empty placeholder if TEXT ONLY */}
+
+                    <h3 className="file-name">{displayTitle}</h3>
+
+                    {/* Thumbnail */}
+                    {thumbUrl ? (
+                      <div className="history-thumb-wrapper">
+                        <img
+                          src={thumbUrl}
+                          alt={`Preview for ${displayTitle}`}
+                          className="history-thumb"
+                          loading="lazy"
+                          onError={(e) => { e.currentTarget.style.display='none'; }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="history-thumb-wrapper empty-thumb">
+                        {/* Show empty placeholder if TEXT ONLY */}
+                      </div>
+                    )}
+
+                    {conv.uploadedAt?.seconds && (
+                       <p className="conversion-date">
+                         Saved on {new Date(conv.uploadedAt.seconds * 1000).toLocaleString()}
+                       </p>
+                    )}
+
+                    {renderSlidePreview(displaySlides)}
+
+                    {/* Download Button */}
+                    {conv.status === "Completed" && displaySlides && displaySlides.length > 0 && (
+                      <button
+                        className="download-btn"
+                        onClick={() => handleDownload({ ...conv, slides: displaySlides })}
+                      >
+                        Download PPT
+                      </button>
+                    )}
+
+                    {/* Edit & Delete Buttons */}
+                    <div className="conversion-actions">
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEdit(conv)}
+                        disabled={!displaySlides || displaySlides.length === 0}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(conv.id)}
+                      >
+                        🗑️ Delete
+                      </button>
                     </div>
-                  )}
-
-                  {conv.uploadedAt?.seconds && (
-                     <p className="conversion-date">
-                       Saved on {new Date(conv.uploadedAt.seconds * 1000).toLocaleString()}
-                     </p>
-                  )}
-
-
-                  {renderSlidePreview(conv.slides)}
-
-                  {/* Download Button */}
-                  {conv.status === "Completed" && conv.slides && conv.slides.length > 0 && (
-                    <button
-                      className="download-btn"
-                      onClick={() => handleDownload(conv)}
-                    >
-                      Download PPT
-                    </button>
-                  )}
-
-                  {/* Edit & Delete Buttons */}
-                  <div className="conversion-actions">
-                    <button
-                      className="edit-btn"
-                      onClick={() => handleEdit(conv)}
-                      disabled={!conv.slides || conv.slides.length === 0}
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      className="delete-btn"
-                      onClick={() => handleDelete(conv.id)}
-                    >
-                      🗑️ Delete
-                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -23,6 +23,18 @@
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
+.upload-section-new {
+  padding: 32px 28px 24px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(101, 120, 255, 0.08);
+  margin-bottom: 18px;
+  max-width: 520px;
+  margin-left: 0;
+  margin-right: 0;
+  display: block;
+  flex-direction: unset;
+  align-items: unset;
+}
 
 .upload-section-new h2 {
   margin-top: 0;
@@ -30,11 +42,22 @@
   font-size: 1.2em;
   color: #444;
 }
+.upload-section-new h2 {
+  margin-bottom: 18px;
+  font-size: 1.25em;
+  color: #5a5a7a;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+}
 
 .upload-controls {
   display: flex;
   align-items: center;
   gap: 15px;
+}
+.upload-controls {
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .file-input-label {
@@ -50,6 +73,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 300px; /* Limit width */
+}
+.file-input-label {
+  padding: 9px 18px;
+  background-color: #f4f7fc;
+  color: #6578ff;
+  border: 1.5px solid #6578ff;
+  font-weight: 600;
+  font-size: 1em;
+  max-width: 220px;
+}
+.file-input-label:hover {
+  background-color: #e7e8ff;
+  color: #4b5fd6;
 }
 
 .file-input-label:hover {
@@ -69,6 +105,23 @@
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 5px rgba(101, 120, 255, 0.4);
+}
+.upload-button {
+  gap: 7px;
+  padding: 9px 20px;
+  font-size: 1em;
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(101, 120, 255, 0.13);
+}
+.upload-button:hover:not(:disabled) {
+  background: linear-gradient(90deg, #4b5fd6, #7a3fff);
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 4px 12px rgba(101, 120, 255, 0.18);
+}
+.upload-button:disabled {
+  background: #cdd2e4;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .upload-button:hover:not(:disabled) {
@@ -92,6 +145,18 @@
 .upload-message.error {
   color: #dc3545; /* Red */
 }
+.upload-message {
+  margin-top: 12px;
+  font-size: 0.98em;
+  font-weight: 500;
+  text-align: center;
+}
+.upload-message.success {
+  color: #28a745;
+}
+.upload-message.error {
+  color: #dc3545;
+}
 
 
 /* --- Templates Section & Tabs --- */
@@ -106,6 +171,19 @@
   display: flex;
   border-bottom: 2px solid #e0e0e0;
   margin-bottom: 25px;
+}
+.tabs {
+  justify-content: flex-start;
+  gap: 2px;
+}
+.tab-button {
+  padding: 10px 32px;
+  font-size: 1.08em;
+  font-weight: 600;
+}
+.tab-button.active {
+  background: #f4f7fc;
+  border-radius: 8px 8px 0 0;
 }
 
 .tab-button {
@@ -243,6 +321,16 @@
     margin-top: 10px;
     display: flex;
     gap: 10px;
+}
+.uploaded-actions {
+  justify-content: center;
+}
+.remove-button-overlay {
+  padding: 6px 12px;
+  font-size: 0.85em;
+}
+.remove-button-overlay:hover {
+  background-color: #b91c1c;
 }
 
 .remove-button-overlay {

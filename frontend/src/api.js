@@ -75,27 +75,20 @@ export const prebuiltTemplates = [
   },
 ];
 
-// --- IMAGE GENERATION HELPER ---
-const generateImageFromPollinations = async (prompt, retries = 1) => {
+// --- IMAGE GENERATION HELPER (via backend proxy) ---
+export const generateImageFromPollinations = async (prompt) => {
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;
-  const encodedPrompt = encodeURIComponent(prompt.trim());
-  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
-  
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const response = await axios.get(url, {
-        responseType: "arraybuffer",
-        timeout: 20000,
-      });
-      const base64 = Buffer.from(response.data, "binary").toString("base64");
-      const mimeType = response.headers["content-type"] || "image/jpeg";
-      return `data:${mimeType};base64,${base64}`;
-    } catch (err) {
-      console.warn(`⚠️ Pollinations fetch failed (attempt ${attempt + 1}): ${err.message}`);
-      if (attempt < retries) await new Promise((r) => setTimeout(r, 1500));
+  try {
+    const res = await axios.post(`${API_BASE}/generate-image`, { prompt });
+    if (res.data && res.data.success && res.data.base64) {
+      // Always return as a data URL
+      return `data:image/png;base64,${res.data.base64}`;
     }
+    return null;
+  } catch (err) {
+    console.warn("Pollinations backend proxy failed:", err.message);
+    return null;
   }
-  return null;
 };
 
 // --- POWERPOINT EXPORT LOGIC ---
@@ -133,7 +126,8 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
           reader.readAsDataURL(blob);
         });
       } catch (e) {
-        console.warn("CORS blocked or fetch failed for:", url);
+        // Instead of failing, return null and log a warning
+        console.warn("Image fetch failed (will skip image):", url, e);
         return null;
       }
     };
@@ -201,13 +195,17 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
         .filter(Boolean);
     };
 
+    // Track failed images
+    let failedImages = [];
+
     for (let i = 0; i < slides.length; i++) {
       const sdata = slides[i];
       const slide = pptx.addSlide();
 
       const layoutType = sdata.layout || "content";
       const layoutStyle = design?.layouts?.[layoutType] || {};
-      const bgVal = layoutStyle.background ?? design?.globalBackground ?? "#FFFFFF";
+      // Prefer slide.background, then layout background, then design.globalBackground
+      let bgVal = sdata.background ?? layoutStyle.background ?? design?.globalBackground ?? "#FFFFFF";
 
       // ---- BACKGROUND ----
       if (Array.isArray(bgVal) && bgVal.length > 1) {
@@ -261,6 +259,10 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
       }
 
       // Add title & body
+      // --- Use per-slide font colors if present ---
+      const slideTitleColor = sdata.titleColor || layoutStyle.titleColor || design?.globalTitleColor || '#000000';
+      const slideTextColor = sdata.textColor || layoutStyle.textColor || design?.globalTextColor || '#333333';
+
       if (layoutType === 'title') {
         const titleFontSize = (sdata.styles && sdata.styles.titleSize) || titleSize;
         const titleFontFace = (sdata.styles && sdata.styles.titleFont) || titleFont;
@@ -271,7 +273,7 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
           y: 0.35,
           w: titleW,
           h: 1,
-          color: layoutStyle.titleColor || design?.globalTitleColor || '#000000',
+          color: slideTitleColor,
           fontFace: titleFontFace,
           fontSize: titleFontSize,
           bold: titleBold,
@@ -287,7 +289,7 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
             y: 1.6,
             w: titleW,
             h: 3.6,
-            color: layoutStyle.textColor || design?.globalTextColor || '#333333',
+            color: slideTextColor,
             fontFace: textFont,
             fontSize: textSize,
             bold: textBold,
@@ -301,7 +303,7 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
             y: 1.6,
             w: titleW,
             h: 3.6,
-            color: layoutStyle.textColor || design?.globalTextColor || '#333333',
+            color: slideTextColor,
             fontFace: textFont,
             fontSize: textSize,
             bold: textBold,
@@ -318,7 +320,7 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
           y: 0.35,
           w: titleW,
           h: 1,
-          color: layoutStyle.titleColor || design?.globalTitleColor || '#000000',
+          color: slideTitleColor,
           fontFace: titleFont,
           fontSize: titleSize,
           bold: titleBold,
@@ -332,7 +334,7 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
             y: 1.6,
             w: bodyW,
             h: 3.6,
-            color: layoutStyle.textColor || design?.globalTextColor || '#333333',
+            color: slideTextColor,
             fontFace: textFont,
             fontSize: textSize,
             bold: textBold,
@@ -361,6 +363,9 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
               h: imgH,
               sizing: { type: "contain", w: imgW, h: imgH },
             });
+          } else {
+            // Track failed image for user feedback
+            failedImages.push(imgSrc);
           }
         }
       }
@@ -449,6 +454,10 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
     }
 
     await pptx.writeFile({ fileName });
+
+    if (failedImages.length > 0) {
+      alert(`Some images could not be loaded and were skipped in the PPTX.\n\nFailed URLs:\n${failedImages.join('\n')}`);
+    }
   } catch (err) {
     console.error("Error generating PPTX:", err);
     alert("Failed to generate PPTX file. Check console for details.");

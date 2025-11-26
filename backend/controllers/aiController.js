@@ -1,3 +1,60 @@
+import axios from "axios";
+// In-memory cache for image results (prompt -> base64)
+const pollinationsImageCache = new Map();
+
+// Helper: Clean prompt (first sentence, max 8 words)
+function cleanPrompt(prompt) {
+  if (!prompt) return "";
+  // Take first sentence, then up to 8 words
+  let firstSentence = prompt.split(/[.!?\n]/)[0];
+  let words = firstSentence.trim().split(/\s+/).slice(0, 8);
+  return words.join(" ").trim();
+}
+
+// Helper: Fetch image from Pollinations with retries
+async function fetchPollinationsImage(prompt, retries = 2) {
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await axios.get(url, { responseType: "arraybuffer", timeout: 12000 });
+      if (response.status === 200 && response.data) {
+        return Buffer.from(response.data, "binary").toString("base64");
+      }
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise(res => setTimeout(res, 800 * (attempt + 1)));
+    }
+  }
+  throw new Error("Failed to fetch image from Pollinations");
+}
+
+// Controller: POST /api/generate-image
+export const generatePollinationsImage = async (req, res) => {
+  try {
+    let { prompt } = req.body;
+    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+      return res.status(400).json({ success: false, error: "Missing or invalid prompt" });
+    }
+    const cleanedPrompt = cleanPrompt(prompt);
+    // Check cache
+    if (pollinationsImageCache.has(cleanedPrompt)) {
+      return res.json({ success: true, base64: pollinationsImageCache.get(cleanedPrompt), cached: true });
+    }
+    // Fetch from Pollinations
+    const base64 = await fetchPollinationsImage(cleanedPrompt);
+    // Cache result (limit cache size to 100)
+    pollinationsImageCache.set(cleanedPrompt, base64);
+    if (pollinationsImageCache.size > 100) {
+      // Remove oldest entry
+      const firstKey = pollinationsImageCache.keys().next().value;
+      pollinationsImageCache.delete(firstKey);
+    }
+    res.json({ success: true, base64, cached: false });
+  } catch (error) {
+    console.error("[Pollinations] Image fetch error:", error.message);
+    res.status(502).json({ success: false, error: "Failed to generate image", details: error.message });
+  }
+};
 import { 
   convertPdfToSlides, 
   convertWordToSlides, 

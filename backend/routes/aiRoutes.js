@@ -5,7 +5,8 @@ import {
   generateFromWord,
   generateFromExcel,
   generateFromTextFile, // <--- Updated import
-  generateFromTopic
+  generateFromTopic,
+  generatePollinationsImage // <-- New import
 } from "../controllers/aiController.js";
 
 const router = express.Router();
@@ -25,5 +26,8 @@ router.post("/convert-excel", upload.single("file"), generateFromExcel);
 router.post("/convert-text", upload.single("file"), generateFromTextFile);
 //Topics to Slides
 router.post("/generate-topics", generateFromTopic);
+
+// Pollinations AI Image Generation (PUBLIC)
+router.post("/generate-image", generatePollinationsImage);
 
 export default router;
