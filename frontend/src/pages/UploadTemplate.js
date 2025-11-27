@@ -44,18 +44,35 @@ const TEMPLATE_THUMB_OVERRIDES = {
     "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=800&auto=format&fit=crop",
 };
 
+
 export default function UploadTemplate() {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // Get current user from localStorage or sessionStorage
+  const getCurrentUser = () => {
+    const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+    if (!userStr) return null;
+    try {
+      return JSON.parse(userStr);
+    } catch {
+      return null;
+    }
+  };
+  const user = getCurrentUser();
+  const userId = user?.user_id || user?.uid || user?.id || 'guest';
+
+  // Use user-specific key for uploaded templates
+  const uploadedKey = `uploadedTemplates_${userId}`;
+  const selectedKey = `selectedTemplate_${userId}`;
 
   const [prebuiltTemplates, setPrebuiltTemplates] = useState([]);
   const [loadingPrebuilt, setLoadingPrebuilt] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(
-    JSON.parse(localStorage.getItem('selectedTemplate')) || null
+    JSON.parse(localStorage.getItem(selectedKey)) || null
   );
   const [uploadedTemplates, setUploadedTemplates] = useState(() => {
-    const saved = localStorage.getItem('uploadedTemplates');
+    const saved = localStorage.getItem(uploadedKey);
     return saved ? JSON.parse(saved) : [];
   });
   const [activeTab, setActiveTab] = useState('uploaded'); // 'uploaded' or 'prebuilt'
@@ -88,7 +105,7 @@ export default function UploadTemplate() {
     };
 
     setSelectedTemplate(editableCopy);
-    localStorage.setItem('selectedTemplate', JSON.stringify(editableCopy));
+    localStorage.setItem(selectedKey, JSON.stringify(editableCopy));
 
     // Pass slides to EditPreview (use tpl.slides if it exists)
     const slidesToLoad = tpl.slides?.length ? tpl.slides : [
@@ -141,7 +158,7 @@ export default function UploadTemplate() {
         };
         const updated = [newTemplate, ...uploadedTemplates];
         setUploadedTemplates(updated);
-        localStorage.setItem('uploadedTemplates', JSON.stringify(updated));
+        localStorage.setItem(uploadedKey, JSON.stringify(updated));
         setUploadMessage({ type: 'success', text: 'Template uploaded!' });
         setTimeout(() => setUploadMessage(null), 2000);
       } catch (err) {
@@ -161,7 +178,7 @@ export default function UploadTemplate() {
         };
         const updated = [newTemplate, ...uploadedTemplates];
         setUploadedTemplates(updated);
-        localStorage.setItem('uploadedTemplates', JSON.stringify(updated));
+        localStorage.setItem(uploadedKey, JSON.stringify(updated));
         setUploadMessage({ type: 'success', text: 'Template uploaded!' });
         setTimeout(() => setUploadMessage(null), 2000);
       };
@@ -174,7 +191,7 @@ export default function UploadTemplate() {
   const handleRemoveUploaded = (id) => {
     const updated = uploadedTemplates.filter(t => t.id !== id);
     setUploadedTemplates(updated);
-    localStorage.setItem('uploadedTemplates', JSON.stringify(updated));
+    localStorage.setItem(uploadedKey, JSON.stringify(updated));
   };
 
 
