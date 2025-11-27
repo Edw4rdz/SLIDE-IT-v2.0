@@ -88,7 +88,8 @@ export default function Signup() {
     setError("");
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const lowerEmail = email.toLowerCase();
+      const userCredential = await createUserWithEmailAndPassword(auth, lowerEmail, password);
       const user = userCredential.user;
 
       const counterRef = doc(db, "metadata", "userCounter");
@@ -109,7 +110,7 @@ export default function Signup() {
         firstName,
         lastName,
         birthday: new Date(birthday).toISOString(),
-        email,
+        email: lowerEmail,
         createdAt: new Date().toISOString(),
         authUID: user.uid,
         numericId: newUserId,
@@ -123,7 +124,7 @@ export default function Signup() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
-            email, 
+            email: lowerEmail, 
             userName: firstName 
           }),
         });

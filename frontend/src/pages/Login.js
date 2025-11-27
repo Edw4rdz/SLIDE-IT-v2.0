@@ -92,8 +92,8 @@ export default function Login() {
     setLoading(true);
 
     try {
- 
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const lowerEmail = email.toLowerCase();
+      const userCredential = await signInWithEmailAndPassword(auth, lowerEmail, password);
       const user = userCredential.user;
       let userDataFromDb = null;
       let userDocId = null; 
@@ -124,7 +124,7 @@ export default function Login() {
           // Redirect to verify page so they can enter the OTP if they have it
           navigate("/verify-otp", { 
             state: { 
-              email: email, 
+              email: userDataFromDb.email || email, 
               userName: userDataFromDb.firstName || "User" 
             } 
           });

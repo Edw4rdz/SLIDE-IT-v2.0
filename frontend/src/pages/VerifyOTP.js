@@ -10,6 +10,7 @@ export default function VerifyOTP() {
   // Get email and userName from navigation state
   const email = location.state?.email || "";
   const userName = location.state?.userName || "User";
+  const userId = location.state?.userId || null; // Get userId if available
   
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
@@ -116,7 +117,7 @@ export default function VerifyOTP() {
       const response = await fetch("http://localhost:5000/api/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp: otpCode }),
+        body: JSON.stringify({ email, otp: otpCode, userId }), // Send userId
       });
 
       const data = await response.json();

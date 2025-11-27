@@ -60,7 +60,7 @@ export const sendOTPController = async (req, res) => {
  */
 export const verifyOTPController = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email, otp, userId } = req.body;
 
     // Validate input
     if (!email || typeof email !== 'string') {
@@ -86,7 +86,7 @@ export const verifyOTPController = async (req, res) => {
     }
 
     // Verify OTP
-    const result = await verifyOTP(email, otp);
+    const result = await verifyOTP(email, otp, userId);
 
     if (result.success) {
       return res.status(200).json(result);

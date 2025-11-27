@@ -63,7 +63,7 @@ const storeOTP = async (email, otp) => {
  * @param {string} otp - OTP code to verify
  * @returns {Promise<Object>} - Verification result
  */
-export const verifyOTP = async (email, otp) => {
+export const verifyOTP = async (email, otp, userId) => {
   try {
     const otpRef = db.collection('otps').doc(email);
     const otpDoc = await otpRef.get();
@@ -108,12 +108,17 @@ export const verifyOTP = async (email, otp) => {
     await otpRef.update({ verified: true });
 
     // Update user's email verification status in Firestore
-    const usersRef = db.collection('users');
-    const userQuery = await usersRef.where('email', '==', email).get();
-    
-    if (!userQuery.empty) {
-      const userDoc = userQuery.docs[0];
-      await userDoc.ref.update({ emailVerified: true });
+    if (userId) {
+      const userDocRef = db.collection('users').doc(String(userId));
+      await userDocRef.update({ emailVerified: true });
+    } else {
+      // Fallback to email query if no userId
+      const usersRef = db.collection('users');
+      const userQuery = await usersRef.where('email', '==', email).get();
+      if (!userQuery.empty) {
+        const userDoc = userQuery.docs[0];
+        await userDoc.ref.update({ emailVerified: true });
+      }
     }
 
     console.log(`✅ OTP verified successfully for ${email}`);
