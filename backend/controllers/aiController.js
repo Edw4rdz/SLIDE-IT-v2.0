@@ -1,4 +1,5 @@
 import axios from "axios";
+import { scanBuffer } from "../services/virusScanService.js";
 // In-memory cache for image results (prompt -> base64)
 const pollinationsImageCache = new Map();
 
@@ -198,6 +199,13 @@ export const generateFromPdf = async (req, res) => {
       return res.status(400).json({ success: false, data: [], error: "No PDF file uploaded." });
     }
 
+    // Virus Scan
+    try {
+      await scanBuffer(req.file.buffer);
+    } catch (error) {
+      return res.status(400).json({ success: false, data: [], error: error.message });
+    }
+
     const slideCount = req.body.slideCount || 10;
     const userId = req.body.userId || null;
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
@@ -246,6 +254,13 @@ export const generateFromWord = async (req, res) => {
       return res.status(400).json({ error: "No Word document uploaded." });
     }
 
+    // Virus Scan
+    try {
+      await scanBuffer(req.file.buffer);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
     const slideCount = req.body.slideCount || 10;
     const userId = req.body.userId || null;
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
@@ -285,6 +300,13 @@ export const generateFromExcel = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No Excel file uploaded." });
+    }
+
+    // Virus Scan
+    try {
+      await scanBuffer(req.file.buffer);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
     }
 
     const slideCount = req.body.slideCount || 10;
@@ -359,6 +381,13 @@ export const generateFromTextFile = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No text file uploaded." });
+    }
+
+    // Virus Scan
+    try {
+      await scanBuffer(req.file.buffer);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
     }
 
     const slideCount = req.body.slideCount || 10;

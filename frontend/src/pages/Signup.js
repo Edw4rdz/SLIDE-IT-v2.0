@@ -113,8 +113,40 @@ export default function Signup() {
         createdAt: new Date().toISOString(),
         authUID: user.uid,
         numericId: newUserId,
+        emailVerified: false, // Add email verification status
       };
       await setDoc(numericDocRef, userObj);
+
+      // Send OTP to user's email
+      try {
+        const otpResponse = await fetch("http://localhost:5000/api/otp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            email, 
+            userName: firstName 
+          }),
+        });
+
+        const otpData = await otpResponse.json();
+        
+        if (otpData.success) {
+          // Redirect to OTP verification page
+          navigate("/verify-otp", { 
+            state: { 
+              email, 
+              userName: firstName,
+              userId: newUserId 
+            } 
+          });
+        } else {
+          console.warn("Failed to send OTP:", otpData.message);
+          alert("Account created but failed to send verification email. Please contact support.");
+        }
+      } catch (otpError) {
+        console.error("Error sending OTP:", otpError);
+        alert("Account created but failed to send verification email. You can verify later from settings.");
+      }
 
       localStorage.setItem(
         "user",
@@ -126,17 +158,19 @@ export default function Signup() {
           email,
           user_id: newUserId,
           authUID: user.uid,
+          emailVerified: false,
         })
       );
 
-      setPendingDocId(newUserId.toString());
-      setShowRoleModal(true);
+      // Note: Role modal will be shown after email verification
+      // setPendingDocId(newUserId.toString());
+      // setShowRoleModal(true);
     } catch (err) {
       console.error("❌ Firebase Signup Error:", err);
       let errorMessage = "An error occurred. Please try again.";
 
       if (err.code === "auth/email-already-in-use") {
-        errorMessage = "This email is already registered.";
+        errorMessage = "This email is already registered. Please log in.";
       } else if (err.code === "auth/invalid-email") {
         errorMessage = "Invalid email address.";
       } else if (err.code === "auth/weak-password") {

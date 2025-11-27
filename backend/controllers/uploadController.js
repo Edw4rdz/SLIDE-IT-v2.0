@@ -1,5 +1,6 @@
 import { listUploadedTemplates } from "../services/uploadService.js";
 import { extractPptxDesign, extractPptxThumbnail } from "../services/pptxExtractorService.js";
+import { scanFile } from "../services/virusScanService.js";
 import path from "path";
 import fs from "fs/promises";
 
@@ -9,6 +10,20 @@ import fs from "fs/promises";
 export const handleUpload = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: "No file uploaded or invalid file type" });
+  }
+
+  // Perform virus scan
+  const filePath = path.join(req.file.destination, req.file.filename);
+  try {
+    await scanFile(filePath);
+  } catch (error) {
+    // Delete the infected file
+    try {
+      await fs.unlink(filePath);
+    } catch (unlinkError) {
+      console.error("Error deleting infected file:", unlinkError);
+    }
+    return res.status(400).json({ success: false, message: error.message });
   }
 
   let design = null;

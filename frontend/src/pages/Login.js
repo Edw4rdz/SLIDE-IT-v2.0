@@ -116,6 +116,21 @@ export default function Login() {
       
       // Update login status if user found
       if (userDocId) {
+        // Check if email is verified
+        if (userDataFromDb?.emailVerified === false) {
+          await auth.signOut();
+          setLoading(false);
+          alert("Please verify your email before logging in.");
+          // Redirect to verify page so they can enter the OTP if they have it
+          navigate("/verify-otp", { 
+            state: { 
+              email: email, 
+              userName: userDataFromDb.firstName || "User" 
+            } 
+          });
+          return;
+        }
+
         await updateUserLogin(userDocId);
       }
 

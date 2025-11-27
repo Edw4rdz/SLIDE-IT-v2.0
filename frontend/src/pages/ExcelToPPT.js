@@ -83,7 +83,6 @@ export default function ExcelToPPT() {
           setTopic(file.name.replace(/\.(xlsx|xls)/i, ""));
           
           // Invalidate cache
-          const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
           if (loggedInUser?.user_id) {
             cache.invalidate(`history-${loggedInUser.user_id}`);
           }

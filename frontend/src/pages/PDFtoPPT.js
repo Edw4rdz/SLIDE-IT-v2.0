@@ -70,7 +70,6 @@ export default function PDFToPPT() {
         setTopic(file.name.replace(/\.pdf$/i, ""));
         
         // Invalidate cache so history refreshes
-        const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
         if (loggedInUser?.user_id) {
           cache.invalidate(`history-${loggedInUser.user_id}`);
         }

@@ -162,8 +162,9 @@ export default function UploadTemplate() {
         setUploadMessage({ type: 'success', text: 'Template uploaded!' });
         setTimeout(() => setUploadMessage(null), 2000);
       } catch (err) {
-        setUploadMessage({ type: 'error', text: 'Failed to extract template design.' });
-        setTimeout(() => setUploadMessage(null), 2000);
+        const errorMsg = err.response?.data?.message || err.message || 'Failed to extract template design.';
+        setUploadMessage({ type: 'error', text: errorMsg });
+        setTimeout(() => setUploadMessage(null), 3000);
       }
     } else if (file.type.startsWith('image/')) {
       // Handle image upload as before

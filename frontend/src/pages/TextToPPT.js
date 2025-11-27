@@ -86,7 +86,6 @@ export default function TextToPPT() {
       setTopic(file.name.replace(/\.txt$/i, ""));
       
       // Invalidate cache
-      const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
       if (loggedInUser?.user_id) {
         cache.invalidate(`history-${loggedInUser.user_id}`);
       }

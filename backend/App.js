@@ -12,6 +12,7 @@ import aiRoutes from "./routes/aiRoutes.js"; // Your new AI route
 import userAuthRoutes from "./routes/userAuthRoutes.js"; // Your new login route
 import historyRoutes from "./routes/historyRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js"; // <-- ADDED
+import otpRoutes from "./routes/otpRoutes.js"; // OTP verification routes
 
 // --- SETUP ---
 dotenv.config();
@@ -81,7 +82,8 @@ app.use("/api", templateRoutes);
 app.use("/api", aiRoutes);
 app.use("/api", userAuthRoutes);
 app.use("/api", historyRoutes);
-app.use("/api", adminRoutes); // <-- ADDED
+app.use("/api/admin", adminRoutes); // <-- ADDED
+app.use("/api/otp", otpRoutes); // OTP verification endpoints
 
 // --- EXPORT APP ---
 // We export 'app' so server.js can import it and start the server

@@ -19,6 +19,7 @@ import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRoute from "./components/AdminRoute";
 import Generator from './pages/Generator';
+import VerifyOTP from "./pages/VerifyOTP"; // OTP verification page
 export default function App() {
   return (
     <Router>
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
   <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/ai-generator" element={<AIGenerator />} />
         <Route path="/pdftoppt" element={<PDFToPPT />} />

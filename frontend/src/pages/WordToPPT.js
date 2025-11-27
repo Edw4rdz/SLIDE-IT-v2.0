@@ -78,7 +78,6 @@ export default function WordToPPT() {
       setLoadingText("Conversion completed!");
       
       // Invalidate cache
-      const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
       if (loggedInUser?.user_id) {
         cache.invalidate(`history-${loggedInUser.user_id}`);
       }
