@@ -6,7 +6,8 @@ import {
   generateFromExcel,
   generateFromTextFile, // <--- Updated import
   generateFromTopic,
-  generatePollinationsImage // <-- New import
+  generatePollinationsImage, // <-- New import
+  generatePptx
 } from "../controllers/aiController.js";
 
 const router = express.Router();
@@ -29,5 +30,8 @@ router.post("/generate-topics", generateFromTopic);
 
 // Pollinations AI Image Generation (PUBLIC)
 router.post("/generate-image", generatePollinationsImage);
+
+// Generate PPTX from slides data
+router.post("/generate-pptx", generatePptx);
 
 export default router;

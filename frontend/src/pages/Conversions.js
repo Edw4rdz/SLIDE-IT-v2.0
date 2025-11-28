@@ -82,18 +82,32 @@ export default function Conversions() {
         slides: draft?.slides || conv.slides || [], 
         topic: draft?.topic || conv.fileName,
         includeImages: conv.includeImages === true || conv.includeImages === 'true',
-        convId: conv.id || conv.fileName
+        convId: conv.id || conv.fileName,
+        initialDesign: draft?.design || conv.design || null
       },
     });
   };
 
   // ✅ Handle Download
+  const DEFAULT_DESIGN = {
+    font: "Arial",
+    globalBackground: "#ffffff",
+    globalTitleColor: "#000000",
+    globalTextColor: "#333333",
+    layouts: {
+      title: { background: "#ffffff", titleColor: "#000000", textColor: "#333333" },
+      content: { background: "#ffffff", titleColor: "#000000", textColor: "#333333" }
+    }
+  };
+
   const handleDownload = (conv) => {
     if (!conv.slides || conv.slides.length === 0) {
       return alert("No slide data found to download.");
     }
+    const designForDownload = conv.draftDesign || conv.design || DEFAULT_DESIGN;
+    const safeFileName = conv.fileName || "presentation.pptx";
     // Calls the PPTX generator function from api.js
-    downloadPPTX(conv.slides, conv.design, conv.fileName, conv.includeImages);
+    downloadPPTX(conv.slides, designForDownload, safeFileName, conv.includeImages);
   };
 
   // ✅ Preview Slides (Only shows title and bullets count for brevity)
@@ -286,7 +300,7 @@ export default function Conversions() {
                     {conv.status === "Completed" && displaySlides && displaySlides.length > 0 && (
                       <button
                         className="download-btn"
-                        onClick={() => handleDownload({ ...conv, slides: displaySlides })}
+                        onClick={() => handleDownload({ ...conv, slides: displaySlides, draftDesign: draft?.design || null })}
                       >
                         Download PPT
                       </button>

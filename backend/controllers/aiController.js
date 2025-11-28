@@ -423,3 +423,33 @@ export const generateFromTextFile = async (req, res) => {
     res.status(500).json({ error: "Failed to generate slides from text file.", details: error.message });
   }
 };
+
+// Controller: POST /api/generate-pptx
+export const generatePptx = async (req, res) => {
+  try {
+    const { slides, design, fileName, includeImages } = req.body;
+
+    if (!slides || !Array.isArray(slides) || slides.length === 0) {
+      return res.status(400).json({ error: "Slides data is required and must be a non-empty array" });
+    }
+
+    console.log(`Generating PPTX for ${slides.length} slides...`);
+
+    const pptxBuffer = await generatePptxFromData({
+      slides,
+      design,
+      includeImages: includeImages || false
+    });
+
+    // Set headers for file download
+    const pptxFileName = fileName || 'presentation.pptx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    res.setHeader('Content-Disposition', `attachment; filename="${pptxFileName}"`);
+
+    // Send the buffer
+    res.send(pptxBuffer);
+  } catch (error) {
+    console.error("PPTX Generation Error:", error);
+    res.status(500).json({ error: "Failed to generate PPTX file", details: error.message });
+  }
+};

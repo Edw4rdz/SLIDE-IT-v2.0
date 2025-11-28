@@ -30,7 +30,7 @@ return new Promise((resolve) => {
 
 
 
-async function saveDraft(slides, topic, convId) {
+async function saveDraft(slides, topic, convId, design) {
 
   try {
 
@@ -48,7 +48,11 @@ async function saveDraft(slides, topic, convId) {
 
     }));
 
-    const draft = { slides: slidesWithImages, topic };
+    const draft = { 
+      slides: slidesWithImages, 
+      topic, 
+      design: design ? { ...design } : null 
+    };
 
     const key = convId ? `slideit_draft_${convId}` : `slideit_draft_${topic}`;
 
@@ -1085,7 +1089,7 @@ export default function EditPreview() {
             const added = { type: 'shape', baseSvg: txt, fillColor: fill, strokeColor: stroke, strokeWidth, url: dataUrl, x: 0.12, y: 0.12, width: 0.18, height: 0.18, rotate: 0 };
             return { ...s, stickers: [ ...(s.stickers || []), added ] };
           });
-          saveDraft(updated, topic, (location.state?.convId || topic));
+          saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
           return updated;
         });
 
@@ -1103,7 +1107,7 @@ export default function EditPreview() {
           const added = { type: 'image', url, x: 0.12, y: 0.12, width: 0.18, height: 0.18, opacity: 1, rotate: 0 };
           return { ...s, stickers: [ ...(s.stickers || []), added ] };
         });
-        saveDraft(updated, topic, (location.state?.convId || topic));
+        saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
         return updated;
       });
 
@@ -1135,7 +1139,7 @@ export default function EditPreview() {
         console.log('[handleRemoveSticker] Sticker removed. Clearing selection.');
         setTimeout(() => setSelectedSticker(null), 0);
       }
-      saveDraft(result, topic, (location.state?.convId || topic));
+      saveDraft(result, topic, (location.state?.convId || topic), currentDesign);
       return result;
     });
 
@@ -1167,7 +1171,7 @@ export default function EditPreview() {
         }));
         return { ...s, tables: [ ...(s.tables || []), added ] };
       });
-      saveDraft(updated, topic, (location.state?.convId || topic));
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
       return updated;
     });
 
@@ -1189,7 +1193,7 @@ export default function EditPreview() {
           : [];
         return { ...s, tables };
       });
-      saveDraft(updated, topic, (location.state?.convId || topic));
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
       return updated;
     });
 
@@ -1294,7 +1298,7 @@ export default function EditPreview() {
         arr.splice(index, 1);
         return { ...s, tables: arr };
       });
-      saveDraft(updated, topic, (location.state?.convId || topic));
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
       return updated;
     });
 
@@ -1333,7 +1337,7 @@ export default function EditPreview() {
         }) : [];
         return { ...s, tables };
       });
-      saveDraft(updated, topic, (location.state?.convId || topic));
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
       return updated;
     });
 
@@ -2702,7 +2706,7 @@ export default function EditPreview() {
             s.id === slideId ? { ...s, uploadedImage: base64String, imagePrompt: "" } : s
           );
           // Save draft immediately after updating slides
-          saveDraft(updatedSlides, topic, (location.state?.convId || topic));
+          saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign);
           return updatedSlides;
         });
       };
@@ -2719,7 +2723,7 @@ export default function EditPreview() {
         s.id === slideId ? { ...s, uploadedImage: null, imagePrompt: "" } : s
       );
       // Save draft immediately after removing image
-      saveDraft(updatedSlides, topic, (location.state?.convId || topic));
+      saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign);
       return updatedSlides;
     });
   };
@@ -4618,7 +4622,7 @@ export default function EditPreview() {
 
               const convId = location.state?.convId || topic;
 
-              saveDraft(editedSlides, topic, convId);
+              saveDraft(editedSlides, topic, convId, currentDesign);
 
               navigate(-1);
 
