@@ -1,5 +1,4 @@
 import axios from "axios";
-import PptxGenJS from "pptxgenjs";
 
 // --- CONFIGURATION ---
 
@@ -134,373 +133,35 @@ export const generateImageFromPollinations = async (prompt) => {
   }
 };
 
-// --- POWERPOINT EXPORT LOGIC ---
+// --- POWERPOINT EXPORT LOGIC (via backend) ---
 export const downloadPPTX = async (slides, design, fileName, includeImages = true) => {
   try {
-    const pptx = new PptxGenJS();
+    const safeName = typeof fileName === "string" && fileName.trim().length
+      ? fileName.trim()
+      : "presentation";
+    const downloadName = safeName.toLowerCase().endsWith(".pptx")
+      ? safeName
+      : `${safeName}.pptx`;
 
-    const LAYOUT_NAME = "LAYOUT_16x9_CUSTOM";
-    pptx.defineLayout({ name: LAYOUT_NAME, width: 10.0, height: 5.625 });
-    pptx.layout = LAYOUT_NAME;
+    const response = await axios.post(
+      `${API_BASE}/generate-pptx`,
+      {
+        slides,
+        design,
+        fileName: downloadName,
+        includeImages
+      },
+      { responseType: "blob" }
+    );
 
-    const SLIDE_WIDTH_IN = 10.0;
-    const SLIDE_HEIGHT_IN = 5.625;
-
-    const createGradientDataURL = (colors) => {
-      if (!Array.isArray(colors) || colors.length === 0) return null;
-      const canvas = document.createElement("canvas");
-      canvas.width = 1920;
-      canvas.height = 1080;
-      const ctx = canvas.getContext("2d");
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      colors.forEach((c, i) => gradient.addColorStop(i / (colors.length - 1), c));
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL("image/png");
-    };
-
-    const fetchAsDataURL = async (url) => {
-      try {
-        const response = await fetch(url, { mode: "cors" });
-        const blob = await response.blob();
-        return await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
-      } catch (e) {
-        // Instead of failing, return null and log a warning
-        console.warn("Image fetch failed (will skip image):", url, e);
-        return null;
-      }
-    };
-
-    const rasterizeSvgDataUrl = async (dataUrl, width = 512, height = 512) => {
-      try {
-        if (!dataUrl || !dataUrl.startsWith('data:image/svg')) return dataUrl;
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        const loaded = await new Promise((resolve, reject) => {
-          img.onload = () => resolve(true);
-          img.onerror = reject;
-          img.src = dataUrl;
-        });
-        if (!loaded) return dataUrl;
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
-        return canvas.toDataURL('image/png');
-      } catch (e) {
-        console.warn('SVG rasterize failed, falling back to original data URL', e);
-        return dataUrl;
-      }
-    };
-
-    const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
-
-    const ensureTableCells = (rows, cols, existing = []) => {
-      return Array.from({ length: rows }, (_, rIdx) => {
-        const srcRow = Array.isArray(existing[rIdx]) ? existing[rIdx] : [];
-        return Array.from({ length: cols }, (_, cIdx) => (srcRow[cIdx] !== undefined ? srcRow[cIdx] : ''));
-      });
-    };
-
-    const colorToHex = (color, fallback = '#FFFFFF') => {
-      if (!color || typeof color !== 'string') return fallback.replace('#', '').toUpperCase();
-      if (color.startsWith('#')) return color.slice(1).toUpperCase();
-      const match = color.match(/rgba?\(([^)]+)\)/i);
-      if (!match) return fallback.replace('#', '').toUpperCase();
-      const parts = match[1].split(',').map((p) => parseFloat(p.trim()) || 0);
-      const [r, g, b] = parts;
-      const toHex = (v) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0').toUpperCase();
-      return `${toHex(r)}${toHex(g)}${toHex(b)}`;
-    };
-
-    const pxToPt = (px) => Number((px * 72 / 96).toFixed(2));
-
-    const mapBorderStyle = (style) => {
-      if (style === 'dashed' || style === 'dash') return 'dash';
-      if (style === 'dotted' || style === 'dot') return 'dash';
-      return 'solid';
-    };
-
-    const getBulletLines = (sdata) => {
-      if (!sdata) return [];
-      if (Array.isArray(sdata.bullets)) return sdata.bullets.filter(Boolean).map((b) => String(b).trim()).filter(Boolean);
-      const src = typeof sdata.bullets === 'string' && sdata.bullets.trim().length
-        ? sdata.bullets
-        : (typeof sdata.text === 'string' ? sdata.text : '');
-      return src
-        .split(/\n|•/)
-        .map((l) => (l || '').trim())
-        .filter(Boolean);
-    };
-
-    // Track failed images
-    let failedImages = [];
-
-    for (let i = 0; i < slides.length; i++) {
-      const sdata = slides[i];
-      const slide = pptx.addSlide();
-
-      const layoutType = sdata.layout || "content";
-      const layoutStyle = design?.layouts?.[layoutType] || {};
-      // Prefer slide.background, then layout background, then design.globalBackground
-      let bgVal = sdata.background ?? layoutStyle.background ?? design?.globalBackground ?? "#FFFFFF";
-
-      // ---- BACKGROUND ----
-      if (Array.isArray(bgVal) && bgVal.length > 1) {
-        const dataUrl = createGradientDataURL(bgVal);
-        if (dataUrl) slide.addImage({ data: dataUrl, x: 0, y: 0, w: "100%", h: "100%" });
-        else slide.background = { color: bgVal[0] };
-      } else if (typeof bgVal === "string" && bgVal.startsWith("http")) {
-        const dataUrl = await fetchAsDataURL(bgVal);
-        if (dataUrl) slide.addImage({ data: dataUrl, x: 0, y: 0, w: "100%", h: "100%" });
-        else slide.background = { color: "#FFFFFF" };
-      } else {
-        slide.background = { color: Array.isArray(bgVal) ? bgVal[0] : bgVal };
-      }
-
-      // ---- BULLETS/TEXT & TITLE ----
-      const bulletLines = getBulletLines(sdata);
-
-      // --- Determine per-slide styles ---
-      const slideStyles = sdata.styles || {};
-      const textFont = slideStyles.textFont || design?.font || "Arial";
-      const textSize = slideStyles.textSize || 18;
-      const textBold = slideStyles.textBold || false;
-      const textItalic = slideStyles.textItalic || false;
-      const textAlign = slideStyles.textAlign || "left";
-
-      const titleFont = slideStyles.titleFont || design?.font || "Arial";
-      const titleSize = slideStyles.titleSize || 28;
-      const titleBold = slideStyles.titleBold !== undefined ? slideStyles.titleBold : true;
-      const titleItalic = slideStyles.titleItalic || false;
-
-      // Determine image presence and position
-      const hasImage = includeImages && (sdata.uploadedImage || sdata.imagePrompt);
-      const imagePosition = sdata.imagePosition || "right";
-
-      const imgW = 3.0;
-      const imgH = 3.5;
-      const imgMargin = 0.5;
-      const imgX = imagePosition === "left" ? imgMargin : 10 - imgMargin - imgW;
-      const imgY = 1.0;
-
-      let bodyX = 0.5;
-      let bodyW = 9.0;
-      if (hasImage) {
-        if (imagePosition === "left") {
-          bodyX = imgX + imgW + 0.3;
-          bodyW = 10 - bodyX - imgMargin;
-        } else {
-          bodyX = 0.5;
-          bodyW = 10 - imgW - imgMargin - 0.8;
-        }
-      }
-
-      // Add title & body
-      // --- Use per-slide font colors if present ---
-      const slideTitleColor = sdata.titleColor || layoutStyle.titleColor || design?.globalTitleColor || '#000000';
-      const slideTextColor = sdata.textColor || layoutStyle.textColor || design?.globalTextColor || '#333333';
-
-      if (layoutType === 'title') {
-        const titleFontSize = (sdata.styles && sdata.styles.titleSize) || titleSize;
-        const titleFontFace = (sdata.styles && sdata.styles.titleFont) || titleFont;
-        const titleX = hasImage ? bodyX : 0.5;
-        const titleW = hasImage ? bodyW : 9;
-        slide.addText(sdata.title || '', {
-          x: titleX,
-          y: 0.35,
-          w: titleW,
-          h: 1,
-          color: slideTitleColor,
-          fontFace: titleFontFace,
-          fontSize: titleFontSize,
-          bold: titleBold,
-          italic: titleItalic,
-          align: 'left',
-        });
-
-        let bodyText = typeof sdata.text === 'string' ? sdata.text.trim() : '';
-        if (!bodyText && bulletLines.length) bodyText = bulletLines.join('\n');
-        if (bodyText) {
-          slide.addText(bodyText, {
-            x: titleX,
-            y: 1.6,
-            w: titleW,
-            h: 3.6,
-            color: slideTextColor,
-            fontFace: textFont,
-            fontSize: textSize,
-            bold: textBold,
-            italic: textItalic,
-            align: textAlign || 'left',
-            lineSpacing: 20,
-          });
-        } else if (bulletLines.length) {
-          slide.addText(bulletLines.map((b) => `• ${b}`).join('\n'), {
-            x: titleX,
-            y: 1.6,
-            w: titleW,
-            h: 3.6,
-            color: slideTextColor,
-            fontFace: textFont,
-            fontSize: textSize,
-            bold: textBold,
-            italic: textItalic,
-            align: textAlign || 'left',
-            lineSpacing: 20,
-          });
-        }
-      } else {
-        const titleX = hasImage ? bodyX : 0.5;
-        const titleW = hasImage ? bodyW : 9;
-        slide.addText(sdata.title || '', {
-          x: titleX,
-          y: 0.35,
-          w: titleW,
-          h: 1,
-          color: slideTitleColor,
-          fontFace: titleFont,
-          fontSize: titleSize,
-          bold: titleBold,
-          italic: titleItalic,
-          align: 'left',
-        });
-
-        if (bulletLines.length) {
-          slide.addText(bulletLines.map((b) => `• ${b}`).join('\n'), {
-            x: bodyX,
-            y: 1.6,
-            w: bodyW,
-            h: 3.6,
-            color: slideTextColor,
-            fontFace: textFont,
-            fontSize: textSize,
-            bold: textBold,
-            italic: textItalic,
-            align: textAlign,
-            lineSpacing: 20,
-          });
-        }
-      }
-
-      // ---- IMAGE ----
-      if (hasImage) {
-        let imgSrc = sdata.uploadedImage;
-        if (!imgSrc && sdata.imagePrompt) {
-          const encoded = encodeURIComponent((sdata.imagePrompt || "").trim());
-          imgSrc = `https://image.pollinations.ai/prompt/${encoded}`;
-        }
-        if (imgSrc) {
-          const dataUrl = imgSrc.startsWith("data:") ? imgSrc : await fetchAsDataURL(imgSrc);
-          if (dataUrl) {
-            slide.addImage({
-              data: dataUrl,
-              x: imgX,
-              y: imgY,
-              w: imgW,
-              h: imgH,
-              sizing: { type: "contain", w: imgW, h: imgH },
-            });
-          } else {
-            // Track failed image for user feedback
-            failedImages.push(imgSrc);
-          }
-        }
-      }
-
-      // ---- USER STICKERS ----
-      const stickers = Array.isArray(sdata.stickers) ? sdata.stickers : [];
-      if (stickers.length) {
-        for (const g of stickers) {
-          if (!g || !g.url) continue;
-          let dataUrl = null;
-          if (g.url.startsWith('data:')) {
-            dataUrl = g.url;
-          } else {
-            dataUrl = await fetchAsDataURL(g.url);
-          }
-          if (!dataUrl) continue;
-          if (dataUrl.startsWith('data:image/svg')) {
-            dataUrl = await rasterizeSvgDataUrl(dataUrl);
-          }
-          const x = (g.x || 0) * 10.0;
-          const y = (g.y || 0) * 5.625;
-          const w = (g.width || 0.18) * 10.0;
-          const h = (g.height || 0.18) * 5.625;
-          const rotate = g.rotate || 0;
-          slide.addImage({ data: dataUrl, x, y, w, h, sizing: { type: 'contain', w, h }, rotate });
-        }
-      }
-
-      // ---- TABLES ----
-      const tables = Array.isArray(sdata.tables) ? sdata.tables : [];
-      if (tables.length) {
-        const tableTextColor = colorToHex(layoutStyle.textColor || design?.globalTextColor || '#333333', '#333333');
-        for (const tbl of tables) {
-          try {
-            const rowsCount = Math.max(1, tbl?.rows || (Array.isArray(tbl?.cells) ? tbl.cells.length : 1));
-            const colsCount = Math.max(1, tbl?.cols || (Array.isArray(tbl?.cells?.[0]) ? tbl.cells[0].length : 1));
-            const cellMatrix = ensureTableCells(rowsCount, colsCount, tbl?.cells);
-
-            const fillColor = colorToHex(tbl?.background || '#FFFFFF', '#FFFFFF');
-            const borderColor = colorToHex(tbl?.borderColor || '#111827', '#111827');
-            const borderPt = pxToPt(typeof tbl?.borderWidth === 'number' ? tbl.borderWidth : 1.33);
-            const borderType = mapBorderStyle(tbl?.borderStyle);
-            const borderDef = ['t', 'r', 'b', 'l'].map(() => ({ color: borderColor, pt: borderPt, type: borderType }));
-
-            const tableRows = cellMatrix.map((row) =>
-              row.map((value) => ({
-                text: value || '',
-                options: {
-                  fill: { color: fillColor },
-                  border: borderDef,
-                  color: tableTextColor,
-                  fontFace: textFont,
-                  fontSize: textSize,
-                  valign: 'top',
-                  align: 'left',
-                  margin: [4, 5, 4, 5],
-                  wrap: true,
-                },
-              }))
-            );
-
-            const widthFrac = typeof tbl?.width === 'number' && tbl.width > 0 ? tbl.width : 0.5;
-            const heightFrac = typeof tbl?.height === 'number' && tbl.height > 0 ? tbl.height : 0.3;
-            const tableWidth = clamp(widthFrac * SLIDE_WIDTH_IN, 1, SLIDE_WIDTH_IN);
-            const tableHeight = clamp(heightFrac * SLIDE_HEIGHT_IN, 0.5, SLIDE_HEIGHT_IN);
-            const tableX = clamp((tbl?.x || 0) * SLIDE_WIDTH_IN, 0, SLIDE_WIDTH_IN - tableWidth);
-            const tableY = clamp((tbl?.y || 0) * SLIDE_HEIGHT_IN, 0, SLIDE_HEIGHT_IN - tableHeight);
-
-            const colW = Array.from({ length: colsCount }, () => tableWidth / colsCount);
-            const rowH = Array.from({ length: rowsCount }, () => tableHeight / rowsCount);
-
-            slide.addTable(tableRows, {
-              x: tableX,
-              y: tableY,
-              w: tableWidth,
-              h: tableHeight,
-              colW,
-              rowH,
-              valign: 'top',
-            });
-          } catch (tableErr) {
-            console.warn('Failed to add table to PPTX export', tableErr);
-          }
-        }
-      }
-    }
-
-    await pptx.writeFile({ fileName });
-
-    if (failedImages.length > 0) {
-      alert(`Some images could not be loaded and were skipped in the PPTX.\n\nFailed URLs:\n${failedImages.join('\n')}`);
-    }
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", downloadName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   } catch (err) {
     console.error("Error generating PPTX:", err);
     alert("Failed to generate PPTX file. Check console for details.");

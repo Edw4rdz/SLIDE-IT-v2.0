@@ -111,7 +111,7 @@ const getGradientColor = (stops, t) => {
   };
 };
 
-const createCardBackgroundImage = (colors, width = 1000, height = 620) => {
+const createCardBackgroundImage = (colors, width = 1280, height = 720) => {
   const colorStops = ensureColorArray(colors).map(hexToRgb);
   if (!colorStops.length) return null;
   const key = `${width}x${height}:${colorStops.map(c => `${c.r}-${c.g}-${c.b}`).join('|')}`;
@@ -137,8 +137,46 @@ const createCardBackgroundImage = (colors, width = 1000, height = 620) => {
 };
 
 /**
- * Calculate contrast color (black or white) based on background color
+ * Helper utilities shared across layout logic
  */
+const clamp = (value, min, max) => {
+  if (!Number.isFinite(value)) return min;
+  if (max < min) return min;
+  return Math.min(Math.max(value, min), max);
+};
+
+const ensureTableCells = (rows, cols, existing = []) => {
+  return Array.from({ length: rows }, (_, rIdx) => {
+    const srcRow = Array.isArray(existing[rIdx]) ? existing[rIdx] : [];
+    return Array.from({ length: cols }, (_, cIdx) => (srcRow[cIdx] !== undefined ? srcRow[cIdx] : ''));
+  });
+};
+
+const pxToPt = (px) => Number((px * 72 / 96).toFixed(2));
+
+const mapBorderStyle = (style) => {
+  if (!style) return 'solid';
+  const normalized = String(style).toLowerCase();
+  if (normalized.includes('dash') || normalized.includes('dot')) return 'dash';
+  return 'solid';
+};
+
+const colorToHexString = (color, fallback = '#FFFFFF') => colorToPptx(color, fallback);
+
+const getBulletLines = (slide) => {
+  if (!slide) return [];
+  if (Array.isArray(slide.bullets)) {
+    return slide.bullets
+      .map(b => (typeof b === 'string' ? b.trim() : ''))
+      .filter(Boolean);
+  }
+  const source = typeof slide.text === 'string' ? slide.text : '';
+  return source
+    .split(/\n|•/)
+    .map(line => (line || '').trim())
+    .filter(Boolean);
+};
+
 const parseFontSize = (value, fallback) => {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
   const parsed = parseInt(value, 10);
@@ -238,11 +276,20 @@ export const generatePptxFromData = async (requestBody) => {
     const textColorPptx = colorToPptx(textColorNorm, '#333333');
 
     // Full-slide background using template colors
+    const bgColorNorm = normalizeColor(slideBg, design.globalBackground);
     const gradientBackground = createCardBackgroundImage(slideBg, 1280, 720);
     if (gradientBackground) {
-      pptxSlide.background = { data: gradientBackground };
+      // Add gradient as full-slide image
+      pptxSlide.addImage({
+        data: gradientBackground,
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 5.625
+      });
     } else {
-      pptxSlide.background = { color: colorToPptx(slideBg, design.globalBackground) };
+      // Solid color background
+      pptxSlide.background = { color: colorToPptx(bgColorNorm, design.globalBackground) };
     }
 
     const cardPaddingX = 0.6;
