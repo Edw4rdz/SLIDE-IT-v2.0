@@ -1,6 +1,5 @@
 import axios from "axios";
 import PptxGenJS from "pptxgenjs";
-import { Buffer } from "buffer";
 
 // --- CONFIGURATION ---
 
