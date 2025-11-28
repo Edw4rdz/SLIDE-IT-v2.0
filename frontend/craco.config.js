@@ -6,6 +6,7 @@ module.exports = {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         "fs": false,              // <--- This fixes the "node:fs" error
+        "https": require.resolve("https-browserify"), // <--- Fixes "node:https" error
         "path": false,            // <--- Fixes "node:path"
         "os": false,              // <--- Fixes "node:os"
         "crypto": false,          // <--- Fixes "node:crypto"
