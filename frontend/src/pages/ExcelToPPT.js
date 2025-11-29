@@ -1,9 +1,9 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaImages, FaFileAlt } from "react-icons/fa";
 import { convertExcel, cache } from "../api";
 import "../styles/exceltoppt.css";
 import Sidebar from "../components/Sidebar";
+import AIProviderModal from "../components/AIProviderModal";
 
 export default function ExcelToPPT() {
   const [file, setFile] = useState(null);
@@ -13,12 +13,14 @@ export default function ExcelToPPT() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
+  const [selectedProvider, setSelectedProvider] = useState("grockai");
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
-  // Handle file selection (No changes, this is perfect)
+  // File selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
@@ -35,80 +37,75 @@ export default function ExcelToPPT() {
     }
   };
 
-  // 🚀 Upload + Convert Excel (FIXED)
-  const handleUpload = () => {
+  // *** NEW - Same behavior as PDFToPPT ***
+  // Show provider modal first
+  const handleConvert = () => {
     if (!file) return alert("Please select an Excel file first");
-    if (file.size > 50 * 1024 * 1024) return alert("File too large (max 50MB)");
-
-    // --- 1. ADDED USER CHECK ---
-    if (!loggedInUser?.user_id) {
+    if (!loggedInUser?.user_id)
       return alert("You must be logged in to convert and save history.");
-    }
-    setIsModalOpen(true);
+    setShowProviderModal(true);
+  };
+
+  const handleProviderSelect = (provider) => {
+    setSelectedProvider(provider);
+    setShowProviderModal(false);
+    setIsModalOpen(true); // Open "Include images?" modal next
   };
 
   const handleConversionStart = async (includeImages) => {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
     setIsLoading(true);
-    setLoadingText("Reading Excel file...");
+    setLoadingText("Uploading Excel file...");
 
-    const reader = new FileReader();
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("slideCount", String(slidesCount));
+      formData.append("userId", String(loggedInUser.user_id));
+      formData.append("includeImages", String(includeImages));
+      formData.append("provider", selectedProvider);
 
-    reader.onload = async () => {
-      try {
-        setLoadingText("Converting Excel to slides...");
-        const base64Excel = reader.result.split(",")[1];
+      setLoadingText("Converting Excel to slides...");
+      const response = await convertExcel(formData);
+      const payload = response?.data;
+      const slideArray = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.slides)
+        ? payload.slides
+        : [];
 
-        const response = await convertExcel({
-          base64Excel,
-          slides: slidesCount,
-          userId: loggedInUser.user_id,
-          fileName: file.name,
-          includeImages: includeImages,
-        });
+      if (slideArray.length) {
+        const slidesWithId = slideArray.map((s, idx) => ({
+          ...s,
+          id: idx,
+        }));
 
-        const payload = response?.data;
-        const slideArray = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.data)
-          ? payload.data
-          : Array.isArray(payload?.slides)
-          ? payload.slides
-          : [];
+        setConvertedSlides(slidesWithId);
+        setTopic(file.name.replace(/\.(xlsx|xls)$/i, ""));
+        setLoadingText("Conversion completed!");
 
-        if (slideArray.length) {
-          const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
-          setConvertedSlides(slidesWithId);
-          setTopic(file.name.replace(/\.(xlsx|xls)/i, ""));
-          
-          // Invalidate cache
-          if (loggedInUser?.user_id) {
-            cache.invalidate(`history-${loggedInUser.user_id}`);
-          }
-          
-          alert("✅ Conversion successful! You can now preview or edit it.");
-        } else {
-          const errorMsg = payload?.error || response?.error || "Conversion failed: Invalid response from server.";
-          alert(errorMsg);
+        if (loggedInUser?.user_id) {
+          cache.invalidate(`history-${loggedInUser.user_id}`);
         }
-      } catch (err) {
-        console.error("Excel conversion error:", err);
-        alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
-      } finally {
-        setIsLoading(false);
-        setLoadingText("");
-      }
-    };
 
-    reader.onerror = () => {
-      console.error("Error reading the Excel file");
-      alert("Error reading the file. Please try again.");
+        alert("✅ Conversion successful! You can now preview or edit it.");
+      } else {
+        const errorMsg =
+          payload?.error ||
+          response?.error ||
+          "Conversion failed: Invalid response from server.";
+        alert(errorMsg);
+      }
+    } catch (err) {
+      console.error("Excel conversion error:", err);
+      alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
+    } finally {
       setIsLoading(false);
       setLoadingText("");
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -153,7 +150,7 @@ export default function ExcelToPPT() {
                 </div>
 
                 <button
-                  onClick={handleUpload}
+                  onClick={handleConvert}
                   className="uploadp-btn"
                   disabled={isLoading || !file}
                 >
@@ -203,7 +200,9 @@ export default function ExcelToPPT() {
                   <div className="slide-control">
                     <button
                       className="slide-btn minus"
-                      onClick={() => setSlidesCount((prev) => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setSlidesCount((prev) => Math.max(1, prev - 1))
+                      }
                     >
                       –
                     </button>
@@ -254,24 +253,47 @@ export default function ExcelToPPT() {
         </div>
       </main>
 
+      {/* AI Provider Modal */}
+      <AIProviderModal
+        isOpen={showProviderModal}
+        onSelect={handleProviderSelect}
+        onCancel={() => setShowProviderModal(false)}
+      />
+
+      {/* Image choice modal */}
       {isModalOpen && (
-        <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
-          <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="ai-image-modal-backdrop"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="ai-image-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
-            
+
             <div className="ai-modal-buttons">
-              <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
+              <button
+                className="ai-modal-btn text-only-btn"
+                onClick={() => handleConversionStart(false)}
+              >
                 <span className="btn-icon">📄</span>
                 <span className="btn-text">Text Only</span>
               </button>
-              <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
+              <button
+                className="ai-modal-btn include-images-btn"
+                onClick={() => handleConversionStart(true)}
+              >
                 <span className="btn-icon">🖼️</span>
                 <span className="btn-text">Include Images</span>
               </button>
             </div>
-            
-            <button className="ai-modal-cancel" onClick={() => setIsModalOpen(false)}>
+
+            <button
+              className="ai-modal-cancel"
+              onClick={() => setIsModalOpen(false)}
+            >
               Cancel
             </button>
           </div>

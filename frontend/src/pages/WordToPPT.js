@@ -1,10 +1,10 @@
 import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom"; // Link, FaSignOutAlt, FaUpload removed
-import { FaImages, FaFileAlt } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { convertWord, cache } from "../api";
 import "../styles/wordtoppt.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-import Sidebar from "../components/Sidebar"; // <-- 1. IMPORTED SIDEBAR
+import Sidebar from "../components/Sidebar";
+import AIProviderModal from "../components/AIProviderModal";
 
 export default function WordToPPT() {
   const navigate = useNavigate();
@@ -14,12 +14,14 @@ export default function WordToPPT() {
   const [loadingText, setLoadingText] = useState("");
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
-  // const [loggingOut, setLoggingOut] = useState(false); // <-- 2. REMOVED
   const fileInputRef = useRef(null);
+
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
+  const [selectedProvider, setSelectedProvider] = useState("grockai");
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -36,11 +38,16 @@ export default function WordToPPT() {
     }
   };
 
-  const handleUpload = () => {
+  const handleConvert = () => {
     if (!file) return alert("Please select a Word document first");
-    if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
     if (!loggedInUser?.user_id)
       return alert("You must be logged in to convert and save history.");
+    setShowProviderModal(true);
+  };
+
+  const handleProviderSelect = (provider) => {
+    setSelectedProvider(provider);
+    setShowProviderModal(false);
     setIsModalOpen(true);
   };
 
@@ -56,6 +63,7 @@ export default function WordToPPT() {
       formData.append("slideCount", String(slides));
       formData.append("userId", String(loggedInUser.user_id));
       formData.append("includeImages", String(includeImages));
+      formData.append("provider", selectedProvider);
 
       const response = await convertWord(formData);
 
@@ -68,24 +76,20 @@ export default function WordToPPT() {
         ? payload.slides
         : [];
 
-      if (!slideArray.length) {
+      if (!slideArray.length)
         throw new Error("Conversion failed: unexpected server response");
-      }
 
       const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
+
       setConvertedSlides(slidesWithId);
       setTopic(file.name.replace(/\.(docx|doc)$/i, ""));
-      setLoadingText("Conversion completed!");
-      
-      // Invalidate cache
-      if (loggedInUser?.user_id) {
+
+      if (loggedInUser?.user_id)
         cache.invalidate(`history-${loggedInUser.user_id}`);
-      }
-      
+
       alert("✅ Conversion successful! You can now preview or edit it.");
     } catch (err) {
       console.error("Word conversion error:", err);
-      setLoadingText("Conversion failed.");
       alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
     } finally {
       setIsLoading(false);
@@ -93,64 +97,58 @@ export default function WordToPPT() {
     }
   };
 
-  // const handleLogout = () => { ... }; // <-- 3. REMOVED
-
   return (
-    // 4. CHANGED to 'dashboard'
     <div className="dashboard">
-      {/* 5. REPLACED old aside with Sidebar component */}
       <Sidebar activePage="dashboard" />
 
-      {/* 6. CHANGED to 'main' */}
       <main className="main">
         <div className="ai-container wordtoppt">
           <header className="headerp">
             <div className="headerw-icon">DOCX</div>
             <div>
               <h1>Word to PPT Converter</h1>
-              <p>Transform your Word documents into editable PowerPoint presentations</p>
+              <p>Transform your Word documents into editable AI-generated slides</p>
             </div>
           </header>
 
           <div className="ai-content">
-            {/* Left Column */}
             <div className="ai-left">
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Word Document</h2>
+
                 <div className="uploadw-area">
                   <div className="uploadw-icon">⬆</div>
                   <h3>
                     Drop your Word document here, or{" "}
-                    <span className="browsew" onClick={() => fileInputRef.current.click()}>
+                    <span onClick={() => fileInputRef.current.click()} className="browsew">
                       browse
                     </span>
                   </h3>
-                  <p>Supports .docx and .doc files up to 25MB</p>
+                  <p>Supports .docx & .doc up to 25MB</p>
+
                   <input
                     ref={fileInputRef}
                     type="file"
-                    className="file-input"
-                    accept=".docx,.doc,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    onChange={handleFileChange}
+                    accept=".docx,.doc"
                     style={{ display: "none" }}
+                    onChange={handleFileChange}
                   />
+
                   {file && <p className="file-name">📑 {file.name}</p>}
                 </div>
 
                 <button
-                  onClick={handleUpload}
-                  className="convertw-btn"
+                  onClick={handleConvert}
                   disabled={isLoading || !file}
+                  className="convertw-btn"
                 >
                   {isLoading ? (
                     <div className="progress-bar-container">
                       <div className="progress-bar-indeterminate"></div>
                       <span className="progress-text">{loadingText}</span>
                     </div>
-                  ) : convertedSlides ? (
-                    "✅ Converted! Edit Now"
                   ) : (
-                    "Convert to PPT"
+                    convertedSlides ? "Convert Again" : "Convert to PPT"
                   )}
                 </button>
 
@@ -181,13 +179,12 @@ export default function WordToPPT() {
                 )}
               </div>
 
-              {/* Customize Slides */}
               <div className="ai-card">
                 <h2>Customize Output</h2>
                 <div className="ai-slider-section">
-                  <label htmlFor="slides">Number of Slides</label>
+                  <label>Number of Slides</label>
+
                   <div className="slide-input-group">
-                    {/* --- 7. CHANGED to text '–' --- */}
                     <button
                       type="button"
                       className="slide-btn minus"
@@ -198,7 +195,6 @@ export default function WordToPPT() {
 
                     <input
                       type="number"
-                      id="slides"
                       min="1"
                       value={slides}
                       onChange={(e) => {
@@ -208,7 +204,6 @@ export default function WordToPPT() {
                       className="slide-input"
                     />
 
-                    {/* --- 8. CHANGED to text '+' --- */}
                     <button
                       type="button"
                       className="slide-btn plus"
@@ -217,26 +212,28 @@ export default function WordToPPT() {
                       +
                     </button>
                   </div>
-                  <span id="slide-count"> Total number of slides: {slides}</span>
+
+                  <span id="slide-count">Total number of slides: {slides}</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Column */}
             <div className="ai-right">
               <div className="ai-info-box">
                 <h3>How it Works</h3>
                 <ul>
-                  <li>Summarizes your documents</li>
-                  <li>Edit your content for clarity and conciseness</li>
+                  <li>Extracts key points from your Word document</li>
+                  <li>Summarizes and cleans content</li>
+                  <li>Generates AI-crafted slide layouts</li>
                 </ul>
               </div>
+
               <div className="ai-info-box">
                 <h3>Supported Formats</h3>
                 <ul>
-                  <li>Microsoft Word (.docx)</li>
-                  <li>Word 97–2003 (.doc)</li>
-                  <li>Up to 25MB file size</li>
+                  <li>.docx (Microsoft Word)</li>
+                  <li>.doc (Word 97–2003)</li>
+                  <li>Max file size: 25MB</li>
                 </ul>
               </div>
             </div>
@@ -244,13 +241,19 @@ export default function WordToPPT() {
         </div>
       </main>
 
-      {/* Modal for Image/Text choice */}
+      {/* AI Provider Selection Modal */}
+      <AIProviderModal
+        isOpen={showProviderModal}
+        onSelect={handleProviderSelect}
+        onCancel={() => setShowProviderModal(false)}
+      />
+
+      {/* Image Option Modal (matches PDFtoPPT) */}
       {isModalOpen && (
         <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
           <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
-            
             <div className="ai-modal-buttons">
               <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
                 <span className="btn-icon">📄</span>
@@ -261,7 +264,6 @@ export default function WordToPPT() {
                 <span className="btn-text">Include Images</span>
               </button>
             </div>
-            
             <button className="ai-modal-cancel" onClick={() => setIsModalOpen(false)}>
               Cancel
             </button>

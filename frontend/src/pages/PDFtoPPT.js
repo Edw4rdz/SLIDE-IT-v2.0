@@ -5,6 +5,7 @@ import { convertPDF, cache } from "../api";
 import "../styles/pdftoppt.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar"; 
+import AIProviderModal from "../components/AIProviderModal";
 
 export default function PDFToPPT() {
   const [slides, setSlides] = useState(15);
@@ -18,25 +19,39 @@ export default function PDFToPPT() {
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
+  const [selectedProvider, setSelectedProvider] = useState("grockai");
 
 
+
+  // Handle file upload
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === "application/pdf") {
-      setFile(selectedFile);
-    } else {
+    if (!selectedFile || selectedFile.type !== "application/pdf") {
       alert("Please upload a valid PDF file");
       setFile(null);
+      return;
     }
+    if (selectedFile.size > 25 * 1024 * 1024) {
+      alert("File too large (max 25MB)");
+      setFile(null);
+      return;
+    }
+    setFile(selectedFile);
   };
 
-  const handleUpload = () => {
+  // Open provider modal
+  const handleConvert = () => {
     if (!file) return alert("Please select a PDF first");
-    if (file.size > 25 * 1024 * 1024) return alert("File too large (max 25MB)");
-    if (!loggedInUser?.user_id) {
-      return alert("You must be logged in to convert and save history.");
-    }
+    if (!loggedInUser?.user_id) return alert("You must be logged in to convert and save history.");
+    setShowProviderModal(true);
+  };
+
+  // Handle provider selection
+  const handleProviderSelect = (provider) => {
+    setSelectedProvider(provider);
+    setShowProviderModal(false);
     setIsModalOpen(true);
   };
 
@@ -52,6 +67,7 @@ export default function PDFToPPT() {
       formData.append("slideCount", String(slides));
       formData.append("userId", String(loggedInUser.user_id));
       formData.append("includeImages", String(includeImages));
+      formData.append("provider", selectedProvider);
 
       setLoadingText("Processing PDF...");
       const response = await convertPDF(formData);
@@ -68,12 +84,10 @@ export default function PDFToPPT() {
         const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
         setConvertedSlides(slidesWithId);
         setTopic(file.name.replace(/\.pdf$/i, ""));
-        
         // Invalidate cache so history refreshes
         if (loggedInUser?.user_id) {
           cache.invalidate(`history-${loggedInUser.user_id}`);
         }
-        
         alert("✅ Conversion successful! You can now preview or edit it.");
       } else {
         // Only show error if backend explicitly failed
@@ -88,6 +102,7 @@ export default function PDFToPPT() {
       setLoadingText("");
     }
   };
+
 
   return (
     <div className="dashboard"> 
@@ -131,7 +146,7 @@ export default function PDFToPPT() {
                  </div>
 
                  <button
-                   onClick={handleUpload}
+                   onClick={handleConvert}
                    className="uploadp-btn"
                    disabled={isLoading || !file} 
                  >
@@ -239,12 +254,20 @@ export default function PDFToPPT() {
          </div>
       </main>
 
+
+      {/* AI Provider Selection Modal */}
+      <AIProviderModal
+        isOpen={showProviderModal}
+        onSelect={handleProviderSelect}
+        onCancel={() => setShowProviderModal(false)}
+      />
+
+      {/* Image Option Modal */}
       {isModalOpen && (
         <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
           <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
-            
             <div className="ai-modal-buttons">
               <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
                 <span className="btn-icon">📄</span>
@@ -255,7 +278,6 @@ export default function PDFToPPT() {
                 <span className="btn-text">Include Images</span>
               </button>
             </div>
-            
             <button className="ai-modal-cancel" onClick={() => setIsModalOpen(false)}>
               Cancel
             </button>

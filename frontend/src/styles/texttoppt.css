@@ -1,3 +1,76 @@
+/* Slide Input Group and Buttons (matching Word/PDF, yellow theme) */
+.slide-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.texttoppt .slide-input {
+  width: 80px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: 2px solid #facc15;
+  color: #333;
+  text-align: center;
+  padding: 5px;
+}
+
+.texttoppt .slide-input:focus {
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+  outline: none;
+}
+
+.texttoppt .slide-btn {
+  background-color: #facc15 !important;
+  color: white !important;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s ease;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.texttoppt .slide-btn:hover {
+  background-color: #eab308 !important;
+}
+
+.texttoppt .slide-btn:active {
+  transform: scale(0.95);
+  background-color: #ca8a04 !important;
+}
+
+.texttoppt .slide-btn.plus {
+  background-color: #facc15 !important;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.8);
+}
+
+.texttoppt .slide-btn.minus {
+  background-color: #facc15 !important;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+}
+
+.texttoppt .slide-input::-webkit-inner-spin-button,
+.texttoppt .slide-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.texttoppt .slide-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
 /* Basic Reset */
 * {
   box-sizing: border-box;
@@ -316,72 +389,14 @@ textarea {
   }
 }
 
-.slide-control { 
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 
-.slide-input {
-  width: 80px;
-  height: 42px;
-  border-radius: 10px;
-  font-size: 18px;
-  font-weight: 600;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  border: 2px solid #f97316;  
-  color: #333;
-  text-align: center;
-  padding: 5px;
-}
-
-.slide-input:focus {
-  box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
-}
-
-.texttoppt .slide-btn {
-  background-color: #f97316; 
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: 0.2s ease;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px; 
-  font-size: 20px;
-  font-weight: bold;
-  padding: 0; 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1; 
-}
-
-.texttoppt .slide-btn:hover {
-  background-color: #ea580c; 
-}
-
-.texttoppt .slide-btn:active {
-  transform: scale(0.95);
-}
-
-.texttoppt .slide-btn.plus {
-  background-color: #f97316; 
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.8);
-}
-
-.texttoppt .slide-btn.minus {
-  background-color: #f97316; 
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
-}
-
-.slide-input::-webkit-inner-spin-button,
-.slide-input::-webkit-outer-spin-button {
+/* Remove browser default arrows for number input */
+.texttoppt .slide-input::-webkit-inner-spin-button,
+.texttoppt .slide-input::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-.slide-input {
+.texttoppt .slide-input {
   -moz-appearance: textfield;
   appearance: textfield;
 }

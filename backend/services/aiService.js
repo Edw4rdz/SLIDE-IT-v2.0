@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";   // For Excel files
 import pdf from "pdf-parse";    // For PDFs
 
 // --- Helper: Clean & Parse JSON Response ---
-const parseAIResponse = (responseText) => {
+export const parseAIResponse = (responseText) => {
   try {
     // Remove markdown formatting if present
     const cleanText = responseText.replace(/```json|```/g, '').trim();

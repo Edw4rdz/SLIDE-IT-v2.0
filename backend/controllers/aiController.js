@@ -61,7 +61,8 @@ import {
   convertWordToSlides, 
   convertExcelToSlides,
   convertTextFileToSlides, 
-  generateTopicsToSlides 
+  generateTopicsToSlides,
+  parseAIResponse
 } from "../services/aiService.js";
 import fs from "fs";
 import { saveHistory } from "../services/historyService.js";
@@ -210,19 +211,42 @@ export const generateFromPdf = async (req, res) => {
     const userId = req.body.userId || null;
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
+    const provider = req.body.provider || 'grockai';
     const buffer = getFileBuffer(req.file);
 
-    console.log(`Processing PDF: ${req.file.originalname}`);
+    console.log(`Processing PDF: ${req.file.originalname} (Provider: ${provider})`);
     let slides = [];
     try {
-      slides = await convertPdfToSlides(buffer, slideCount);
+      if (provider === 'gemini') {
+        const geminiApiKey = process.env.GEMINI_API_KEY;
+        if (!geminiApiKey) {
+          throw new Error('Gemini API key not set in environment.');
+        }
+        // Extract text from PDF
+        const data = await (await import('pdf-parse')).default(buffer);
+        const text = data.text;
+        const truncatedText = text.length > 100000 ? text.substring(0, 100000) + "..." : text;
+        const geminiPrompt = `Create a presentation with about ${slideCount} slides based on the PDF text below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nPDF TEXT: ${truncatedText}`;
+        const geminiRes = await (await import('axios')).default.post(
+          'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
+          {
+            contents: [{ parts: [{ text: geminiPrompt }] }]
+          },
+          {
+            params: { key: geminiApiKey },
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+        const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        slides = parseAIResponse(geminiText);
+      } else {
+        slides = await convertPdfToSlides(buffer, slideCount);
+      }
     } catch (err) {
       console.error("PDF conversion error:", err);
-      // Return empty array but still success false
       return res.status(200).json({ success: false, data: [], error: err.message });
     }
 
-    // NEW: Upload PPTX to S3 and save to both collections
     let uploadResult = null;
     if (userId && slides.length > 0) {
       uploadResult = await handlePptxUploadAndSave(slides, {
@@ -265,13 +289,43 @@ export const generateFromWord = async (req, res) => {
     const userId = req.body.userId || null;
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
+    const provider = req.body.provider || 'grockai';
     const buffer = getFileBuffer(req.file);
 
-    console.log(`Processing Word Doc: ${req.file.originalname}`);
-    const slides = await convertWordToSlides(buffer, slideCount);
-    console.log(`[WORD] Generated ${slides.length} slides, userId=${userId}`);
+    console.log(`Processing Word Doc: ${req.file.originalname} (Provider: ${provider})`);
+    let slides = [];
+    try {
+      if (provider === 'gemini') {
+        const geminiApiKey = process.env.GEMINI_API_KEY;
+        if (!geminiApiKey) {
+          throw new Error('Gemini API key not set in environment.');
+        }
+        // Extract text from Word
+        const mammoth = (await import('mammoth')).default;
+        const result = await mammoth.extractRawText({ buffer });
+        const text = result.value;
+        const truncatedText = text.length > 100000 ? text.substring(0, 100000) + "..." : text;
+        const geminiPrompt = `Create a presentation with about ${slideCount} slides based on the Word document text below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nWORD TEXT: ${truncatedText}`;
+        const geminiRes = await (await import('axios')).default.post(
+          'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
+          {
+            contents: [{ parts: [{ text: geminiPrompt }] }]
+          },
+          {
+            params: { key: geminiApiKey },
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+        const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        slides = parseAIResponse(geminiText);
+      } else {
+        slides = await convertWordToSlides(buffer, slideCount);
+      }
+    } catch (err) {
+      console.error("Word conversion error:", err);
+      return res.status(200).json({ success: false, data: [], error: err.message });
+    }
 
-    // NEW: Upload PPTX to S3 and save to both collections
     let uploadResult = null;
     if (userId && slides.length > 0) {
       uploadResult = await handlePptxUploadAndSave(slides, {
@@ -311,19 +365,55 @@ export const generateFromExcel = async (req, res) => {
 
     const slideCount = req.body.slideCount || 10;
     const userId = req.body.userId || null;
+    const provider = req.body.provider || 'grockai';
     const buffer = getFileBuffer(req.file);
 
-    console.log(`Processing Excel: ${req.file.originalname}`);
-    const slides = await convertExcelToSlides(buffer, slideCount);
+    console.log(`Processing Excel: ${req.file.originalname} (Provider: ${provider})`);
+    let slides = [];
+    try {
+      if (provider === 'gemini') {
+        const geminiApiKey = process.env.GEMINI_API_KEY;
+        if (!geminiApiKey) {
+          throw new Error('Gemini API key not set in environment.');
+        }
+        // Extract text from Excel
+        const XLSX = (await import('xlsx')).default;
+        const workbook = XLSX.read(buffer, { type: "buffer" });
+        let excelData = "";
+        workbook.SheetNames.forEach(sheet => {
+          const data = XLSX.utils.sheet_to_csv(workbook.Sheets[sheet]);
+          excelData += `\n--- Sheet: ${sheet} ---\n${data}`;
+        });
+        const truncatedText = excelData.length > 100000 ? excelData.substring(0, 100000) + "..." : excelData;
+        const geminiPrompt = `Create a presentation with about ${slideCount} slides based on the Excel data below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nEXCEL DATA: ${truncatedText}`;
+        const geminiRes = await (await import('axios')).default.post(
+          'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
+          {
+            contents: [{ parts: [{ text: geminiPrompt }] }]
+          },
+          {
+            params: { key: geminiApiKey },
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+        const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        slides = parseAIResponse(geminiText);
+      } else {
+        slides = await convertExcelToSlides(buffer, slideCount);
+      }
+    } catch (err) {
+      console.error("Excel conversion error:", err);
+      return res.status(200).json({ success: false, data: [], error: err.message });
+    }
 
-    // NEW: Upload PPTX to S3 and save to both collections
     let uploadResult = null;
     if (userId && slides.length > 0) {
+      const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true;
       uploadResult = await handlePptxUploadAndSave(slides, {
         userId,
         fileName: req.file.originalname || 'Excel Presentation',
         conversionType: 'Excel-to-PPTs',
-        includeImages: false,
+        includeImages,
         previewThumb: null
       });
       console.log(`[EXCEL] Upload result:`, uploadResult);
@@ -343,14 +433,38 @@ export const generateFromExcel = async (req, res) => {
 
 export const generateFromTopic = async (req, res) => {
   try {
-    const { topic, slideCount, userId, includeImages, previewThumb } = req.body;
+    const { topic, slideCount, userId, includeImages, previewThumb, provider } = req.body;
 
     if (!topic) {
       return res.status(400).json({ error: "No topic provided." });
     }
 
-    console.log(`Processing Topic: "${topic}"`);
-    const slides = await generateTopicsToSlides(topic, slideCount || 10);
+    console.log(`Processing Topic: "${topic}" (Provider: ${provider || 'grok/openai'})`);
+    let slides = [];
+    if (provider === 'gemini') {
+      // Use Gemini API
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        throw new Error('Gemini API key not set in environment.');
+      }
+      const geminiPrompt = `Create a presentation with about ${slideCount || 10} slides based on the topic below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nTOPIC: ${topic}`;
+      const geminiRes = await axios.post(
+        'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
+        {
+          contents: [{ parts: [{ text: geminiPrompt }] }]
+        },
+        {
+          params: { key: geminiApiKey },
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+      // Gemini returns text in geminiRes.data.candidates[0].content.parts[0].text
+      const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      slides = parseAIResponse(geminiText);
+    } else {
+      // Default: Use Grok/OpenAI
+      slides = await generateTopicsToSlides(topic, slideCount || 10);
+    }
 
     // NEW: Upload PPTX to S3 and save to both collections
     let uploadResult = null;
@@ -394,12 +508,40 @@ export const generateFromTextFile = async (req, res) => {
     const userId = req.body.userId || null;
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
+    const provider = req.body.provider || 'grockai';
     const buffer = getFileBuffer(req.file);
 
-    console.log(`Processing Text File: ${req.file.originalname}`);
-    const slides = await convertTextFileToSlides(buffer, slideCount);
+    console.log(`Processing Text File: ${req.file.originalname} (Provider: ${provider})`);
+    let slides = [];
+    try {
+      if (provider === 'gemini') {
+        const geminiApiKey = process.env.GEMINI_API_KEY;
+        if (!geminiApiKey) {
+          throw new Error('Gemini API key not set in environment.');
+        }
+        const text = buffer.toString("utf-8");
+        const truncatedText = text.length > 100000 ? text.substring(0, 100000) + "..." : text;
+        const geminiPrompt = `Create a presentation with about ${slideCount} slides based on the text file below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nTEXT FILE: ${truncatedText}`;
+        const geminiRes = await (await import('axios')).default.post(
+          'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
+          {
+            contents: [{ parts: [{ text: geminiPrompt }] }]
+          },
+          {
+            params: { key: geminiApiKey },
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+        const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        slides = parseAIResponse(geminiText);
+      } else {
+        slides = await convertTextFileToSlides(buffer, slideCount);
+      }
+    } catch (err) {
+      console.error("Text file conversion error:", err);
+      return res.status(200).json({ success: false, data: [], error: err.message });
+    }
 
-    // NEW: Upload PPTX to S3 and save to both collections
     let uploadResult = null;
     if (userId && slides.length > 0) {
       uploadResult = await handlePptxUploadAndSave(slides, {

@@ -1,9 +1,9 @@
+
 import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom"; // Link, FaSignOutAlt, FaUpload removed
-import { FaImages, FaFileAlt } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { convertText, cache } from "../api";
-import "../styles/texttoppt.css";
-import Sidebar from "../components/Sidebar"; // <-- 1. IMPORTED SIDEBAR
+import Sidebar from "../components/Sidebar";
+import AIProviderModal from "../components/AIProviderModal";
 
 export default function TextToPPT() {
   const [slides, setSlides] = useState(15);
@@ -14,13 +14,14 @@ export default function TextToPPT() {
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
+  const [selectedProvider, setSelectedProvider] = useState("grockai");
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
-  // const [loggingOut, setLoggingOut] = useState(false); // <-- 2. REMOVED
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
-  // 🧩 Handle File Upload
+  // Handle file upload
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile || selectedFile.type !== "text/plain") {
@@ -33,7 +34,6 @@ export default function TextToPPT() {
       setFile(null);
       return;
     }
-
     setFile(selectedFile);
     const reader = new FileReader();
     reader.onload = () => setFileContent(reader.result);
@@ -45,29 +45,48 @@ export default function TextToPPT() {
     reader.readAsText(selectedFile);
   };
 
-  // 🚀 Open Modal for Choosing Option
+  // Open provider modal
   const handleConvert = () => {
-    if (!file || !fileContent.trim()) return alert("Please upload a text file first");
-    if (!loggedInUser?.user_id) return alert("You must be logged in to convert and save history.");
+    if (!file || !fileContent.trim()) {
+      alert("Please upload a text file first");
+      return;
+    }
+    // Check for minimum content length (e.g., at least 10 characters and 2 lines)
+    const minLength = 10;
+    const minLines = 2;
+    const lines = fileContent.trim().split(/\r?\n/).filter(Boolean);
+    if (fileContent.trim().length < minLength || lines.length < minLines) {
+      alert("Your text file is too short. Please upload a file with more content (at least 2 lines of text).");
+      return;
+    }
+    if (!loggedInUser?.user_id) {
+      alert("You must be logged in to convert and save history.");
+      return;
+    }
+    setShowProviderModal(true);
+  };
+
+  // Handle provider selection
+  const handleProviderSelect = (provider) => {
+    setSelectedProvider(provider);
+    setShowProviderModal(false);
     setIsModalOpen(true);
   };
 
-  // 🚀 Start Conversion After Choosing Option
+  // Start conversion after choosing image option
   const handleConversionStart = async (includeImages) => {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
     setIsLoading(true);
     setLoadingText("Uploading text file...");
-
     try {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("slideCount", String(slides));
       formData.append("userId", String(loggedInUser.user_id));
       formData.append("includeImages", String(includeImages));
-
+      formData.append("provider", selectedProvider);
       const response = await convertText(formData);
-
       const payload = response?.data;
       const slideArray = Array.isArray(payload)
         ? payload
@@ -76,20 +95,16 @@ export default function TextToPPT() {
         : Array.isArray(payload?.slides)
         ? payload.slides
         : [];
-
       if (!slideArray.length) {
         throw new Error("Conversion failed: unexpected server response");
       }
-
       const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
       setConvertedSlides(slidesWithId);
-      setTopic(file.name.replace(/\.txt$/i, ""));
-      
+      setTopic(file.name.replace(/\.(txt)$/i, ""));
       // Invalidate cache
       if (loggedInUser?.user_id) {
         cache.invalidate(`history-${loggedInUser.user_id}`);
       }
-      
       alert("✅ Conversion successful! You can now preview or edit slides.");
     } catch (err) {
       console.error(err);
@@ -112,16 +127,42 @@ export default function TextToPPT() {
               <p>Transform your plain text into AI-enhanced slides</p>
             </div>
           </header>
-
           <div className="ai-content">
-            {/* Left */}
+            {/* AI Provider Selection Modal */}
+            <AIProviderModal
+              isOpen={showProviderModal}
+              onSelect={handleProviderSelect}
+              onCancel={() => setShowProviderModal(false)}
+            />
+            {/* Image Option Modal */}
+            {isModalOpen && (
+              <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
+                <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <h2>Image Generation</h2>
+                  <p>Do you want to include AI-generated images in your presentation?</p>
+                  <div className="ai-modal-buttons">
+                    <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
+                      <span className="btn-icon">📄</span>
+                      <span className="btn-text">Text Only</span>
+                    </button>
+                    <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
+                      <span className="btn-icon">🖼️</span>
+                      <span className="btn-text">Include Images</span>
+                    </button>
+                  </div>
+                  <button className="ai-modal-cancel" onClick={() => setIsModalOpen(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="ai-left">
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Text File</h2>
                 <div className="uploadp-area">
                   <div className="uploadp-icon">⬆</div>
                   <h3>
-                    Drop your text file here, or{" "}
+                    Drop your text file here, or {" "}
                     <span
                       className="browsep"
                       onClick={() => fileInputRef.current.click()}
@@ -129,7 +170,7 @@ export default function TextToPPT() {
                       browse
                     </span>
                   </h3>
-                  <p>Supports text files.</p>
+                  <p>Supports text files up to 25MB.</p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -139,7 +180,6 @@ export default function TextToPPT() {
                   />
                   {file && <p className="file-name">📄 {file.name}</p>}
                 </div>
-
                 <button
                   onClick={handleConvert}
                   className="uploadp-btn"
@@ -150,13 +190,10 @@ export default function TextToPPT() {
                       <div className="progress-bar-indeterminate"></div>
                       <span className="progress-text">{loadingText}</span>
                     </div>
-                  ) : convertedSlides ? (
-                    "Convert Again"
                   ) : (
-                    "Convert to PPT"
+                    convertedSlides ? "Convert Again" : "Convert to PPT"
                   )}
                 </button>
-
                 {convertedSlides && (
                   <div className="success-card">
                     <div className="success-header">
@@ -183,13 +220,13 @@ export default function TextToPPT() {
                   </div>
                 )}
               </div>
-
               <div className="ai-card">
                 <h2>Customize Output</h2>
-                <div className="ai-slider-section centered-slide-control">
+                <div className="ai-slider-section">
                   <label htmlFor="slides">Number of Slides</label>
-                  <div className="slide-control">
+                  <div className="slide-input-group">
                     <button
+                      type="button"
                       className="slide-btn minus"
                       onClick={() => setSlides((prev) => Math.max(1, prev - 1))}
                     >
@@ -198,22 +235,26 @@ export default function TextToPPT() {
                     <input
                       type="number"
                       id="slides"
+                      min="1"
                       value={slides}
-                      onChange={(e) => setSlides(parseInt(e.target.value) || 1)}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value) && value >= 1) setSlides(value);
+                      }}
                       className="slide-input"
                     />
                     <button
+                      type="button"
                       className="slide-btn plus"
                       onClick={() => setSlides((prev) => prev + 1)}
                     >
                       +
                     </button>
                   </div>
-                  <span id="slide-count">{slides} slides</span>
+                  <span id="slide-count"> Total number of slides: {slides}</span>
                 </div>
               </div>
             </div>
-
             {/* Right */}
             <div className="ai-right">
               <div className="ai-info-box">
@@ -225,7 +266,6 @@ export default function TextToPPT() {
                   <li>Preview and edit before download.</li>
                 </ol>
               </div>
-
               <div className="ai-info-box">
                 <h3>Tips</h3>
                 <ul>
@@ -239,31 +279,6 @@ export default function TextToPPT() {
           </div>
         </div>
       </main>
-
-      {/* ✅ Modal */}
-      {isModalOpen && (
-        <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
-          <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Image Generation</h2>
-            <p>Do you want to include AI-generated images in your presentation?</p>
-            
-            <div className="ai-modal-buttons">
-              <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
-                <span className="btn-icon">📄</span>
-                <span className="btn-text">Text Only</span>
-              </button>
-              <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
-                <span className="btn-icon">🖼️</span>
-                <span className="btn-text">Include Images</span>
-              </button>
-            </div>
-            
-            <button className="ai-modal-cancel" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

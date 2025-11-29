@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import AIProviderModal from "../components/AIProviderModal";
 import { useNavigate } from "react-router-dom";
 import { FaMagic, FaEdit } from "react-icons/fa";
 import { generateSlides, cache } from "../api"; // <-- Added cache import
@@ -12,16 +13,25 @@ export default function AIGenerator() {
   const [loadingText, setLoadingText] = useState("");
   const [convertedSlides, setConvertedSlides] = useState([]);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
   const [includeImages, setIncludeImages] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState("openai");
  
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
   // Show image modal before generating
+  // Show provider modal before image modal
   const handleGenerateClick = () => {
     if (!topic.trim()) return alert("Please enter a topic first!");
     if (!loggedInUser?.user_id) return alert("User not logged in. Cannot save history.");
-    
+    setShowProviderModal(true);
+  };
+
+  // After provider is selected, show image modal
+  const handleProviderSelect = (provider) => {
+    setSelectedProvider(provider);
+    setShowProviderModal(false);
     setShowImageModal(true);
   };
 
@@ -29,7 +39,6 @@ export default function AIGenerator() {
   const handleGenerate = async (includeAIImages) => {
     setShowImageModal(false);
     setIncludeImages(includeAIImages);
-    
     setIsLoading(true);
     setLoadingText("Initializing AI generation...");
     setConvertedSlides([]);
@@ -40,6 +49,7 @@ export default function AIGenerator() {
         slideCount: slides,
         userId: loggedInUser.user_id,
         includeImages: includeAIImages,
+        provider: selectedProvider,
       });
 
       const payload = res?.data;
@@ -59,12 +69,10 @@ export default function AIGenerator() {
       const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
       setConvertedSlides(slidesWithId);
       setLoadingText("Slides generated successfully!");
-      
       // Invalidate history cache so next fetch gets updated data
       if (loggedInUser?.user_id) {
         cache.invalidate(`history-${loggedInUser.user_id}`);
       }
-
     } catch (err) {
       console.error(err);
       alert("AI slide generation failed: " + (err.response?.data?.error || err.message));
@@ -202,13 +210,19 @@ export default function AIGenerator() {
         </div>
       </main>
 
+      {/* AI Provider Selection Modal */}
+      <AIProviderModal
+        isOpen={showProviderModal}
+        onSelect={handleProviderSelect}
+        onCancel={() => setShowProviderModal(false)}
+      />
+
       {/* Image Generation Modal */}
       {showImageModal && (
         <div className="ai-image-modal-backdrop" onClick={() => setShowImageModal(false)}>
           <div className="ai-image-modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
-            
             <div className="ai-modal-buttons">
               <button className="ai-modal-btn text-only-btn" onClick={() => handleGenerate(false)}>
                 <span className="btn-icon">📄</span>
@@ -219,7 +233,6 @@ export default function AIGenerator() {
                 <span className="btn-text">Include Images</span>
               </button>
             </div>
-            
             <button className="ai-modal-cancel" onClick={() => setShowImageModal(false)}>
               Cancel
             </button>
