@@ -2792,42 +2792,65 @@ export default function EditPreview() {
 
   // ✅ --- THIS FUNCTION IS UPDATED --- ✅
 
-  const handleDownload = () => {
-
+  // ✅ UPDATED: Handles relative sticker URLs by converting them to Base64 before download
+  const handleDownload = async () => {
     if (!editedSlides.length) return alert("No slides to download!");
 
     const sanitizedTopic = topic.replace(/[\s/\\?%*:|"<>]/g, "_");
-
     const fileName = `${sanitizedTopic}_presentation.pptx`;
-
     
-
     const activeDesign = selectedTemplateId ? currentDesign : {
-
       font: "Arial",
-
       globalBackground: "#ffffff",
-
       globalTitleColor: "#000000",
-
       globalTextColor: "#333333",
-
       layouts: {
-
         title: { background: "#ffffff", titleColor: "#000000", textColor: "#333333" },
-
         content: { background: "#ffffff", titleColor: "#000000", textColor: "#333333" }
-
       }
-
     };
 
+    // Helper: Fetch a relative URL and convert it to Base64
+    const urlToBase64 = async (url) => {
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      } catch (err) {
+        console.warn("Failed to convert sticker to base64", url, err);
+        return url; // Fallback to original if failed
+      }
+    };
+
+    // 1. Prepare slides: Convert any relative sticker URLs to Base64
+    // This allows the backend to embed the image data directly.
+    const slidesForExport = await Promise.all(
+      editedSlides.map(async (slide) => {
+        if (!Array.isArray(slide.stickers) || slide.stickers.length === 0) {
+          return slide;
+        }
+
+        const processedStickers = await Promise.all(
+          slide.stickers.map(async (sticker) => {
+            // Check if it's a relative path (e.g. "/stickers/...") and not already a data URL
+            if (sticker.url && typeof sticker.url === 'string' && sticker.url.startsWith('/') && !sticker.url.startsWith('//')) {
+              const base64Data = await urlToBase64(sticker.url);
+              return { ...sticker, url: base64Data || sticker.url };
+            }
+            return sticker;
+          })
+        );
+
+        return { ...slide, stickers: processedStickers };
+      })
+    );
     
-
-    // Pass the 'showImageColumn' flag to the download function
-
-    downloadPPTX(editedSlides, activeDesign, fileName, showImageColumn);
-
+    // 2. Send the processed slides to the backend
+    downloadPPTX(slidesForExport, activeDesign, fileName, showImageColumn);
   };
 
 
