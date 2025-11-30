@@ -2643,7 +2643,7 @@ export default function EditPreview() {
 
             ...s,
 
-            [field]: field === 'bullets' ? value.split('\n').map(b => b.trim()).filter(b => b) : value
+            [field]: field === 'bullets' ? value.split('\n').filter(b => b.trim()) : value
 
           };
 
