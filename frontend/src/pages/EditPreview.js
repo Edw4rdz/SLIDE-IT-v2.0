@@ -1041,22 +1041,36 @@ export default function EditPreview() {
 
     if (!slide) return [];
 
-    if (Array.isArray(slide.bullets)) return slide.bullets.filter(Boolean);
+    let bullets = [];
+    if (Array.isArray(slide.bullets)) {
+      bullets = slide.bullets.filter(Boolean);
+    } else {
+      const source = typeof slide.bullets === 'string' && slide.bullets.trim().length
+        ? slide.bullets
+        : (typeof slide.text === 'string' ? slide.text : '');
+      bullets = source
+        .split(/\n|•/)
+        .map(l => (l || '').trim())
+        .filter(Boolean);
+    }
 
-    const source = typeof slide.bullets === 'string' && slide.bullets.trim().length
+    // Replace **text** with "text" for display
+    return bullets.map(b => replaceMarkdownBold(b));
 
-      ? slide.bullets
+  };
 
-      : (typeof slide.text === 'string' ? slide.text : '');
+  // Replace markdown bold syntax **text** with quotes "text"
+  const replaceMarkdownBold = (text) => {
+    if (typeof text !== 'string') return text;
+    // Replace **text** with "text"
+    return text.replace(/\*\*(.*?)\*\*/g, '"$1"');
+  };
 
-    return source
-
-      .split(/\n|•/)
-
-      .map(l => (l || '').trim())
-
-      .filter(Boolean);
-
+  // Convert quotes back to markdown when saving (for editing)
+  const convertQuotesToMarkdown = (text) => {
+    if (typeof text !== 'string') return text;
+    // Convert "text": back to **text**: (preserving the colon)
+    return text.replace(/"([^"]+)":/g, '**$1**:');
   };
 
 
@@ -3361,9 +3375,13 @@ export default function EditPreview() {
 
                 className="form-control-bullets-preview"
 
-                value={(s.bullets || []).join('\n')}
+                value={(s.bullets || []).map(b => replaceMarkdownBold(b)).join('\n')}
 
-                onChange={(e) => handleSlideChange(s.id, 'bullets', e.target.value)}
+                onChange={(e) => {
+                  // Convert quotes back to markdown when saving
+                  const processedValue = convertQuotesToMarkdown(e.target.value);
+                  handleSlideChange(s.id, 'bullets', processedValue);
+                }}
 
                 rows={8}
 
@@ -4941,7 +4959,7 @@ export default function EditPreview() {
 
                               >
 
-                                {line}
+                                {replaceMarkdownBold(line)}
 
                               </span>
 
