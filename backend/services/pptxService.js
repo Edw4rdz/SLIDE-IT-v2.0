@@ -279,7 +279,6 @@ export const generatePptxFromData = async (requestBody) => {
     const bgColorNorm = normalizeColor(slideBg, design.globalBackground);
     const gradientBackground = createCardBackgroundImage(slideBg, 1280, 720);
     if (gradientBackground) {
-      // Add gradient as full-slide image
       pptxSlide.addImage({
         data: gradientBackground,
         x: 0,
@@ -288,7 +287,6 @@ export const generatePptxFromData = async (requestBody) => {
         h: 5.625
       });
     } else {
-      // Solid color background
       pptxSlide.background = { color: colorToPptx(bgColorNorm, design.globalBackground) };
     }
 
@@ -305,10 +303,8 @@ export const generatePptxFromData = async (requestBody) => {
     let imageBase64 = null;
     if (includeImages) {
       if (slide.uploadedImage) {
-        // Use the already-base64-encoded user-uploaded image
         imageBase64 = slide.uploadedImage;
       } else if (slide.imagePrompt) {
-        // Fetch the AI image and convert it to base64
         const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
         if (imageUrl) {
           console.log(`Fetching AI image: ${slide.imagePrompt}`);
@@ -317,10 +313,8 @@ export const generatePptxFromData = async (requestBody) => {
       }
     }
 
-    // 3. DEFINE LAYOUTS (coordinates for text and images)
-    // All coordinates are in inches: { x, y, w, h }
+    // 3. DEFINE LAYOUTS
     let titleOpts, bodyOpts;
-    
     const contentArea = {
       x: contentBounds.x + cardPaddingX,
       y: contentBounds.y + cardPaddingY,
@@ -328,96 +322,289 @@ export const generatePptxFromData = async (requestBody) => {
       h: contentBounds.h - cardPaddingY * 2
     };
 
-    const imageWidth = 3.5;
-    const imageHeight = 3.5;
-    const imageSpacing = 0.4;
-    let effectiveTextWidth = contentArea.w;
+    // Image positioning - match old frontend
+    const imgW = 3.0;
+    const imgH = 3.5;
+    const imgMargin = 0.5;
+    const imagePosition = slide.imagePosition || "right";
+    const imgX = imagePosition === "left" ? imgMargin : 10 - imgMargin - imgW;
+    const imgY = 1.0;
+
+    // Calculate body positioning based on image
+    let bodyX = 0.5;
+    let bodyW = 9.0;
+    if (imageBase64) {
+      if (imagePosition === "left") {
+        bodyX = imgX + imgW + 0.3;
+        bodyW = 10 - bodyX - imgMargin;
+      } else {
+        bodyX = 0.5;
+        bodyW = 10 - imgW - imgMargin - 0.8;
+      }
+    }
 
     if (imageBase64) {
-      effectiveTextWidth = Math.max(contentArea.w - imageWidth - imageSpacing, 2.5);
-      const imageX = contentArea.x + effectiveTextWidth + imageSpacing * 0.5;
-      const imageY = contentArea.y + 0.15;
       pptxSlide.addImage({
         data: imageBase64,
-        x: imageX,
-        y: imageY,
-        w: imageWidth,
-        h: imageHeight
+        x: imgX,
+        y: imgY,
+        w: imgW,
+        h: imgH,
+        sizing: { type: "contain", w: imgW, h: imgH },
       });
     }
 
-    titleOpts = {
-      x: contentArea.x,
-      y: contentArea.y,
-      w: effectiveTextWidth,
-      h: 0.9,
+    // 4. ADD TEXT TO SLIDE - Match old frontend positioning
+    // Old frontend used: title at y: 0.35, body at y: 1.6
+    const titleX = imageBase64 ? bodyX : 0.5;
+    const titleW = imageBase64 ? bodyW : 9.0;
+    const bodyXPos = imageBase64 ? bodyX : 0.5;
+    const bodyWPos = imageBase64 ? bodyW : 9.0;
+
+    // Add title
+    pptxSlide.addText(slide.title || '', {
+      x: titleX,
+      y: 0.35,
+      w: titleW,
+      h: 1.0,
       color: titleColorPptx,
       fontFace: titleFontFace,
       fontSize: titleFontSize,
       bold: titleBold,
       italic: titleItalic,
-      align: titleAlign,
-      valign: 'middle'
+      align: titleAlign || (slideLayout === 'title' ? 'center' : 'left'),
+    });
+
+    // Get bullet lines using the same logic as the old frontend
+    const getBulletLinesForSlide = (sdata) => {
+      if (!sdata) return [];
+      if (Array.isArray(sdata.bullets)) {
+        return sdata.bullets
+          .filter(Boolean)
+          .map((b) => String(b).trim())
+          .filter(Boolean);
+      }
+      const src = typeof sdata.bullets === 'string' && sdata.bullets.trim().length
+        ? sdata.bullets
+        : (typeof sdata.text === 'string' ? sdata.text : '');
+      return src
+        .split(/\n|•/)
+        .map((l) => (l || '').trim())
+        .filter(Boolean);
     };
 
-    bodyOpts = {
-      x: contentArea.x,
-      y: contentArea.y + 0.95,
-      w: effectiveTextWidth,
-      h: contentArea.h - 1.0,
-      color: textColorPptx,
-      fontFace: bodyFontFace,
-      fontSize: bodyFontSize,
-      bold: bodyBold,
-      italic: bodyItalic,
-      align: bodyAlign
-    };
+    const bulletLines = getBulletLinesForSlide(slide);
+    const hasBullets = bulletLines.length > 0;
+    const hasText = slide.text && slide.text.trim().length > 0;
 
-    // 4. ADD TEXT TO SLIDE
-    pptxSlide.addText(slide.title || '', titleOpts);
-
-    // Always add body text, even for title slides, and always use high-contrast color
-    let hasBullets = slide.bullets && slide.bullets.length > 0;
-    let hasText = slide.text && slide.text.trim().length > 0;
-    const bodyParagraphs = [];
-    if (hasBullets) {
-      const bulletPoints = slide.bullets
-        .map(b => (typeof b === 'string' ? b.trim() : ''))
-        .filter(b => b.length > 0);
-      bulletPoints.forEach(text => {
-        bodyParagraphs.push({
-          text,
-          options: {
-            bullet: true,
-            fontFace: bodyFontFace,
-            fontSize: bodyFontSize,
-            color: textColorPptx,
-            bold: bodyBold,
-            italic: bodyItalic,
-            align: 'left',
-            paraSpaceAfter: 6
-          }
-        });
-      });
-    }
-    if (hasText) {
-      bodyParagraphs.push({
-        text: slide.text.trim(),
-        options: {
-          bullet: false,
+    // Match old frontend behavior: join bullets with \n and add • prefix
+    if (slideLayout === 'title') {
+      // Title layout: show text or bullets
+      let bodyText = typeof slide.text === 'string' ? slide.text.trim() : '';
+      if (!bodyText && bulletLines.length) {
+        bodyText = bulletLines.map((b) => `• ${b}`).join('\n');
+      }
+      if (bodyText) {
+        pptxSlide.addText(bodyText, {
+          x: titleX,
+          y: 1.6,
+          w: titleW,
+          h: 3.6,
+          color: textColorPptx,
           fontFace: bodyFontFace,
           fontSize: bodyFontSize,
-          color: textColorPptx,
           bold: bodyBold,
           italic: bodyItalic,
-          align: bodyAlign,
-          paraSpaceBefore: hasBullets ? 8 : 0
-        }
-      });
+          align: bodyAlign || 'left',
+          lineSpacing: 20,
+        });
+      } else if (bulletLines.length) {
+        // Fallback: show bullets if no text
+        pptxSlide.addText(bulletLines.map((b) => `• ${b}`).join('\n'), {
+          x: titleX,
+          y: 1.6,
+          w: titleW,
+          h: 3.6,
+          color: textColorPptx,
+          fontFace: bodyFontFace,
+          fontSize: bodyFontSize,
+          bold: bodyBold,
+          italic: bodyItalic,
+          align: bodyAlign || 'left',
+          lineSpacing: 20,
+        });
+      }
+    } else {
+      // Content layout: show bullets or text
+      if (hasBullets) {
+        const bulletText = bulletLines.map((b) => `• ${b}`).join('\n');
+        pptxSlide.addText(bulletText, {
+          x: bodyXPos,
+          y: 1.6,
+          w: bodyWPos,
+          h: 3.6,
+          color: textColorPptx,
+          fontFace: bodyFontFace,
+          fontSize: bodyFontSize,
+          bold: bodyBold,
+          italic: bodyItalic,
+          align: bodyAlign || 'left',
+          lineSpacing: 20,
+        });
+      } else if (hasText) {
+        // Only add text if there are NO bullets (matches old frontend logic)
+        pptxSlide.addText(slide.text.trim(), {
+          x: bodyXPos,
+          y: 1.6,
+          w: bodyWPos,
+          h: 3.6,
+          color: textColorPptx,
+          fontFace: bodyFontFace,
+          fontSize: bodyFontSize,
+          bold: bodyBold,
+          italic: bodyItalic,
+          align: bodyAlign || 'left',
+          lineSpacing: 20,
+        });
+      }
     }
 
-    if (bodyParagraphs.length > 0) {
-      pptxSlide.addText(bodyParagraphs, bodyOpts);
+    // --- FIX FOR TABLES & STICKERS ---
+    
+    // Handle Stickers (Images/Shapes) - match old frontend behavior
+    if (Array.isArray(slide.stickers)) {
+      for (const sticker of slide.stickers) {
+        if (!sticker || !sticker.url) continue;
+
+        let dataUrl = null;
+        
+        // If it's already a data URL, use it directly
+        if (sticker.url.startsWith('data:')) {
+          dataUrl = sticker.url;
+        } else {
+          // Fetch external URL (like pollinations.ai images)
+          try {
+            dataUrl = await fetchImageAsBase64(sticker.url);
+          } catch (err) {
+            console.warn(`Failed to fetch sticker image: ${sticker.url}`, err.message);
+            continue;
+          }
+        }
+
+        if (!dataUrl) continue;
+
+        // Note: SVG rasterization would require additional libraries (sharp, canvas, etc.)
+        // For now, we'll skip SVG rasterization and let PptxGenJS handle it if it can
+        // If SVG support is needed, consider adding sharp or canvas library
+
+        // Convert percentage (0-1) to Inches (10 x 5.625) - match old frontend
+        const x = (sticker.x || 0) * 10.0;
+        const y = (sticker.y || 0) * 5.625;
+        const w = (sticker.width || 0.18) * 10.0;
+        const h = (sticker.height || 0.18) * 5.625;
+        const rotate = sticker.rotate || 0;
+
+        try {
+          pptxSlide.addImage({
+            data: dataUrl,
+            x: x,
+            y: y,
+            w: w,
+            h: h,
+            rotate: rotate
+          });
+        } catch (err) {
+          console.warn(`Failed to add sticker to slide: ${sticker.url}`, err.message);
+        }
+      }
+    }
+
+    // Handle Tables - match old frontend behavior
+    if (Array.isArray(slide.tables)) {
+      for (const tbl of slide.tables) {
+        try {
+          const rowsCount = Math.max(1, tbl?.rows || (Array.isArray(tbl?.cells) ? tbl.cells.length : 1));
+          const colsCount = Math.max(1, tbl?.cols || (Array.isArray(tbl?.cells?.[0]) ? tbl.cells[0].length : 1));
+          
+          // Ensure table cells exist
+          const ensureTableCells = (rows, cols, existing = []) => {
+            return Array.from({ length: rows }, (_, rIdx) => {
+              const srcRow = Array.isArray(existing[rIdx]) ? existing[rIdx] : [];
+              return Array.from({ length: cols }, (_, cIdx) => (srcRow[cIdx] !== undefined ? srcRow[cIdx] : ''));
+            });
+          };
+          
+          const cellMatrix = ensureTableCells(rowsCount, colsCount, tbl?.cells);
+          
+          const fillColor = colorToPptx(tbl?.background || '#FFFFFF', '#FFFFFF');
+          const borderColor = colorToPptx(tbl?.borderColor || '#111827', '#111827');
+          const tableTextColor = colorToPptx(textColorNorm, '#333333');
+          
+          // Convert border width from px to pt (old frontend used pxToPt)
+          const pxToPt = (px) => Number((px * 72 / 96).toFixed(2));
+          const borderPt = pxToPt(typeof tbl?.borderWidth === 'number' ? tbl.borderWidth : 1.33);
+          
+          // Map border style
+          const mapBorderStyle = (style) => {
+            if (style === 'dashed' || style === 'dash') return 'dash';
+            if (style === 'dotted' || style === 'dot') return 'dash';
+            return 'solid';
+          };
+          const borderType = mapBorderStyle(tbl?.borderStyle);
+          
+          // Create border definition for all sides
+          const borderDef = ['t', 'r', 'b', 'l'].map(() => ({ 
+            color: borderColor, 
+            pt: borderPt, 
+            type: borderType 
+          }));
+          
+          // Map table data
+          const tableRows = cellMatrix.map((row) =>
+            row.map((value) => ({
+              text: value || '',
+              options: {
+                fill: { color: fillColor },
+                border: borderDef,
+                color: tableTextColor,
+                fontFace: bodyFontFace,
+                fontSize: bodyFontSize,
+                valign: 'top',
+                align: 'left',
+                margin: [4, 5, 4, 5],
+                wrap: true,
+              },
+            }))
+          );
+          
+          // Calculate table dimensions (match old frontend)
+          const widthFrac = typeof tbl?.width === 'number' && tbl.width > 0 ? tbl.width : 0.5;
+          const heightFrac = typeof tbl?.height === 'number' && tbl.height > 0 ? tbl.height : 0.3;
+          const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+          const SLIDE_WIDTH_IN = 10.0;
+          const SLIDE_HEIGHT_IN = 5.625;
+          
+          const tableWidth = clamp(widthFrac * SLIDE_WIDTH_IN, 1, SLIDE_WIDTH_IN);
+          const tableHeight = clamp(heightFrac * SLIDE_HEIGHT_IN, 0.5, SLIDE_HEIGHT_IN);
+          const tableX = clamp((tbl?.x || 0) * SLIDE_WIDTH_IN, 0, SLIDE_WIDTH_IN - tableWidth);
+          const tableY = clamp((tbl?.y || 0) * SLIDE_HEIGHT_IN, 0, SLIDE_HEIGHT_IN - tableHeight);
+          
+          const colW = Array.from({ length: colsCount }, () => tableWidth / colsCount);
+          const rowH = Array.from({ length: rowsCount }, () => tableHeight / rowsCount);
+          
+          pptxSlide.addTable(tableRows, {
+            x: tableX,
+            y: tableY,
+            w: tableWidth,
+            h: tableHeight,
+            colW,
+            rowH,
+            valign: 'top',
+          });
+        } catch (tableErr) {
+          console.warn('Failed to add table to PPTX export', tableErr);
+        }
+      }
     }
   }
 
