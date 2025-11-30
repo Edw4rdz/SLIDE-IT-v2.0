@@ -29,7 +29,7 @@ html, body {
 .login-container {
   display: flex;
   width: 850px;     /* mid-size width */
-  height: 550px;    /* mid-size height */
+  height: 620px;    /* mid-size height */
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.18);
@@ -50,6 +50,7 @@ html, body {
   font-size: 26px;
   font-weight: 600;
   margin-bottom: 10px;
+  margin-top: 30px;
 }
 
 .title span {
@@ -73,7 +74,8 @@ html, body {
   height: 48px;
   border: 1px solid #ccc;
   border-radius: 6px;
-  padding: 0 36px;
+  
+  padding: 0 15px 0 50px; 
   font-size: 15px;
 }
 
@@ -118,6 +120,9 @@ html, body {
 .signup-text {
   margin-top: 18px;
   font-size: 14px;
+
+  margin-bottom: 20px; /* Adds space after the text */
+  display: block;
 }
 
 .signup-text a {

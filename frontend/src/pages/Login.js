@@ -301,58 +301,71 @@ export default function Login() {
           </h2>
           <p className="subtitle">Sign in to start your session</p>
 
-          <form onSubmit={handleSubmit}>
-            <div className="input-box">
-              <i><FaEnvelope /></i>
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
+         <form onSubmit={handleSubmit}>
+  
+  {/* Email Field Group */}
+  <div className="input-group">
+    <label htmlFor="email" className="input-label">Email Address</label>
+    <div className="input-box">
+      <i><FaEnvelope /></i>
+      <input
+        id="email" // added id for accessibility
+        type="email"
+        placeholder="name@example.com" // updated placeholder to be an example
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        style={{ paddingLeft: "50px" }}
+        disabled={loading}
+      />
+    </div>
+  </div>
+    
+  {/* Password Field Group */}
+  <div className="input-group">
+    <label htmlFor="password" className="input-label">Password</label>
+    <div className="input-box">
+      <i><FaLock /></i>
+      <input
+        id="password" // added id
+        type="password"
+        placeholder="Enter your password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+        style={{ paddingLeft: "50px" }}
+        disabled={loading}
+      />
+    </div>
+  </div>
 
-            <div className="input-box">
-              <i><FaLock /></i>
-              <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
+  <p className="forgot-text" style={{ marginBottom: 12 }}>
+    <a href="/forgot-password">Forgot password?</a>
+  </p>
 
-            <p className="forgot-text" style={{ marginBottom: 12 }}>
-              <a href="/forgot-password">Forgot password?</a>
-            </p>
+  <button type="submit" className="login-btn" disabled={loading}>
+    {loading ? "Logging in..." : "Login"}
+  </button>
 
-            <button type="submit" className="login-btn" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
-            </button>
+  <div className="divider">
+    <span>OR</span>
+  </div>
 
-            <div className="divider">
-              <span>OR</span>
-            </div>
+  <button
+    type="button"
+    className="google-btn"
+    onClick={handleGoogleLogin}
+    disabled={loading}
+  >
+    <FaGoogle className="google-icon" />
+    Continue with Google
+  </button>
 
-            <button
-              type="button"
-              className="google-btn"
-              onClick={handleGoogleLogin}
-              disabled={loading}
-            >
-              <FaGoogle className="google-icon" />
-              Continue with Google
-            </button>
-
-            <p className="signup-text">
-              Don’t have an account? <a href="/signup">Sign up now</a>
-            </p>
-          </form>
-        </div>
+  <p className="signup-text">
+    Don’t have an account? <a href="/signup">Sign up now</a>
+  </p>
+</form>
+</div>
 
         {/* Right side */}
         <div className="login-right">

@@ -23,6 +23,7 @@ export default function Signup() {
   const navigate = useNavigate();
   
   const [showRoleModal, setShowRoleModal] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [pendingDocId, setPendingDocId] = useState(null);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -163,9 +164,6 @@ export default function Signup() {
         })
       );
 
-      // Note: Role modal will be shown after email verification
-      // setPendingDocId(newUserId.toString());
-      // setShowRoleModal(true);
     } catch (err) {
       console.error("❌ Firebase Signup Error:", err);
       let errorMessage = "An error occurred. Please try again.";
@@ -196,7 +194,7 @@ export default function Signup() {
         onSkip={handleRoleSkip}
       />
       
-      <div className="signup-page">
+     <div className="signup-page">
         <div className="signup-container">
         <div className="cover">
           <img src={signupImg} alt="Signup background" />
@@ -213,89 +211,127 @@ export default function Signup() {
 
               {error && <p className="error-message">{error}</p>}
 
-              {/* Two-column fields */}
+              {/* Row 1: Username & First Name */}
               <div className="form-grid two-column">
-                <div className="input-box">
-                  <i><FaUser /></i>
-                  <input
-                    type="text"
-                    placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    disabled={loading}
-                  />
+                
+                {/* Username Group */}
+                <div className="input-group">
+                  <label className="input-label">Username</label>
+                  <div className="input-box">
+                    <i><FaUser /></i>
+                    <input
+                      type="text"
+                      placeholder="e.g. SlideMaster99"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      style={{ paddingLeft: "35px" }}
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
 
-                <div className="input-box">
-                  <i><FaUser /></i>
-                  <input
-                    type="text"
-                    placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="input-box">
-                  <i><FaUser /></i>
-                  <input
-                    type="text"
-                    placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="input-box">
-                  <i><FaCalendarAlt /></i>
-                  <input
-                    type="date"
-                    placeholder="Birthday"
-                    value={birthday}
-                    onChange={(e) => setBirthday(e.target.value)}
-                    disabled={loading}
-                  />
+                {/* First Name Group */}
+                <div className="input-group">
+                  <label className="input-label">First Name</label>
+                  <div className="input-box">
+                    <i><FaUser /></i>
+                    <input
+                      type="text"
+                      placeholder="e.g. John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      style={{ paddingLeft: "35px" }}
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Single-row email */}
-              <div className="form-grid one-column">
-                <div className="input-box">
-                  <i><FaEnvelope /></i>
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading}
-                  />
+              {/* Row 2: Last Name & Birthday */}
+              <div className="form-grid two-column" style={{ marginTop: "16px" }}>
+                
+                {/* Last Name Group */}
+                <div className="input-group">
+                  <label className="input-label">Last Name</label>
+                  <div className="input-box">
+                    <i><FaUser /></i>
+                    <input
+                      type="text"
+                      placeholder="e.g. Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      style={{ paddingLeft: "35px" }}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                {/* Birthday Group */}
+                <div className="input-group">
+                  <label className="input-label">Date of Birth</label>
+                  <div className="input-box">
+                    <i><FaCalendarAlt /></i>
+                    <input
+                      type="date"
+                      value={birthday}
+                      onChange={(e) => setBirthday(e.target.value)}
+                      disabled={loading}
+                      style={{ paddingLeft: "35px" }}
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* Row 3: Email (Full Width) */}
+              <div className="form-grid one-column" style={{ marginTop: "16px" }}>
+                <div className="input-group">
+                  <label className="input-label">Email Address</label>
+                  <div className="input-box">
+                    <i><FaEnvelope /></i>
+                    <input
+                      type="email"
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      style={{ paddingLeft: "35px" }}
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Two-column password fields */}
-              <div className="form-grid two-column">
-                <div className="input-box">
-                  <i><FaLock /></i>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
-                  />
+              {/* Row 4: Passwords */}
+              <div className="form-grid two-column" style={{ marginTop: "16px" }}>
+                
+                {/* Password Group */}
+                <div className="input-group">
+                  <label className="input-label">Password</label>
+                  <div className="input-box">
+                    <i><FaLock /></i>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="6+ characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      style={{ paddingLeft: "35px" }}
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
 
-                <div className="input-box">
-                  <i><FaLock /></i>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={loading}
-                  />
+                {/* Confirm Password Group */}
+                <div className="input-group">
+                  <label className="input-label">Confirm Password</label>
+                  <div className="input-box">
+                    <i><FaLock /></i>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Re-enter password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      style={{ paddingLeft: "35px" }}
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -305,6 +341,7 @@ export default function Signup() {
                   id="showPassword"
                   checked={showPassword}
                   onChange={() => setShowPassword(!showPassword)}
+                  style={{ paddingLeft: "35px" }}
                   disabled={loading}
                 />
                 <label htmlFor="showPassword"> Show Password</label>
