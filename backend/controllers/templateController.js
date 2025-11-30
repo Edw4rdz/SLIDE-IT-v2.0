@@ -5,9 +5,15 @@ import { getAllTemplates, getTemplateDetailsById } from "../services/templateSer
  * Controller Logic: Get all templates and send as JSON.
  * This must now be "async" and wrapped in a try/catch.
  */
+/**
+ * Controller Logic: Get all templates and send as JSON.
+ * Filters based on the authenticated user.
+ */
 export const listTemplates = async (req, res) => {
   try {
-    const templates = await getAllTemplates();
+    // Extract userId from the authenticated request (provided by middleware)
+    const userId = req.user ? req.user.uid : null;
+    const templates = await getAllTemplates(userId);
     res.json(templates);
   } catch (err) {
     console.error("Error fetching templates:", err);

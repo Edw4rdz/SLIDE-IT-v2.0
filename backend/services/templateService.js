@@ -9,7 +9,11 @@ import { db } from "../config/firebaseAdmin.js";
  * Business Logic: Get the list of all prebuilt templates.
  * This function must now be "async" to wait for Firestore.
  */
-export const getAllTemplates = async () => {
+/**
+ * Business Logic: Get the list of templates visible to the user.
+ * Returns both global (pre-built) templates and the user's private uploads.
+ */
+export const getAllTemplates = async (userId) => {
   const templatesRef = db.collection('templates');
   const snapshot = await templatesRef.get();
 
@@ -20,10 +24,18 @@ export const getAllTemplates = async () => {
 
   const templates = [];
   snapshot.forEach(doc => {
-    templates.push({
-      id: doc.id, // Get the document ID
-      ...doc.data() // Get the rest of the data (name, thumbnail, design)
-    });
+    const data = doc.data();
+    // Condition 1: Template is Pre-built / Public
+    // We check for an explicit flag 'isPrebuilt' OR if there is no 'userId' assigned.
+    const isPublic = data.isPrebuilt === true || !data.userId;
+    // Condition 2: Template belongs to the requesting user
+    const isOwner = userId && data.userId === userId;
+    if (isPublic || isOwner) {
+      templates.push({
+        id: doc.id,
+        ...data
+      });
+    }
   });
 
   return templates;

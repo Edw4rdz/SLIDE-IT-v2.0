@@ -873,70 +873,58 @@ export default function EditPreview() {
 
   }, []); 
 
-
+  // Helper to get the current user
+  const getCurrentUser = () => {
+    const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+    if (!userStr) return null;
+    try {
+      return JSON.parse(userStr);
+    } catch {
+      return null;
+    }
+  };
 
   useEffect(() => {
-
     let isMounted = true;
-
     const fetchTemplates = async () => {
-
       setLoadingTemplates(true);
-
       try {
-
         const res = await getTemplates();
-
         if (isMounted) {
+          const apiTemplates = res.data || [];
+          
+          // Get current user and fetch uploaded templates from Local Storage
+          const user = getCurrentUser();
+          const userId = user?.user_id || user?.uid || user?.id || 'guest';
+          const uploadedKey = `uploadedTemplates_${userId}`;
+          const localTemplates = JSON.parse(localStorage.getItem(uploadedKey) || '[]');
 
-          const fetchedTemplates = res.data || [];
-
-          setTemplates(fetchedTemplates);
+          // Merge API templates with Local Storage templates
+          const combinedTemplates = [...apiTemplates, ...localTemplates];
+          setTemplates(combinedTemplates);
 
           const storedTemplate = JSON.parse(localStorage.getItem('selectedTemplate'));
-
           
-
-          if (storedTemplate && storedTemplate.id && fetchedTemplates.find(t => t.id === storedTemplate.id)) {
-
+          if (storedTemplate && storedTemplate.id && combinedTemplates.find(t => t.id === storedTemplate.id)) {
             setCurrentDesign(storedTemplate);
-
             setSelectedTemplateId(storedTemplate.id);
-
           } else if (storedTemplate) {
-
             localStorage.removeItem('selectedTemplate');
-
           }
-
           
-
           setLoadingTemplates(false);
-
         }
-
       } catch (err) {
-
         console.error('Error fetching templates:', err);
-
         if (isMounted) {
-
           setLoadingTemplates(false);
-
         }
-
       }
-
     };
-
     fetchTemplates();
-
     return () => {
-
       isMounted = false;
-
     };
-
   }, []); 
 
 
