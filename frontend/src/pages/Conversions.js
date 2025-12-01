@@ -224,7 +224,7 @@ export default function Conversions() {
             <div className="info-text">
               <p>No conversions available right now.</p>
               <p style={{fontSize: '14px', color: '#666', marginTop: '10px'}}>
-                ℹ️ If Firebase quota is exceeded, history will show empty until quota resets (tomorrow midnight PT).
+                ℹ️ Conversions will reflect here. If it is not loading, Firebase quota is exceeded, history will show empty until quota resets (Every 4pm).
                 Your conversions are still saved and will reappear after the reset.
               </p>
             </div>

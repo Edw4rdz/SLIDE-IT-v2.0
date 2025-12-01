@@ -1,9 +1,9 @@
-
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { convertText, cache } from "../api";
 import Sidebar from "../components/Sidebar";
 import AIProviderModal from "../components/AIProviderModal";
+import "../styles/texttoppt.css";
 
 export default function TextToPPT() {
   const [slides, setSlides] = useState(15);
