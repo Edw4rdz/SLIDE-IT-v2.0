@@ -630,19 +630,22 @@ export const generateFromTextFile = async (req, res) => {
 // Controller: POST /api/generate-pptx
 export const generatePptx = async (req, res) => {
   try {
-    const { slides, design, fileName, includeImages } = req.body;
+    const { slides, design, fileName, includeImages, imageProvider } = req.body;
 
     if (!slides || !Array.isArray(slides) || slides.length === 0) {
       return res.status(400).json({ error: "Slides data is required and must be a non-empty array" });
     }
 
-    console.log(`Generating PPTX for ${slides.length} slides...`);
+    console.log(`Generating PPTX for ${slides.length} slides with imageProvider: ${imageProvider || 'pollinations'}...`);
 
-    const pptxBuffer = await generatePptxFromData({
+    const pptxResult = await generatePptxFromData({
       slides,
       design,
-      includeImages: includeImages || false
+      includeImages: includeImages || false,
+      imageProvider: imageProvider || 'pollinations'
     });
+
+    const pptxBuffer = pptxResult.buffer || pptxResult;
 
     // Set headers for file download
     const pptxFileName = fileName || 'presentation.pptx';
