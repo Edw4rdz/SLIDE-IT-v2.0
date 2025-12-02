@@ -3,23 +3,24 @@ import "../styles/ai-provider-modal.css";
 
 const PROVIDERS = [
   { 
-    value: "openai", 
-    label: "Grok AI", 
-    desc: "Powerful AI for presentation content generation",
-    badge: "Premium",
-    badgeClass: "premium"
-  },
-  { 
     value: "gemini", 
     label: "Gemini", 
-    desc: "Free Tier AI Model",
+    desc: "Fast and reliable AI for presentation content",
     badge: "Free",
     badgeClass: "free"
+  },
+  { 
+    value: "openai", 
+    label: "Grok AI", 
+    desc: "Premium AI (currently unavailable due to rate limits)",
+    badge: "Premium",
+    badgeClass: "premium",
+    disabled: true
   }
 ];
 
 export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
-  const [selectedProvider, setSelectedProvider] = useState("openai");
+  const [selectedProvider, setSelectedProvider] = useState("gemini");
 
   if (!isOpen) return null;
 
@@ -37,7 +38,7 @@ export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
           {PROVIDERS.map((provider) => (
             <label 
               key={provider.value} 
-              className={`ai-provider-option ${selectedProvider === provider.value ? 'selected' : ''}`}
+              className={`ai-provider-option ${selectedProvider === provider.value ? 'selected' : ''} ${provider.disabled ? 'disabled' : ''}`}
             >
               <div className="ai-provider-radio">
                 <input
@@ -45,7 +46,8 @@ export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
                   name="ai-provider"
                   value={provider.value}
                   checked={selectedProvider === provider.value}
-                  onChange={() => setSelectedProvider(provider.value)}
+                  onChange={() => !provider.disabled && setSelectedProvider(provider.value)}
+                  disabled={provider.disabled}
                 />
               </div>
               <div className="ai-provider-option-content">

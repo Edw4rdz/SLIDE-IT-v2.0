@@ -795,9 +795,13 @@ export default function EditPreview() {
           }
         }
         
-        // Update imageProvider if present
-        if (draft.imageProvider) {
+        // Update imageProvider if present in draft, BUT only if not already set via navigation
+        // Navigation state should take priority over saved draft
+        if (draft.imageProvider && !location.state?.imageProvider) {
           setImageProvider(draft.imageProvider);
+          console.log('[DRAFT] Loaded imageProvider from draft:', draft.imageProvider);
+        } else if (location.state?.imageProvider) {
+          console.log('[DRAFT] Using imageProvider from navigation:', location.state.imageProvider);
         }
         
         setDraftLoaded(true);
@@ -1043,11 +1047,11 @@ export default function EditPreview() {
 
         
 
-        // If using Grok, we need to generate images via API
+        // If using Grok, we need to generate images via API IN PARALLEL
 
         if (imageProvider === 'grok') {
 
-          console.log('[AI IMAGE DEBUG] Using Grok image provider');
+          console.log('[AI IMAGE DEBUG] Using Grok image provider - PARALLEL generation');
 
           
 
@@ -1057,47 +1061,67 @@ export default function EditPreview() {
 
           
 
-          for (const slide of editedSlides) {
+          // Create array of promises for parallel execution
 
-            if (slide.id !== undefined) {
+          const imagePromises = editedSlides.map(async (slide) => {
 
-              if (slide.imagePrompt && !slide.uploadedImage) {
+            if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage) {
 
-                try {
+              try {
 
-                  console.log('[AI IMAGE DEBUG - Grok] Generating for slide:', slide.id, 'Prompt:', slide.imagePrompt);
+                console.log('[AI IMAGE DEBUG - Grok] Generating for slide:', slide.id, 'Prompt:', slide.imagePrompt);
 
-                  const imageDataUrl = await generateImageFromGrok(slide.imagePrompt);
+                const imageDataUrl = await generateImageFromGrok(slide.imagePrompt);
 
-                  if (imageDataUrl) {
+                if (imageDataUrl) {
 
-                    urls[slide.id] = imageDataUrl;
+                  return { slideId: slide.id, url: imageDataUrl };
 
-                  } else {
+                } else {
 
-                    console.warn('[AI IMAGE DEBUG - Grok] No image returned for slide:', slide.id);
+                  console.warn('[AI IMAGE DEBUG - Grok] No image returned for slide:', slide.id);
 
-                  }
-
-                } catch (error) {
-
-                  console.error('[AI IMAGE DEBUG - Grok] Error generating image for slide:', slide.id, error);
+                  return null;
 
                 }
 
-              } else {
+              } catch (error) {
 
-                console.log('[AI IMAGE DEBUG - Grok] Slide:', slide.id, 'No prompt or uploaded image.');
+                console.error('[AI IMAGE DEBUG - Grok] Error generating image for slide:', slide.id, error);
+
+                return null;
 
               }
 
-            } else {
+            }
 
-              console.warn('[AI IMAGE DEBUG - Grok] Slide missing ID:', slide);
+            return null;
+
+          });
+
+          
+
+          // Wait for all images to generate in parallel
+
+          const results = await Promise.all(imagePromises);
+
+          
+
+          // Populate urls object with results
+
+          results.forEach(result => {
+
+            if (result && result.slideId && result.url) {
+
+              urls[result.slideId] = result.url;
 
             }
 
-          }
+          });
+
+          
+
+          console.log('[AI IMAGE DEBUG - Grok] All images generated in parallel:', Object.keys(urls).length);
 
         } else {
 

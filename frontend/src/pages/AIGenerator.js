@@ -18,7 +18,7 @@ export default function AIGenerator() {
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [showImageProviderModal, setShowImageProviderModal] = useState(false);
   const [includeImages, setIncludeImages] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState("openai");
+  const [selectedProvider, setSelectedProvider] = useState("gemini");
   const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
  
   const navigate = useNavigate();

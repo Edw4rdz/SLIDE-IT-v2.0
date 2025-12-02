@@ -270,16 +270,89 @@ export const generatePptxFromData = async (requestBody) => {
     throw new Error("No slides data provided");
   }
 
+  console.log(`[PPTX Generation] Starting with ${slides.length} slides, imageProvider: ${imageProvider || 'none'}`);
+
+  // OPTIMIZATION: Pre-generate all images in parallel before creating slides
+  let imageProviderFinal = null;
+  const imageCache = new Map(); // Cache generated images by slide index
+  
+  if (includeImages) {
+    console.log(`[PPTX Generation] Pre-generating images in parallel...`);
+    const imagePromises = slides.map(async (slide, index) => {
+      if (slide.uploadedImage) {
+        imageCache.set(index, slide.uploadedImage);
+        return { index, provider: null };
+      }
+      
+      if (slide.imagePrompt) {
+        try {
+          let imageBase64 = null;
+          let usedProvider = null;
+          
+          if (imageProvider === 'grok') {
+            if (process.env.GROK_IMAGE_API_KEY || process.env.XAI_API_KEY) {
+              imageBase64 = await generateGrokImage(slide.imagePrompt);
+              usedProvider = 'grok';
+              console.log(`[PPTX Generation] Grok image generated for slide ${index + 1}`);
+            } else {
+              throw new Error("No Grok/xAI API key available");
+            }
+          } else {
+            // Pollinations fallback
+            const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
+            if (imageUrl) {
+              imageBase64 = await fetchImageAsBase64(imageUrl);
+              usedProvider = 'pollinations';
+              console.log(`[PPTX Generation] Pollinations image generated for slide ${index + 1}`);
+            }
+          }
+          
+          if (imageBase64) {
+            imageCache.set(index, imageBase64);
+          }
+          return { index, provider: usedProvider };
+        } catch (error) {
+          console.warn(`[PPTX Generation] Failed to generate image for slide ${index + 1}:`, error.message);
+          // Try fallback to Pollinations if Grok fails
+          if (imageProvider === 'grok') {
+            try {
+              const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
+              if (imageUrl) {
+                const fallbackImage = await fetchImageAsBase64(imageUrl);
+                imageCache.set(index, fallbackImage);
+                console.log(`[PPTX Generation] Fallback Pollinations image for slide ${index + 1}`);
+                return { index, provider: 'pollinations' };
+              }
+            } catch (fallbackError) {
+              console.warn(`[PPTX Generation] Fallback also failed for slide ${index + 1}`);
+            }
+          }
+          return { index, provider: null };
+        }
+      }
+      return { index, provider: null };
+    });
+    
+    // Wait for all images to be generated in parallel
+    const results = await Promise.all(imagePromises);
+    
+    // Determine which provider was used
+    const usedProviders = results.filter(r => r && r.provider).map(r => r.provider);
+    if (usedProviders.length > 0) {
+      imageProviderFinal = usedProviders[0]; // Use the first successful provider
+    }
+    
+    console.log(`[PPTX Generation] All images pre-generated (${imageCache.size}/${slides.length})`);
+  }
+
   let pptx = new PptxGenJS();
   // Set layout using the correct method
   pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
   pptx.layout = 'LAYOUT_16x9';
 
-  // Track which provider ultimately supplied images (grok/pollinations/none)
-  let imageProviderFinal = null;
-
-  // Use a 'for...of' loop to handle async image fetching
-  for (const slide of slides) {
+  // Now create slides using the pre-generated images
+  for (let slideIndex = 0; slideIndex < slides.length; slideIndex++) {
+    const slide = slides[slideIndex];
     let pptxSlide = pptx.addSlide();
 
     // 1. DETERMINE STYLES from the 'design' object
@@ -341,43 +414,8 @@ export const generatePptxFromData = async (requestBody) => {
       h: 4.7
     };
 
-    // 2. CHECK FOR IMAGE
-    let imageBase64 = null;
-    if (includeImages) {
-      if (slide.uploadedImage) {
-        imageBase64 = slide.uploadedImage;
-      } else if (slide.imagePrompt) {
-        if (imageProvider === 'grok') {
-          // Try Grok Image Generation first
-          try {
-             // Only attempt if we have a key (simple check, though client throws if missing)
-             if (process.env.GROK_IMAGE_API_KEY || process.env.XAI_API_KEY) {
-                imageBase64 = await generateGrokImage(slide.imagePrompt);
-                imageProviderFinal = imageProviderFinal || 'grok';
-             } else {
-                throw new Error("No Grok/xAI API key available");
-             }
-          } catch (grokError) {
-             console.log(`[Grok Image] Failed (or not configured), falling back to Pollinations. Reason: ${grokError.message}`);
-             // Fallback to Pollinations
-             const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
-             if (imageUrl) {
-               console.log(`Fetching AI image (fallback): ${slide.imagePrompt}`);
-               imageBase64 = await fetchImageAsBase64(imageUrl);
-                imageProviderFinal = imageProviderFinal || 'pollinations';
-             }
-          }
-        } else {
-          // Default to Pollinations
-          const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
-          if (imageUrl) {
-            console.log(`Fetching AI image: ${slide.imagePrompt}`);
-            imageBase64 = await fetchImageAsBase64(imageUrl);
-            imageProviderFinal = imageProviderFinal || 'pollinations';
-          }
-        }
-      }
-    }
+    // 2. GET PRE-GENERATED IMAGE FROM CACHE
+    const imageBase64 = imageCache.get(slideIndex) || null;
 
     // 3. DEFINE LAYOUTS
     let titleOpts, bodyOpts;

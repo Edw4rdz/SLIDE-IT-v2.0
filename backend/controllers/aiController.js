@@ -497,13 +497,14 @@ export const generateFromTopic = async (req, res) => {
       return res.status(400).json({ error: "No topic provided." });
     }
 
-    console.log(`Processing Topic: "${topic}" (Provider: ${provider || 'grok/openai'})`);
+    console.log(`Processing Topic: "${topic}" (Provider: ${provider || 'grok'})`);
     let slides = [];
+    
     if (provider === 'gemini') {
       // Use Gemini API
       const geminiApiKey = process.env.GEMINI_API_KEY;
       if (!geminiApiKey) {
-        throw new Error('Gemini API key not set in environment.');
+        return res.status(500).json({ error: 'Gemini API key not configured. Please contact administrator.' });
       }
       const geminiPrompt = `Create a presentation with about ${slideCount || 10} slides based on the topic below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nTOPIC: ${topic}`;
       const geminiRes = await axios.post(
@@ -519,9 +520,27 @@ export const generateFromTopic = async (req, res) => {
       // Gemini returns text in geminiRes.data.candidates[0].content.parts[0].text
       const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       slides = parseAIResponse(geminiText);
+    } else if (provider === 'openai') {
+      // OpenAI provider not yet implemented
+      return res.status(501).json({ 
+        error: 'OpenAI provider is not currently available. Please use Gemini or Grok (default) provider.',
+        availableProviders: ['gemini', 'grok']
+      });
     } else {
-      // Default: Use Grok/OpenAI
-      slides = await generateTopicsToSlides(topic, slideCount || 10);
+      // Default: Use Grok
+      try {
+        slides = await generateTopicsToSlides(topic, slideCount || 10);
+      } catch (grokError) {
+        // Check if it's a rate limit error
+        if (grokError.message && grokError.message.includes('429')) {
+          return res.status(429).json({ 
+            error: 'Grok API rate limit reached. Your API credits may be exhausted. Please try using Gemini provider or contact administrator.',
+            details: 'Rate limit exceeded',
+            availableProviders: ['gemini']
+          });
+        }
+        throw grokError; // Re-throw if it's not a rate limit error
+      }
     }
 
     // NEW: Upload PPTX to S3 and save to both collections

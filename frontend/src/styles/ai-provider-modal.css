@@ -74,6 +74,17 @@
   background: #eff6ff;
 }
 
+.ai-provider-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ai-provider-option.disabled:hover {
+  border-color: #e2e8f0;
+  background: #ffffff;
+}
+
 .ai-provider-radio {
   margin-top: 4px;
   width: 20px;
