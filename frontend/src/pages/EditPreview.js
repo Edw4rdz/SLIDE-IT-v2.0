@@ -2977,7 +2977,14 @@ export default function EditPreview() {
 
             </select>
 
-            <input type="number" value={s.styles?.titleSize || 32} min={10} max={80} style={{width:64}} onChange={(e) => handleStyleChange(s.id, 'titleSize', Number(e.target.value))} />
+            <input
+              type="number"
+              value={s.styles?.titleSize === undefined ? '' : s.styles?.titleSize}
+              min={10}
+              max={80}
+              style={{ width: 64 }}
+              onChange={(e) => handleStyleChange(s.id, 'titleSize', e.target.value === '' ? undefined : Number(e.target.value))}
+            />
 
             <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'titleBold', !s.styles?.titleBold)} style={{fontWeight: s.styles?.titleBold ? 700 : 400}}>B</button>
 
@@ -3003,7 +3010,14 @@ export default function EditPreview() {
 
             </select>
 
-            <input type="number" value={s.styles?.textSize || 16} min={8} max={48} style={{width:56}} onChange={(e) => handleStyleChange(s.id, 'textSize', Number(e.target.value))} />
+            <input
+              type="number"
+              value={s.styles?.textSize === undefined ? '' : s.styles?.textSize}
+              min={8}
+              max={48}
+              style={{ width: 56 }}
+              onChange={(e) => handleStyleChange(s.id, 'textSize', e.target.value === '' ? undefined : Number(e.target.value))}
+            />
 
             <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'textBold', !s.styles?.textBold)} style={{fontWeight: s.styles?.textBold ? 700 : 400}}>B</button>
 

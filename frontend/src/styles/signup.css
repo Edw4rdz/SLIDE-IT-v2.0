@@ -24,8 +24,8 @@ html, body {
 
 .signup-container {
   display: flex;
-  width: 950px;
-  height: 750px; /* Increased from 600px to fit labels */
+  width: 1040px;
+  height: 820px; /* give a bit more breathing room */
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.18);
@@ -72,7 +72,7 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 35px 40px;
+  padding: 40px 48px;
   background: #fff;
 }
 
@@ -99,13 +99,13 @@ html, body {
 .form-grid.two-column {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 20px;
 }
 
 .form-grid.one-column {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 20px;
   margin-top: 10px;
 }
 .input-label {
@@ -124,9 +124,9 @@ html, body {
 }
 .input-box input {
   width: 100%;
-  height: 46px;
+  height: 48px;
   border: 1px solid #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0 15px 0 50px; 
   font-size: 15px;
 }
@@ -162,8 +162,9 @@ html, body {
   display: block;
 }
 
+/* keep container height override in sync */
 .signup-container {
-  height: 780px; 
+  height: 820px; 
 }
 
 /* Show Password & Button */

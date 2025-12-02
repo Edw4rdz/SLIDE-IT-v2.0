@@ -22,6 +22,27 @@ export default function Signup() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   
+  // Password policy realtime state
+  const [pwdInfo, setPwdInfo] = useState({
+    length: false,
+    upper: false,
+    lower: false,
+    digit: false,
+    noSpace: true,
+  });
+
+  const evaluatePassword = (pwd) => ({
+    length: typeof pwd === 'string' && pwd.length >= 8,
+    upper: /[A-Z]/.test(pwd || ''),
+    lower: /[a-z]/.test(pwd || ''),
+    digit: /\d/.test(pwd || ''),
+    noSpace: !/\s/.test(pwd || ''),
+  });
+
+  const isPasswordValid = (info) => (
+    info.length && info.upper && info.lower && info.digit && info.noSpace
+  );
+  
   const [showRoleModal, setShowRoleModal] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [pendingDocId, setPendingDocId] = useState(null);
@@ -48,8 +69,12 @@ export default function Signup() {
     if (!emailRegex.test(email)) return "Please enter a valid email address.";
 
     if (!password) return "Password is required.";
-    if (password.length < 6) return "Password must be at least 6 characters.";
-    if (/\s/.test(password)) return "Password must not contain spaces.";
+    const info = evaluatePassword(password);
+    if (!info.length) return "Password must be at least 8 characters.";
+    if (!info.upper) return "Password must include at least one uppercase letter.";
+    if (!info.lower) return "Password must include at least one lowercase letter.";
+    if (!info.digit) return "Password must include at least one number.";
+    if (!info.noSpace) return "Password must not contain spaces.";
 
     if (!confirmPassword) return "Please confirm your password.";
     if (password !== confirmPassword) return "Passwords do not match.";
@@ -309,9 +334,18 @@ export default function Signup() {
                     <i><FaLock /></i>
                     <input
                       type={showPassword ? "text" : "password"}
-                      placeholder="6+ characters"
+                      placeholder="8+ characters"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPassword(val);
+                        setPwdInfo(evaluatePassword(val));
+                        if (confirmPassword && val !== confirmPassword) {
+                          setError("Passwords do not match.");
+                        } else if (error && error.startsWith("Passwords do not match")) {
+                          setError("");
+                        }
+                      }}
                       style={{ paddingLeft: "35px" }}
                       disabled={loading}
                     />
@@ -327,12 +361,41 @@ export default function Signup() {
                       type={showPassword ? "text" : "password"}
                       placeholder="Re-enter password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setConfirmPassword(val);
+                        if (password && val && password !== val) {
+                          setError("Passwords do not match.");
+                        } else if (error && error.startsWith("Passwords do not match")) {
+                          setError("");
+                        }
+                      }}
                       style={{ paddingLeft: "35px" }}
                       disabled={loading}
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Password policy checklist */}
+              <div style={{ marginTop: 12, fontSize: 13, color: '#444', lineHeight: 1.45 }}>
+                <div style={{ marginBottom: 4 }}>Password must contain:</div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                  {[
+                    { key: 'length', label: 'At least 8 characters' },
+                    { key: 'upper', label: 'One uppercase letter (A-Z)' },
+                    { key: 'lower', label: 'One lowercase letter (a-z)' },
+                    { key: 'digit', label: 'One number (0-9)' },
+                    { key: 'noSpace', label: 'No spaces' },
+                  ].map((rule) => (
+                    <li key={rule.key}>
+                      <span style={{ color: pwdInfo[rule.key] ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                        {pwdInfo[rule.key] ? '✓' : '✗'}
+                      </span>
+                      <span style={{ marginLeft: 8 }}>{rule.label}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               <div className="show-password">
