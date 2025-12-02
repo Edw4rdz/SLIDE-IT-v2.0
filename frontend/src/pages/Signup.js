@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaEnvelope, FaLock, FaUser, FaCalendarAlt } from "react-icons/fa";
 import signupImg from "../assets/signupImg.jpg";
 import "../styles/signup.css";
+import { notifySignupSuccess, notify } from "../utils/notify";
 import RoleSelectionModal from "../components/RoleSelectionModal";
 
 import { createUserWithEmailAndPassword } from "firebase/auth";
@@ -65,16 +66,16 @@ export default function Signup() {
       }
       
       setShowRoleModal(false);
-      alert("Account Registration Successful! Welcome to SLIDE-IT!");
+      notifySignupSuccess();
       navigate("/login");
     } catch (err) {
       console.error("Error saving role:", err);
-      alert("Failed to save role. Please try again.");
+      notify("Failed to save role. Please try again.");
     }
   }
   const handleRoleSkip = () => {
     setShowRoleModal(false);
-    alert("Account created! You can set your role later in Settings.");
+    notify("Account created! You can set your role later in Settings.");
     navigate("/login");
   };
 
@@ -143,11 +144,11 @@ export default function Signup() {
           });
         } else {
           console.warn("Failed to send OTP:", otpData.message);
-          alert("Account created but failed to send verification email. Please contact support.");
+          notify("Account created but failed to send verification email. Please contact support.");
         }
       } catch (otpError) {
         console.error("Error sending OTP:", otpError);
-        alert("Account created but failed to send verification email. You can verify later from settings.");
+        notify("Account created but failed to send verification email. You can verify later from settings.");
       }
 
       localStorage.setItem(

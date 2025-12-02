@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { notify } from "../utils/notify";
 import { 
   generateSlides, 
   convertPDF, 
@@ -22,11 +23,11 @@ const Generator = () => {
       let response;
 
       if (activeTab === "topic") {
-        if (!topic) return alert("Please enter a topic.");
+        if (!topic) return notify("Please enter a topic.", "error");
         // Call the Topic API
         response = await generateSlides({ topic, slideCount });
       } else {
-        if (!file) return alert("Please upload a file.");
+        if (!file) return notify("Please upload a file.", "error");
         
         // Prepare FormData for file upload
         const formData = new FormData();
@@ -54,11 +55,11 @@ const Generator = () => {
       };
 
       await downloadPPTX(slidesData, defaultDesign, "My_Presentation.pptx");
-      alert("Presentation generated and downloaded!");
+      notify("Presentation generated and downloaded!", "success");
 
     } catch (error) {
       console.error("Generation Failed:", error);
-      alert("Failed to generate slides. " + (error.response?.data?.error || error.message));
+      notify("Failed to generate slides. " + (error.response?.data?.error || error.message), "error");
     } finally {
       setLoading(false);
     }

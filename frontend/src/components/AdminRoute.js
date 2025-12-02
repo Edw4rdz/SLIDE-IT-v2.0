@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { notify } from "../utils/notify";
 import { Navigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
@@ -76,7 +77,7 @@ export default function AdminRoute({ children }) {
 
   if (!isAdmin) {
     // Logged in but not an admin, redirect to dashboard
-    alert("Access denied: Admin privileges required."); // Optional feedback
+    notify("Access denied: Admin privileges required.", "error");
     return <Navigate to="/dashboard" replace />;
   }
 

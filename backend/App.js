@@ -33,6 +33,9 @@ app.use(cors({
     const isAllowed = allowedOrigins.some(allowed => {
       if (allowed === '*') return true;
       if (allowed === origin) return true;
+      // Allow localhost on any port
+      if (origin && /^https?:\/\/localhost:\d+$/i.test(origin)) return true;
+      if (origin && /^https?:\/\/127\.0\.0\.1:\d+$/i.test(origin)) return true;
       // Allow any Vercel preview URL
       if (origin && origin.includes('.vercel.app')) return true;
       return false;
@@ -44,7 +47,9 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
 app.use(express.json({ limit: "25mb" })); // Increase limit for PDF base64
 app.use(express.urlencoded({ extended: true }));

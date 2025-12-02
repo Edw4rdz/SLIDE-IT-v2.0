@@ -1,10 +1,12 @@
 import React, { useState, useRef } from "react";
+import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
 import { convertWord, cache } from "../api";
 import "../styles/wordtoppt.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar";
 import AIProviderModal from "../components/AIProviderModal";
+import ImageProviderModal from "../components/ImageProviderModal";
 
 export default function WordToPPT() {
   const navigate = useNavigate();
@@ -20,8 +22,10 @@ export default function WordToPPT() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showProviderModal, setShowProviderModal] = useState(false);
+  const [showImageProviderModal, setShowImageProviderModal] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState("grockai");
+  const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -33,15 +37,15 @@ export default function WordToPPT() {
     ) {
       setFile(selectedFile);
     } else {
-      alert("Please upload a valid Word file (.docx or .doc)");
+      notify("Please upload a valid Word file (.docx or .doc)", "error");
       setFile(null);
     }
   };
 
   const handleConvert = () => {
-    if (!file) return alert("Please select a Word document first");
+    if (!file) return notify("Please select a Word document first", "error");
     if (!loggedInUser?.user_id)
-      return alert("You must be logged in to convert and save history.");
+      return notify("You must be logged in to convert and save history.", "error");
     setShowProviderModal(true);
   };
 
@@ -51,9 +55,23 @@ export default function WordToPPT() {
     setIsModalOpen(true);
   };
 
-  const handleConversionStart = async (includeImages) => {
+  const handleImageChoice = (includeImages) => {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
+    if (includeImages) {
+      setShowImageProviderModal(true);
+    } else {
+      handleConversionStart(false, null);
+    }
+  };
+
+  const handleImageProviderSelect = (provider) => {
+    setSelectedImageProvider(provider);
+    setShowImageProviderModal(false);
+    handleConversionStart(true, provider);
+  };
+
+  const handleConversionStart = async (includeImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Uploading Word file...");
 
@@ -64,6 +82,9 @@ export default function WordToPPT() {
       formData.append("userId", String(loggedInUser.user_id));
       formData.append("includeImages", String(includeImages));
       formData.append("provider", selectedProvider);
+      if (imgProvider) {
+        formData.append("imageProvider", imgProvider);
+      }
 
       const response = await convertWord(formData);
 
@@ -87,10 +108,10 @@ export default function WordToPPT() {
       if (loggedInUser?.user_id)
         cache.invalidate(`history-${loggedInUser.user_id}`);
 
-      alert("✅ Conversion successful! You can now preview or edit it.");
+      notify("Conversion successful! You can now preview or edit it.", "success");
     } catch (err) {
       console.error("Word conversion error:", err);
-      alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
+      notify(`Conversion failed: ${err.response?.data?.error || err.message}`, "error");
     } finally {
       setIsLoading(false);
       setLoadingText("");
@@ -248,6 +269,13 @@ export default function WordToPPT() {
         onCancel={() => setShowProviderModal(false)}
       />
 
+      {/* Image Provider Selection Modal */}
+      <ImageProviderModal
+        isOpen={showImageProviderModal}
+        onSelect={handleImageProviderSelect}
+        onCancel={() => setShowImageProviderModal(false)}
+      />
+
       {/* Image Option Modal (matches PDFtoPPT) */}
       {isModalOpen && (
         <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
@@ -255,11 +283,11 @@ export default function WordToPPT() {
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
             <div className="ai-modal-buttons">
-              <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
+              <button className="ai-modal-btn text-only-btn" onClick={() => handleImageChoice(false)}>
                 <span className="btn-icon">📄</span>
                 <span className="btn-text">Text Only</span>
               </button>
-              <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
+              <button className="ai-modal-btn include-images-btn" onClick={() => handleImageChoice(true)}>
                 <span className="btn-icon">🖼️</span>
                 <span className="btn-text">Include Images</span>
               </button>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
 import { FaHistory } from "react-icons/fa";
 import {
@@ -98,7 +99,7 @@ export default function Settings() {
         }
       } catch (err) {
         console.error("Error fetching user profile:", err);
-        alert("Failed to load user profile.");
+        notify("Failed to load user profile.", "error");
       } finally {
         setLoading(false);
       }
@@ -132,12 +133,12 @@ export default function Settings() {
   // Update password
   const handlePasswordChange = async () => {
     if (!newPassword || newPassword.length < 6) {
-      alert("New password must be at least 6 characters.");
+      notify("New password must be at least 6 characters.", "error");
       return;
     }
 
     if (!currentPassword) {
-      alert("Please enter your current password.");
+      notify("Please enter your current password.", "error");
       return;
     }
 
@@ -152,12 +153,12 @@ export default function Settings() {
       // Update password
       await updatePassword(user, newPassword);
 
-      alert("✅ Password updated successfully!");
+      notify("Password updated successfully!", "success");
       setNewPassword("");
       setCurrentPassword("");
     } catch (err) {
       console.error("Error updating password:", err);
-      alert("❌ Failed to update password. Please check your current password and try again.");
+      notify("Failed to update password. Please check your current password and try again.", "error");
     }
   };
   const handleFeedbackSubmit = async (e) => {
@@ -219,13 +220,13 @@ export default function Settings() {
             roleDescription: roleData.roleDescription || "",
           }));
           
-          alert("✅ Role updated successfully!");
+          notify("Role updated successfully!", "success");
         }
       }
       setShowRoleModal(false);
-    } catch (err) {
+      } catch (err) {
       console.error("Error updating role:", err);
-      alert("❌ Failed to update role. Please try again.");
+      notify("Failed to update role. Please try again.", "error");
     }
   };
 

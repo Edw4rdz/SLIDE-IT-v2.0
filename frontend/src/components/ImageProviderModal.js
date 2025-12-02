@@ -3,23 +3,23 @@ import "../styles/ai-provider-modal.css";
 
 const PROVIDERS = [
   { 
-    value: "openai", 
-    label: "Grok AI", 
-    desc: "Powerful AI for presentation content generation",
-    badge: "Premium",
-    badgeClass: "premium"
-  },
-  { 
-    value: "gemini", 
-    label: "Gemini", 
-    desc: "Free Tier AI Model",
+    value: "pollinations", 
+    label: "Pollinations", 
+    desc: "Fast and free tier AI image generation",
     badge: "Free",
     badgeClass: "free"
+  },
+  { 
+    value: "grok", 
+    label: "Grok Image", 
+    desc: "Higher quality with faster delivery",
+    badge: "Premium",
+    badgeClass: "premium"
   }
 ];
 
-export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
-  const [selectedProvider, setSelectedProvider] = useState("openai");
+export default function ImageProviderModal({ isOpen, onSelect, onCancel }) {
+  const [selectedProvider, setSelectedProvider] = useState("pollinations");
 
   if (!isOpen) return null;
 
@@ -27,9 +27,9 @@ export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
     <div className="ai-provider-modal-overlay">
       <div className="ai-provider-modal-content">
         <div className="ai-provider-modal-header">
-          <h2 className="ai-provider-modal-title">Select AI Provider</h2>
+          <h2 className="ai-provider-modal-title">Select Image Provider</h2>
           <p className="ai-provider-modal-subtitle">
-            Choose the AI model to generate your presentation content
+            Choose the service to generate images for your slides
           </p>
         </div>
 
@@ -42,7 +42,7 @@ export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
               <div className="ai-provider-radio">
                 <input
                   type="radio"
-                  name="ai-provider"
+                  name="image-provider"
                   value={provider.value}
                   checked={selectedProvider === provider.value}
                   onChange={() => setSelectedProvider(provider.value)}

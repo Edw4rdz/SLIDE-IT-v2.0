@@ -16,50 +16,39 @@ import {
   where, 
   getDocs 
 } from "firebase/firestore";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { notify } from "../utils/notify";
 
 // We accept 'activePage' and 'isAdmin' as props
 export default function Sidebar({ activePage, isAdmin }) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
-    const confirmLogout = window.confirm("Are you sure you want to log out?");
-    if (!confirmLogout) return;
-
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const handleLogout = () => setConfirmOpen(true);
+  const confirmLogout = async () => {
+    setConfirmOpen(false);
     setLoggingOut(true);
     const auth = getAuth();
     const db = getFirestore();
     const user = auth.currentUser;
-
     try {
       if (user) {
-        // 1. Try to find the user document using the Auth ID
         let userDocRef = doc(db, "users", user.uid);
-        
-        // Check if the user is stored under a different ID but has the authUID field
         const userDocSnap = await getDocs(query(collection(db, "users"), where("authUID", "==", user.uid)));
-
-        // 2. If found via query (authUID), switch to that reference
         if (!userDocSnap.empty) {
           userDocRef = doc(db, "users", userDocSnap.docs[0].id);
         }
-
-        // 3. Update the correct document
-        await updateDoc(userDocRef, {
-          isOnline: false,
-          lastLogout: serverTimestamp()
-        });
+        await updateDoc(userDocRef, { isOnline: false, lastLogout: serverTimestamp() });
       }
-
-      // 4. Sign out and clean up
       await signOut(auth);
       localStorage.removeItem("user");
       sessionStorage.removeItem("user");
+      notify("Logged out successfully.", "success");
       navigate("/login");
     } catch (err) {
       console.error("Logout error:", err);
-      // Force logout even if DB update fails
-      await signOut(auth);
+      try { await signOut(auth); } catch {}
       localStorage.removeItem("user");
       navigate("/login");
     } finally {
@@ -125,6 +114,19 @@ export default function Sidebar({ activePage, isAdmin }) {
           </button>
         </div>
       </nav>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={confirmLogout}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </aside>
   );
 }
+
+// Render confirm dialog near component root
+// eslint-disable-next-line react/no-unknown-property
+//

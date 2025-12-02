@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+import { notify } from "../utils/notify";
 import AIProviderModal from "../components/AIProviderModal";
+import ImageProviderModal from "../components/ImageProviderModal";
 import { useNavigate } from "react-router-dom";
 import { FaMagic, FaEdit } from "react-icons/fa";
 import { generateSlides, cache } from "../api"; // <-- Added cache import
@@ -14,8 +16,10 @@ export default function AIGenerator() {
   const [convertedSlides, setConvertedSlides] = useState([]);
   const [showImageModal, setShowImageModal] = useState(false);
   const [showProviderModal, setShowProviderModal] = useState(false);
+  const [showImageProviderModal, setShowImageProviderModal] = useState(false);
   const [includeImages, setIncludeImages] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("openai");
+  const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
  
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
@@ -23,8 +27,8 @@ export default function AIGenerator() {
   // Show image modal before generating
   // Show provider modal before image modal
   const handleGenerateClick = () => {
-    if (!topic.trim()) return alert("Please enter a topic first!");
-    if (!loggedInUser?.user_id) return alert("User not logged in. Cannot save history.");
+    if (!topic.trim()) return notify("Please enter a topic first!", "error");
+    if (!loggedInUser?.user_id) return notify("User not logged in. Cannot save history.", "error");
     setShowProviderModal(true);
   };
 
@@ -35,10 +39,24 @@ export default function AIGenerator() {
     setShowImageModal(true);
   };
 
- 
-  const handleGenerate = async (includeAIImages) => {
+  const handleGenerate = (includeAIImages) => {
     setShowImageModal(false);
     setIncludeImages(includeAIImages);
+
+    if (includeAIImages) {
+      setShowImageProviderModal(true);
+    } else {
+      startGeneration(false, null);
+    }
+  };
+
+  const handleImageProviderSelect = (provider) => {
+    setSelectedImageProvider(provider);
+    setShowImageProviderModal(false);
+    startGeneration(true, provider);
+  };
+ 
+  const startGeneration = async (includeAIImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Initializing AI generation...");
     setConvertedSlides([]);
@@ -50,6 +68,7 @@ export default function AIGenerator() {
         userId: loggedInUser.user_id,
         includeImages: includeAIImages,
         provider: selectedProvider,
+        imageProvider: imgProvider,
       });
 
       const payload = res?.data;
@@ -75,7 +94,7 @@ export default function AIGenerator() {
       }
     } catch (err) {
       console.error(err);
-      alert("AI slide generation failed: " + (err.response?.data?.error || err.message));
+      notify("AI slide generation failed: " + (err.response?.data?.error || err.message), "error");
     } finally {
       setIsLoading(false);
       setLoadingText("");
@@ -85,7 +104,7 @@ export default function AIGenerator() {
   // Navigate to Edit & Preview page (FIXED)
   const handleNavigateToEdit = () => {
     if (!convertedSlides || convertedSlides.length === 0) {
-      return alert("Please generate slides first!");
+      return notify("Please generate slides first!", "error");
     }
 
     navigate("/edit-preview", {
@@ -94,6 +113,7 @@ export default function AIGenerator() {
         topic,
         includeImages: !!includeImages, // ensure EditPreview shows image column
         imageSource: includeImages ? 'ai' : 'none',
+        imageProvider: selectedImageProvider, // Pass the selected image provider
       },
     });
   };
@@ -215,6 +235,13 @@ export default function AIGenerator() {
         isOpen={showProviderModal}
         onSelect={handleProviderSelect}
         onCancel={() => setShowProviderModal(false)}
+      />
+
+      {/* Image Provider Selection Modal */}
+      <ImageProviderModal
+        isOpen={showImageProviderModal}
+        onSelect={handleImageProviderSelect}
+        onCancel={() => setShowImageProviderModal(false)}
       />
 
       {/* Image Generation Modal */}

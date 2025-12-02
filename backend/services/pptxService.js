@@ -2,7 +2,7 @@
 import PptxGenJS from "pptxgenjs";
 import axios from "axios";
 import { PNG } from "pngjs";
-
+import { grokClient, GROK_IMAGE_MODEL } from "../config/grokConfig.js"; // Import Grok client
 
 /**
  * Normalize arbitrary color inputs (arrays, gradients, rgb/hex strings) to #RRGGBB
@@ -193,6 +193,45 @@ function getPollinationsImageUrl(prompt) {
 }
 
 /**
+ * Helper to generate image using Grok API
+ */
+async function generateGrokImage(prompt) {
+  if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;
+  
+  try {
+    console.log(`[Grok Image] Generating image for prompt: "${prompt}"`);
+    
+    // Note: This assumes Grok/xAI follows OpenAI's image generation API structure
+    // Adjust parameters as needed based on official xAI documentation
+    const response = await grokClient.images.generate({
+      model: GROK_IMAGE_MODEL,
+      prompt: prompt,
+      n: 1,
+      response_format: "b64_json" // Request base64 directly
+    });
+        // x.ai images API does not support 'size'; omit to avoid 400 errors
+
+    if (response.data && response.data.length > 0) {
+      const image = response.data[0];
+      if (image.b64_json) {
+        return `data:image/png;base64,${image.b64_json}`;
+      } else if (image.url) {
+        // If URL is returned, fetch it
+        return await fetchImageAsBase64(image.url);
+      }
+    }
+    
+    throw new Error("No image data returned from Grok API");
+  } catch (error) {
+    console.error("[Grok Image] Generation failed:", error.message);
+    if (error.response) {
+      console.error("[Grok Image] API Error Data:", error.response.data);
+    }
+    throw error; // Re-throw to trigger fallback
+  }
+}
+
+/**
  * Fetches an image from a URL and returns it as a base64 string.
  * This runs on the server, so it will not have browser-related (CORS) errors.
  */
@@ -214,7 +253,7 @@ const fetchImageAsBase64 = async (url) => {
  * Main service function to generate the PPTX from frontend data.
  */
 export const generatePptxFromData = async (requestBody) => {
-  const { slides, includeImages } = requestBody;
+  const { slides, includeImages, imageProvider } = requestBody;
   const incomingDesign = typeof requestBody.design === 'object' && requestBody.design !== null
     ? requestBody.design
     : {};
@@ -235,6 +274,9 @@ export const generatePptxFromData = async (requestBody) => {
   // Set layout using the correct method
   pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
   pptx.layout = 'LAYOUT_16x9';
+
+  // Track which provider ultimately supplied images (grok/pollinations/none)
+  let imageProviderFinal = null;
 
   // Use a 'for...of' loop to handle async image fetching
   for (const slide of slides) {
@@ -305,10 +347,34 @@ export const generatePptxFromData = async (requestBody) => {
       if (slide.uploadedImage) {
         imageBase64 = slide.uploadedImage;
       } else if (slide.imagePrompt) {
-        const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
-        if (imageUrl) {
-          console.log(`Fetching AI image: ${slide.imagePrompt}`);
-          imageBase64 = await fetchImageAsBase64(imageUrl);
+        if (imageProvider === 'grok') {
+          // Try Grok Image Generation first
+          try {
+             // Only attempt if we have a key (simple check, though client throws if missing)
+             if (process.env.GROK_IMAGE_API_KEY || process.env.XAI_API_KEY) {
+                imageBase64 = await generateGrokImage(slide.imagePrompt);
+                imageProviderFinal = imageProviderFinal || 'grok';
+             } else {
+                throw new Error("No Grok/xAI API key available");
+             }
+          } catch (grokError) {
+             console.log(`[Grok Image] Failed (or not configured), falling back to Pollinations. Reason: ${grokError.message}`);
+             // Fallback to Pollinations
+             const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
+             if (imageUrl) {
+               console.log(`Fetching AI image (fallback): ${slide.imagePrompt}`);
+               imageBase64 = await fetchImageAsBase64(imageUrl);
+                imageProviderFinal = imageProviderFinal || 'pollinations';
+             }
+          }
+        } else {
+          // Default to Pollinations
+          const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
+          if (imageUrl) {
+            console.log(`Fetching AI image: ${slide.imagePrompt}`);
+            imageBase64 = await fetchImageAsBase64(imageUrl);
+            imageProviderFinal = imageProviderFinal || 'pollinations';
+          }
         }
       }
     }
@@ -629,5 +695,5 @@ export const generatePptxFromData = async (requestBody) => {
   }
   
   console.log(`PPTX buffer ready, size: ${pptxBuffer.length} bytes`);
-  return pptxBuffer;
+  return { buffer: pptxBuffer, imageProviderFinal: imageProviderFinal || (includeImages ? 'none' : null) };
 };
