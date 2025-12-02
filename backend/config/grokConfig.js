@@ -3,15 +3,16 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-if (!process.env.XAI_API_KEY) {
-  throw new Error("XAI_API_KEY is missing in environment variables.");
+const xaiKey = process.env.GROK_IMAGE_API_KEY || process.env.XAI_API_KEY;
+if (!xaiKey) {
+  throw new Error("Missing xAI API key: set GROK_IMAGE_API_KEY or XAI_API_KEY.");
 }
 
-
 export const grokClient = new OpenAI({
-  apiKey: process.env.XAI_API_KEY,
+  apiKey: xaiKey,
   baseURL: "https://api.x.ai/v1",
 });
 
-
 export const GROK_MODEL = "grok-4";
+// Prefer env override; default to the currently-deployed Grok image model
+export const GROK_IMAGE_MODEL = process.env.GROK_IMAGE_MODEL || "grok-2-image";

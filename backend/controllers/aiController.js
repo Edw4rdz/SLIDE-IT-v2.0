@@ -56,6 +56,51 @@ export const generatePollinationsImage = async (req, res) => {
     res.status(502).json({ success: false, error: "Failed to generate image", details: error.message });
   }
 };
+
+// Controller: POST /api/generate-grok-image
+export const generateGrokImageAPI = async (req, res) => {
+  try {
+    let { prompt } = req.body;
+    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+      return res.status(400).json({ success: false, error: "Missing or invalid prompt" });
+    }
+    
+    // Import Grok configuration
+    const { grokClient, GROK_IMAGE_MODEL } = await import("../config/grokConfig.js");
+    
+    console.log(`[Grok Image API] Generating image for prompt: "${prompt}"`);
+    
+    // Call Grok API to generate image
+    const response = await grokClient.images.generate({
+      model: GROK_IMAGE_MODEL,
+      prompt: prompt,
+      n: 1,
+      response_format: "b64_json"
+    });
+    
+    if (response.data && response.data.length > 0) {
+      const image = response.data[0];
+      if (image.b64_json) {
+        return res.json({ success: true, base64: image.b64_json, cached: false });
+      } else if (image.url) {
+        // If URL is returned, fetch it and convert to base64
+        const axios = (await import("axios")).default;
+        const imgResponse = await axios.get(image.url, { responseType: 'arraybuffer' });
+        const base64 = Buffer.from(imgResponse.data, 'binary').toString('base64');
+        return res.json({ success: true, base64, cached: false });
+      }
+    }
+    
+    throw new Error("No image data returned from Grok API");
+  } catch (error) {
+    console.error("[Grok Image API] Generation failed:", error.message);
+    if (error.response) {
+      console.error("[Grok Image API] Error Data:", error.response.data);
+    }
+    res.status(502).json({ success: false, error: "Failed to generate Grok image", details: error.message });
+  }
+};
+
 import { 
   convertPdfToSlides, 
   convertWordToSlides, 
@@ -83,11 +128,11 @@ const getFileBuffer = (file) => {
  * @returns {Promise<Object>} - Upload results with URLs
  */
 const handlePptxUploadAndSave = async (slides, params) => {
-  const { userId, fileName, conversionType, includeImages, previewThumb } = params;
+  const { userId, fileName, conversionType, includeImages, previewThumb, imageProvider } = params;
   
   console.log(`\n${'='.repeat(60)}`);
   console.log(`[UPLOAD FLOW] Starting for ${fileName}`);
-  console.log(`[UPLOAD FLOW] User: ${userId}, Slides: ${slides.length}, Type: ${conversionType}`);
+  console.log(`[UPLOAD FLOW] User: ${userId}, Slides: ${slides.length}, Type: ${conversionType}, ImageProvider: ${imageProvider}`);
   console.log(`${'='.repeat(60)}\n`);
   
   // First, ALWAYS save to history collection (for backward compatibility and UI display)
@@ -101,7 +146,8 @@ const handlePptxUploadAndSave = async (slides, params) => {
         conversionType,
         includeImages: includeImages || false,
         previewThumb: previewThumb || null,
-        slides
+        slides,
+        imageProviderRequested: imageProvider || null
       });
       historyId = historyRecord.id;
       console.log(`✅ [Step 1/4] History saved with ID: ${historyId}`);
@@ -115,7 +161,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
   try {
     // 1. Generate PPTX file from slides
     console.log(`[Step 2/4] Starting PPTX generation for ${slides.length} slides...`);
-    const pptxBuffer = await generatePptxFromData({
+    const pptxResult = await generatePptxFromData({
       slides,
       design: {
         globalBackground: '#ffffff',
@@ -124,9 +170,12 @@ const handlePptxUploadAndSave = async (slides, params) => {
         font: 'Arial',
         layouts: {}
       },
-      includeImages: includeImages || false
+      includeImages: includeImages || false,
+      imageProvider: imageProvider
     });
 
+    const pptxBuffer = pptxResult.buffer;
+    const imageProviderFinal = pptxResult.imageProviderFinal || imageProvider || null;
     console.log(`✅ [Step 2/4] PPTX generated, size: ${pptxBuffer.length} bytes`);
 
     // 2. Upload to S3
@@ -155,7 +204,9 @@ const handlePptxUploadAndSave = async (slides, params) => {
         fileSize: pptxBuffer.length,
         slideCount: slides.length,
         includeImages: includeImages || false,
-        previewThumb: previewThumb || null
+        previewThumb: previewThumb || null,
+        imageProviderRequested: imageProvider || null,
+        imageProviderFinal: imageProviderFinal || null
       });
 
       console.log(`✅ [Step 4/4] Conversions saved with ID: ${conversionRecord.id}`);
@@ -174,7 +225,8 @@ const handlePptxUploadAndSave = async (slides, params) => {
       s3Url: s3Result.url,
       s3Key: s3Result.key,
       fileSize: pptxBuffer.length,
-      historyId
+      historyId,
+      imageProviderFinal
     };
 
   } catch (error) {
@@ -212,6 +264,7 @@ export const generateFromPdf = async (req, res) => {
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
     const provider = req.body.provider || 'grockai';
+    const imageProvider = req.body.imageProvider || 'pollinations';
     const buffer = getFileBuffer(req.file);
 
     console.log(`Processing PDF: ${req.file.originalname} (Provider: ${provider})`);
@@ -254,7 +307,8 @@ export const generateFromPdf = async (req, res) => {
         fileName: req.file.originalname || 'PDF Presentation',
         conversionType: 'PDF-to-PPTs',
         includeImages,
-        previewThumb
+        previewThumb,
+        imageProvider
       });
       console.log(`[PDF] Upload result:`, uploadResult);
     }
@@ -290,6 +344,7 @@ export const generateFromWord = async (req, res) => {
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
     const provider = req.body.provider || 'grockai';
+    const imageProvider = req.body.imageProvider || 'pollinations';
     const buffer = getFileBuffer(req.file);
 
     console.log(`Processing Word Doc: ${req.file.originalname} (Provider: ${provider})`);
@@ -333,7 +388,8 @@ export const generateFromWord = async (req, res) => {
         fileName: req.file.originalname || 'Word Presentation',
         conversionType: 'DOCX/WORD-to-PPTs',
         includeImages,
-        previewThumb
+        previewThumb,
+        imageProvider
       });
       console.log(`[WORD] Upload result:`, uploadResult);
     }
@@ -366,6 +422,7 @@ export const generateFromExcel = async (req, res) => {
     const slideCount = req.body.slideCount || 10;
     const userId = req.body.userId || null;
     const provider = req.body.provider || 'grockai';
+    const imageProvider = req.body.imageProvider || 'pollinations';
     const buffer = getFileBuffer(req.file);
 
     console.log(`Processing Excel: ${req.file.originalname} (Provider: ${provider})`);
@@ -414,7 +471,8 @@ export const generateFromExcel = async (req, res) => {
         fileName: req.file.originalname || 'Excel Presentation',
         conversionType: 'Excel-to-PPTs',
         includeImages,
-        previewThumb: null
+        previewThumb: null,
+        imageProvider
       });
       console.log(`[EXCEL] Upload result:`, uploadResult);
     }
@@ -433,19 +491,20 @@ export const generateFromExcel = async (req, res) => {
 
 export const generateFromTopic = async (req, res) => {
   try {
-    const { topic, slideCount, userId, includeImages, previewThumb, provider } = req.body;
+    const { topic, slideCount, userId, includeImages, previewThumb, provider, imageProvider } = req.body;
 
     if (!topic) {
       return res.status(400).json({ error: "No topic provided." });
     }
 
-    console.log(`Processing Topic: "${topic}" (Provider: ${provider || 'grok/openai'})`);
+    console.log(`Processing Topic: "${topic}" (Provider: ${provider || 'grok'})`);
     let slides = [];
+    
     if (provider === 'gemini') {
       // Use Gemini API
       const geminiApiKey = process.env.GEMINI_API_KEY;
       if (!geminiApiKey) {
-        throw new Error('Gemini API key not set in environment.');
+        return res.status(500).json({ error: 'Gemini API key not configured. Please contact administrator.' });
       }
       const geminiPrompt = `Create a presentation with about ${slideCount || 10} slides based on the topic below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nTOPIC: ${topic}`;
       const geminiRes = await axios.post(
@@ -461,9 +520,27 @@ export const generateFromTopic = async (req, res) => {
       // Gemini returns text in geminiRes.data.candidates[0].content.parts[0].text
       const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       slides = parseAIResponse(geminiText);
+    } else if (provider === 'openai') {
+      // OpenAI provider not yet implemented
+      return res.status(501).json({ 
+        error: 'OpenAI provider is not currently available. Please use Gemini or Grok (default) provider.',
+        availableProviders: ['gemini', 'grok']
+      });
     } else {
-      // Default: Use Grok/OpenAI
-      slides = await generateTopicsToSlides(topic, slideCount || 10);
+      // Default: Use Grok
+      try {
+        slides = await generateTopicsToSlides(topic, slideCount || 10);
+      } catch (grokError) {
+        // Check if it's a rate limit error
+        if (grokError.message && grokError.message.includes('429')) {
+          return res.status(429).json({ 
+            error: 'Grok API rate limit reached. Your API credits may be exhausted. Please try using Gemini provider or contact administrator.',
+            details: 'Rate limit exceeded',
+            availableProviders: ['gemini']
+          });
+        }
+        throw grokError; // Re-throw if it's not a rate limit error
+      }
     }
 
     // NEW: Upload PPTX to S3 and save to both collections
@@ -474,7 +551,8 @@ export const generateFromTopic = async (req, res) => {
         fileName: String(topic).slice(0, 80) || 'AI Topic Presentation',
         conversionType: 'AI-Generated PPTs',
         includeImages: !!includeImages,
-        previewThumb: previewThumb || null
+        previewThumb: previewThumb || null,
+        imageProvider: imageProvider
       });
       console.log(`[TOPIC] Upload result:`, uploadResult);
     }
@@ -509,6 +587,7 @@ export const generateFromTextFile = async (req, res) => {
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
     const provider = req.body.provider || 'grockai';
+    const imageProvider = req.body.imageProvider || 'pollinations';
     const buffer = getFileBuffer(req.file);
 
     console.log(`Processing Text File: ${req.file.originalname} (Provider: ${provider})`);
@@ -549,7 +628,8 @@ export const generateFromTextFile = async (req, res) => {
         fileName: req.file.originalname || 'Text Presentation',
         conversionType: 'TxT-to-PPTs',
         includeImages,
-        previewThumb
+        previewThumb,
+        imageProvider
       });
       console.log(`[TEXT] Upload result:`, uploadResult);
     }
@@ -569,19 +649,22 @@ export const generateFromTextFile = async (req, res) => {
 // Controller: POST /api/generate-pptx
 export const generatePptx = async (req, res) => {
   try {
-    const { slides, design, fileName, includeImages } = req.body;
+    const { slides, design, fileName, includeImages, imageProvider } = req.body;
 
     if (!slides || !Array.isArray(slides) || slides.length === 0) {
       return res.status(400).json({ error: "Slides data is required and must be a non-empty array" });
     }
 
-    console.log(`Generating PPTX for ${slides.length} slides...`);
+    console.log(`Generating PPTX for ${slides.length} slides with imageProvider: ${imageProvider || 'pollinations'}...`);
 
-    const pptxBuffer = await generatePptxFromData({
+    const pptxResult = await generatePptxFromData({
       slides,
       design,
-      includeImages: includeImages || false
+      includeImages: includeImages || false,
+      imageProvider: imageProvider || 'pollinations'
     });
+
+    const pptxBuffer = pptxResult.buffer || pptxResult;
 
     // Set headers for file download
     const pptxFileName = fileName || 'presentation.pptx';

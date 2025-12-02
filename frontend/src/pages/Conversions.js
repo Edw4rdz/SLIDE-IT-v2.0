@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {useNavigate } from "react-router-dom";
 import { getHistory, deleteHistory, downloadPPTX } from "../api"; 
+import { notify } from "../utils/notify";
 import "../styles/dashboard.css";
 import "../styles/conversion.css";
 import Sidebar from "../components/Sidebar"; 
+import ConfirmDialog from "../components/ConfirmDialog";
 
 export default function Conversions() {
   const navigate = useNavigate();
@@ -50,22 +52,27 @@ export default function Conversions() {
   }, [navigate]);
 
   // ✅ Delete Conversion
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this conversion permanently?")) return;
+  const [confirm, setConfirm] = useState({ open: false, id: null });
+
+  const requestDelete = (id) => setConfirm({ open: true, id });
+
+  const handleDelete = async () => {
+    const id = confirm.id;
+    setConfirm({ open: false, id: null });
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user || !user.user_id) {
-        alert("User not found. Please log in again.");
+          notify("User not found. Please log in again.", "error");
         navigate("/login");
         return;
       }
       // Uses the new function from api.js
       await deleteHistory(id, user.user_id);
       setHistory((prev) => prev.filter((c) => c.id !== id));
-      alert("Conversion deleted successfully!");
+      notify("Conversion deleted successfully!", "success");
     } catch (err) {
       console.error("Error deleting conversion:", err);
-      alert(`Failed to delete conversion: ${err.response?.data?.error || err.message}`);
+      notify(`Failed to delete conversion: ${err.response?.data?.error || err.message}`, "error");
     }
   };
 
@@ -102,7 +109,7 @@ export default function Conversions() {
 
   const handleDownload = (conv) => {
     if (!conv.slides || conv.slides.length === 0) {
-      return alert("No slide data found to download.");
+      return notify("No slide data found to download.", "error");
     }
     const designForDownload = conv.draftDesign || conv.design || DEFAULT_DESIGN;
     const safeFileName = conv.fileName || "presentation.pptx";
@@ -317,7 +324,7 @@ export default function Conversions() {
                       </button>
                       <button
                         className="delete-btn"
-                        onClick={() => handleDelete(conv.id)}
+                        onClick={() => requestDelete(conv.id)}
                       >
                         🗑️ Delete
                       </button>
@@ -329,6 +336,15 @@ export default function Conversions() {
           )}
         </div>
       </main>
+      <ConfirmDialog
+        open={confirm.open}
+        title="Delete Conversion"
+        message="Delete this conversion permanently?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirm({ open: false, id: null })}
+      />
     </div>
   );
 } 

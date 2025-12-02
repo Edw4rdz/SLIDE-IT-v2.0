@@ -4,6 +4,7 @@ import loginImg from "../assets/loginImg.jpg";
 import "../styles/login.css";
 import { useNavigate } from "react-router-dom";
 import RoleSelectionModal from "../components/RoleSelectionModal";
+import { notifyLoginSuccess, notifyEmailVerificationRequired, notify } from "../utils/notify";
 
 import {
   signInWithEmailAndPassword,
@@ -56,7 +57,7 @@ export default function Login() {
       }
       
       setShowRoleModal(false);
-      alert("Welcome to SLIDE-IT!");
+      notify("Welcome to SLIDE-IT!");
       
       if (pendingUserData?.isAdmin === true) {
         navigate("/admin");
@@ -65,14 +66,14 @@ export default function Login() {
       }
     } catch (err) {
       console.error("Error saving role:", err);
-      alert("Failed to save role. Please try again.");
+      notify("Failed to save role. Please try again.");
     }
   };
 
 
   const handleRoleSkip = () => {
     setShowRoleModal(false);
-    alert("You can set your role later in Settings.");
+    notify("You can set your role later in Settings.");
     
     if (pendingUserData?.isAdmin === true) {
       navigate("/admin");
@@ -85,7 +86,7 @@ export default function Login() {
     e.preventDefault();
 
     if (!email || !password) {
-      alert("Please fill all fields.");
+      notify("Please fill all fields.");
       return;
     }
 
@@ -120,7 +121,7 @@ export default function Login() {
         if (userDataFromDb?.emailVerified === false) {
           await auth.signOut();
           setLoading(false);
-          alert("Please verify your email before logging in.");
+          notifyEmailVerificationRequired();
           // Redirect to verify page so they can enter the OTP if they have it
           navigate("/verify-otp", { 
             state: { 
@@ -154,7 +155,7 @@ export default function Login() {
         return; 
       }
       
-      alert("Login successful!");
+      notifyLoginSuccess(localUser?.username);
       
       if (userDataFromDb?.isAdmin === true) {
         navigate("/admin");
@@ -186,7 +187,7 @@ export default function Login() {
         errorMessage = `Login failed: ${err.message || "Unknown error"}. Please try again.`;
       }
 
-      alert(errorMessage);
+      notify(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -249,7 +250,7 @@ export default function Login() {
         return; 
       }
       
-      alert("Welcome, " + (localUser.username) + "!");
+      notifyLoginSuccess(localUser.username);
 
       if (userDataFromDb?.isAdmin === true) {
         navigate("/admin");
@@ -278,7 +279,7 @@ export default function Login() {
         errorMessage = `Google sign-in failed: ${err.message}`;
       }
 
-      alert(errorMessage);
+      notify(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
 import { FaImages, FaFileAlt } from "react-icons/fa";
 import { convertPDF, cache } from "../api"; 
@@ -6,6 +7,7 @@ import "../styles/pdftoppt.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import Sidebar from "../components/Sidebar"; 
 import AIProviderModal from "../components/AIProviderModal";
+import ImageProviderModal from "../components/ImageProviderModal";
 
 export default function PDFToPPT() {
   const [slides, setSlides] = useState(15);
@@ -20,8 +22,10 @@ export default function PDFToPPT() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showProviderModal, setShowProviderModal] = useState(false);
+  const [showImageProviderModal, setShowImageProviderModal] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState("grockai");
+  const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
 
 
 
@@ -29,12 +33,12 @@ export default function PDFToPPT() {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile || selectedFile.type !== "application/pdf") {
-      alert("Please upload a valid PDF file");
+      notify("Please upload a valid PDF file", "error");
       setFile(null);
       return;
     }
     if (selectedFile.size > 25 * 1024 * 1024) {
-      alert("File too large (max 25MB)");
+      notify("File too large (max 25MB)", "error");
       setFile(null);
       return;
     }
@@ -43,8 +47,8 @@ export default function PDFToPPT() {
 
   // Open provider modal
   const handleConvert = () => {
-    if (!file) return alert("Please select a PDF first");
-    if (!loggedInUser?.user_id) return alert("You must be logged in to convert and save history.");
+    if (!file) return notify("Please select a PDF first", "error");
+    if (!loggedInUser?.user_id) return notify("You must be logged in to convert and save history.", "error");
     setShowProviderModal(true);
   };
 
@@ -55,9 +59,23 @@ export default function PDFToPPT() {
     setIsModalOpen(true);
   };
 
-  const handleConversionStart = async (includeImages) => {
+  const handleImageChoice = (includeImages) => {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
+    if (includeImages) {
+      setShowImageProviderModal(true);
+    } else {
+      handleConversionStart(false, null);
+    }
+  };
+
+  const handleImageProviderSelect = (provider) => {
+    setSelectedImageProvider(provider);
+    setShowImageProviderModal(false);
+    handleConversionStart(true, provider);
+  };
+
+  const handleConversionStart = async (includeImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Uploading PDF...");
 
@@ -68,6 +86,9 @@ export default function PDFToPPT() {
       formData.append("userId", String(loggedInUser.user_id));
       formData.append("includeImages", String(includeImages));
       formData.append("provider", selectedProvider);
+      if (imgProvider) {
+        formData.append("imageProvider", imgProvider);
+      }
 
       setLoadingText("Processing PDF...");
       const response = await convertPDF(formData);
@@ -88,15 +109,15 @@ export default function PDFToPPT() {
         if (loggedInUser?.user_id) {
           cache.invalidate(`history-${loggedInUser.user_id}`);
         }
-        alert("✅ Conversion successful! You can now preview or edit it.");
+        notify("Conversion successful! You can now preview or edit it.", "success");
       } else {
         // Only show error if backend explicitly failed
         const errorMsg = payload?.error || response?.error || "Conversion failed: Invalid response from server.";
-        alert(errorMsg);
+        notify(errorMsg, "error");
       }
     } catch (err) {
       console.error("PDF conversion error:", err);
-      alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
+      notify(`Conversion failed: ${err.response?.data?.error || err.message}`, "error");
     } finally {
       setIsLoading(false);
       setLoadingText("");
@@ -178,7 +199,8 @@ export default function PDFToPPT() {
                            state: { 
                              slides: convertedSlides, 
                              topic,
-                             includeImages: includeImagesChoice 
+                             includeImages: includeImagesChoice,
+                             imageProvider: selectedImageProvider // Pass the selected image provider
                            } 
                          })
                        }
@@ -262,6 +284,13 @@ export default function PDFToPPT() {
         onCancel={() => setShowProviderModal(false)}
       />
 
+      {/* Image Provider Selection Modal */}
+      <ImageProviderModal
+        isOpen={showImageProviderModal}
+        onSelect={handleImageProviderSelect}
+        onCancel={() => setShowImageProviderModal(false)}
+      />
+
       {/* Image Option Modal */}
       {isModalOpen && (
         <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
@@ -269,11 +298,11 @@ export default function PDFToPPT() {
             <h2>Image Generation</h2>
             <p>Do you want to include AI-generated images in your presentation?</p>
             <div className="ai-modal-buttons">
-              <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
+              <button className="ai-modal-btn text-only-btn" onClick={() => handleImageChoice(false)}>
                 <span className="btn-icon">📄</span>
                 <span className="btn-text">Text Only</span>
               </button>
-              <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
+              <button className="ai-modal-btn include-images-btn" onClick={() => handleImageChoice(true)}>
                 <span className="btn-icon">🖼️</span>
                 <span className="btn-text">Include Images</span>
               </button>

@@ -1,4 +1,5 @@
 import React from "react";
+import { Toaster } from "react-hot-toast";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import EditPreview from './pages/EditPreview';
 import Login from "./pages/Login";
@@ -23,6 +24,7 @@ import VerifyOTP from "./pages/VerifyOTP"; // OTP verification page
 export default function App() {
   return (
     <Router>
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { notify } from "./utils/notify";
 
 // --- CONFIGURATION ---
 
@@ -133,8 +134,24 @@ export const generateImageFromPollinations = async (prompt) => {
   }
 };
 
+// --- GROK IMAGE GENERATION HELPER (via backend proxy) ---
+export const generateImageFromGrok = async (prompt) => {
+  if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;
+  try {
+    const res = await axios.post(`${API_BASE}/generate-grok-image`, { prompt });
+    if (res.data && res.data.success && res.data.base64) {
+      // Always return as a data URL
+      return `data:image/png;base64,${res.data.base64}`;
+    }
+    return null;
+  } catch (err) {
+    console.warn("Grok image generation backend proxy failed:", err.message);
+    return null;
+  }
+};
+
 // --- POWERPOINT EXPORT LOGIC (via backend) ---
-export const downloadPPTX = async (slides, design, fileName, includeImages = true) => {
+export const downloadPPTX = async (slides, design, fileName, includeImages = true, imageProvider = 'pollinations') => {
   try {
     const safeName = typeof fileName === "string" && fileName.trim().length
       ? fileName.trim()
@@ -149,7 +166,8 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
         slides,
         design,
         fileName: downloadName,
-        includeImages
+        includeImages,
+        imageProvider
       },
       { responseType: "blob" }
     );
@@ -164,6 +182,6 @@ export const downloadPPTX = async (slides, design, fileName, includeImages = tru
     window.URL.revokeObjectURL(url);
   } catch (err) {
     console.error("Error generating PPTX:", err);
-    alert("Failed to generate PPTX file. Check console for details.");
+    notify("Failed to generate PPTX file. Check console for details.", "error");
   }
 };

@@ -1,11 +1,13 @@
 // src/pages/CustomizeTemplate.js
 import React, { useState, useEffect } from "react";
+import { notify } from "../utils/notify";
 import { Link, useNavigate } from "react-router-dom";
 import { FaSignOutAlt, FaUpload } from "react-icons/fa";
 import { motion, Reorder } from "framer-motion";
 import { downloadPPTX } from "../api";
 import "../styles/customize-template.css";
 import "../styles/dashboard.css";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 // Sidebar Component
 const Sidebar = ({ handleLogout, loggingOut }) => (
@@ -66,6 +68,8 @@ export default function CustomizeTemplate() {
   const [slides, setSlides] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, index: null });
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
     const savedTemplate = localStorage.getItem("selectedTemplate");
@@ -77,11 +81,11 @@ export default function CustomizeTemplate() {
           setSlides(parsed.slides);
         } else throw new Error("Invalid template data");
       } catch {
-        alert("Invalid template data. Redirecting...");
+        notify("Invalid template data. Redirecting...", "error");
         navigate("/uploadTemplate");
       }
     } else {
-      alert("No template selected.");
+      notify("No template selected.", "error");
       navigate("/uploadTemplate");
     }
   }, [navigate]);
@@ -108,19 +112,16 @@ export default function CustomizeTemplate() {
 
   const handleDeleteSlide = (index) => {
     if (slides.length === 1) {
-      alert("⚠️ You must have at least one slide.");
+      notify("You must have at least one slide.", "error");
       return;
     }
-    if (window.confirm("Delete this slide?")) {
-      const updated = slides.filter((_, i) => i !== index);
-      setSlides(updated);
-    }
+    setDeleteConfirm({ open: true, index });
   };
 
   // ✅ Generate PPTX with consistent gradient
   // ✅ Generate PPTX with consistent gradient
  const handleGenerate = async () => {
-   if (!template) return alert("Missing template data.");
+   if (!template) return notify("Missing template data.", "error");
 
    // Prepare slides data (no changes needed here)
    const updatedSlides = slides.map((s) => ({
@@ -156,16 +157,19 @@ export default function CustomizeTemplate() {
    try {
      // Pass the explicitly defined 'design' object
      await downloadPPTX(updatedSlides, design, `${template.name || 'presentation'}-customized.pptx`);
-     alert("✅ Presentation generated successfully!");
+     notify("Presentation generated successfully!", "success");
    } catch (err) {
      console.error("❌ Error generating presentation:", err);
-     alert("⚠️ Something went wrong while generating the PowerPoint.");
+     notify("Something went wrong while generating the PowerPoint.", "error");
    } finally {
      setIsGenerating(false);
    }
  };
   const handleLogout = () => {
-    if (!window.confirm("Logout?")) return;
+    setLogoutConfirmOpen(true);
+  };
+  const confirmLogout = () => {
+    setLogoutConfirmOpen(false);
     setLoggingOut(true);
     localStorage.clear();
     setTimeout(() => navigate("/login"), 1200);
@@ -269,6 +273,99 @@ export default function CustomizeTemplate() {
           </button>
         </div>
       </motion.main>
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title="Delete Slide"
+        message="Delete this slide?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={() => {
+          const idx = deleteConfirm.index;
+          setDeleteConfirm({ open: false, index: null });
+          if (typeof idx === 'number') {
+            const updated = slides.filter((_, i) => i !== idx);
+            setSlides(updated);
+          }
+        }}
+        onCancel={() => setDeleteConfirm({ open: false, index: null })}
+      />
+      <ConfirmDialog
+        open={logoutConfirmOpen}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmOpen(false)}
+      />
     </div>
+  );
+}
+
+// Render dialogs within component tree
+// eslint-disable-next-line no-unused-vars
+const CustomizeTemplateDialogsRenderer = ({ deleteConfirm, setDeleteConfirm, slides, setSlides, logoutConfirmOpen, setLogoutConfirmOpen, confirmLogout }) => (
+  <>
+    <ConfirmDialog
+      open={deleteConfirm.open}
+      title="Delete Slide"
+      message="Delete this slide?"
+      confirmText="Delete"
+      cancelText="Cancel"
+      onConfirm={() => {
+        const idx = deleteConfirm.index;
+        setDeleteConfirm({ open: false, index: null });
+        if (typeof idx === 'number') {
+          const updated = slides.filter((_, i) => i !== idx);
+          setSlides(updated);
+        }
+      }}
+      onCancel={() => setDeleteConfirm({ open: false, index: null })}
+    />
+    <ConfirmDialog
+      open={logoutConfirmOpen}
+      title="Logout"
+      message="Are you sure you want to log out?"
+      confirmText="Logout"
+      cancelText="Cancel"
+      onConfirm={confirmLogout}
+      onCancel={() => setLogoutConfirmOpen(false)}
+    />
+  </>
+);
+
+// Confirm Dialogs
+// Render at root to keep UI consistent
+// Placed after main component return
+export function CustomizeTemplateDialogs({ deleteConfirm, setDeleteConfirm, slides, setSlides, logoutConfirmOpen, setLogoutConfirmOpen, confirmLogout }) {
+  const confirmDelete = () => {
+    const idx = deleteConfirm.index;
+    setDeleteConfirm({ open: false, index: null });
+    if (typeof idx === 'number') {
+      const updated = slides.filter((_, i) => i !== idx);
+      setSlides(updated);
+    }
+  };
+  return (
+    <>
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title="Delete Slide"
+        message="Delete this slide?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ open: false, index: null })}
+      />
+      <ConfirmDialog
+        open={logoutConfirmOpen}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmOpen(false)}
+      />
+    </>
   );
 }

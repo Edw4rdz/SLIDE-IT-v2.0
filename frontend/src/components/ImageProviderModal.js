@@ -3,24 +3,23 @@ import "../styles/ai-provider-modal.css";
 
 const PROVIDERS = [
   { 
-    value: "gemini", 
-    label: "Gemini", 
-    desc: "Fast and reliable AI for presentation content",
+    value: "pollinations", 
+    label: "Pollinations", 
+    desc: "Fast and free tier AI image generation",
     badge: "Free",
     badgeClass: "free"
   },
   { 
-    value: "openai", 
-    label: "Grok AI", 
-    desc: "Premium AI (currently unavailable due to rate limits)",
+    value: "grok", 
+    label: "Grok Image", 
+    desc: "Higher quality with faster delivery",
     badge: "Premium",
-    badgeClass: "premium",
-    disabled: true
+    badgeClass: "premium"
   }
 ];
 
-export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
-  const [selectedProvider, setSelectedProvider] = useState("gemini");
+export default function ImageProviderModal({ isOpen, onSelect, onCancel }) {
+  const [selectedProvider, setSelectedProvider] = useState("pollinations");
 
   if (!isOpen) return null;
 
@@ -28,9 +27,9 @@ export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
     <div className="ai-provider-modal-overlay">
       <div className="ai-provider-modal-content">
         <div className="ai-provider-modal-header">
-          <h2 className="ai-provider-modal-title">Select AI Provider</h2>
+          <h2 className="ai-provider-modal-title">Select Image Provider</h2>
           <p className="ai-provider-modal-subtitle">
-            Choose the AI model to generate your presentation content
+            Choose the service to generate images for your slides
           </p>
         </div>
 
@@ -38,16 +37,15 @@ export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
           {PROVIDERS.map((provider) => (
             <label 
               key={provider.value} 
-              className={`ai-provider-option ${selectedProvider === provider.value ? 'selected' : ''} ${provider.disabled ? 'disabled' : ''}`}
+              className={`ai-provider-option ${selectedProvider === provider.value ? 'selected' : ''}`}
             >
               <div className="ai-provider-radio">
                 <input
                   type="radio"
-                  name="ai-provider"
+                  name="image-provider"
                   value={provider.value}
                   checked={selectedProvider === provider.value}
-                  onChange={() => !provider.disabled && setSelectedProvider(provider.value)}
-                  disabled={provider.disabled}
+                  onChange={() => setSelectedProvider(provider.value)}
                 />
               </div>
               <div className="ai-provider-option-content">

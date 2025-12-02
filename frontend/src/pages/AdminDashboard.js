@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { notify } from "../utils/notify";
 import { Link, useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 import { collection, query, orderBy, onSnapshot, limit } from "firebase/firestore";
@@ -14,6 +15,7 @@ import "../styles/adminDashboard.css";
 import { FaSignOutAlt, FaPlus } from "react-icons/fa"; 
 import { getAuth, signOut } from "firebase/auth";
 import "@fortawesome/fontawesome-free/css/all.min.css";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const INITIAL_NEW_USER_STATE = {
   username: "",
@@ -46,11 +48,13 @@ export default function AdminDashboard() {
   // --- Sidebar Logic ---
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
-  const handleLogout = async () => {
-    const confirmLogout = window.confirm("Are you sure you want to log out?");
-    if (!confirmLogout) return;
-
+  const handleLogout = () => {
+    setLogoutConfirmOpen(true);
+  };
+  const confirmLogout = async () => {
+    setLogoutConfirmOpen(false);
     setLoggingOut(true);
     try {
       const auth = getAuth();
@@ -126,7 +130,7 @@ export default function AdminDashboard() {
   const handleNewUserSubmit = async (e) => {
     e.preventDefault();
     if (!newUserData.email || !newUserData.password || !newUserData.username || !newUserData.firstName || !newUserData.lastName || !newUserData.birthday) {
-      return alert("Please fill out all fields.");
+      return notify("Please fill out all fields.", "error");
     }
     setLoadingAction(true);
     try {
@@ -134,39 +138,40 @@ export default function AdminDashboard() {
       setIsModalOpen(false);
       setNewUserData(INITIAL_NEW_USER_STATE);
     } catch (err) {
-      alert(`Error creating user: ${err.message}`);
+      notify(`Error creating user: ${err.message}`, "error");
     } finally {
       setLoadingAction(false);
     }
   };
 
-  const handleRoleChange = async (docId, newIsAdmin) => {
+  const [roleConfirm, setRoleConfirm] = useState({ open: false, docId: null, newIsAdmin: false, text: "" });
+  const handleRoleChange = (docId, newIsAdmin) => {
     const user = users.find(u => u.id === docId);
     const newRole = newIsAdmin ? "Admin" : "User";
-    
-    if (!window.confirm(`Are you sure you want to change ${user.username}'s role to ${newRole}?`)) {
-      return;
-    }
-    
+    setRoleConfirm({ open: true, docId, newIsAdmin, text: `Are you sure you want to change ${user.username}'s role to ${newRole}?` });
+  };
+  const confirmRoleChange = async () => {
+    const { docId, newIsAdmin } = roleConfirm;
+    setRoleConfirm({ open: false, docId: null, newIsAdmin: false, text: "" });
     try {
       await updateUserRole(docId, newIsAdmin);
-      alert("User role updated!");
+      notify("User role updated!", "success");
     } catch (err) {
-      alert(`Error updating role: ${err.message}`);
+      notify(`Error updating role: ${err.message}`, "error");
     }
   };
   
-  const handleDeleteUser = async (user) => {
-    if (!window.confirm(`Are you sure you want to delete ${user.username} (${user.email})? This action cannot be undone.`)) {
-      return;
-    }
-    
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, user: null });
+  const requestDeleteUser = (user) => setDeleteConfirm({ open: true, user });
+  const handleDeleteUser = async () => {
+    const user = deleteConfirm.user;
+    setDeleteConfirm({ open: false, user: null });
     setLoadingAction(true); 
     try {
       await deleteUser(user.id, user.authUID);
-      alert("User deleted successfully.");
+      notify("User deleted successfully.", "success");
     } catch (err) {
-      alert(`Error deleting user: ${err.message}`);
+      notify(`Error deleting user: ${err.message}`, "error");
     } finally {
       setLoadingAction(false);
     }
@@ -368,7 +373,7 @@ export default function AdminDashboard() {
                         <td>
                           <button 
                             className="delete-user-btn"
-                            onClick={() => handleDeleteUser(user)}
+                            onClick={() => requestDeleteUser(user)}
                             disabled={loadingAction}
                           >
                             Delete
@@ -490,6 +495,34 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+      {/* Confirm Dialogs */}
+      <ConfirmDialog
+        open={logoutConfirmOpen}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmOpen(false)}
+      />
+      <ConfirmDialog
+        open={roleConfirm.open}
+        title="Change Role"
+        message={roleConfirm.text}
+        confirmText="Change"
+        cancelText="Cancel"
+        onConfirm={confirmRoleChange}
+        onCancel={() => setRoleConfirm({ open: false, docId: null, newIsAdmin: false, text: "" })}
+      />
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title="Delete User"
+        message={deleteConfirm.user ? `Delete ${deleteConfirm.user.username} (${deleteConfirm.user.email})? This action cannot be undone.` : "Delete this user?"}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteUser}
+        onCancel={() => setDeleteConfirm({ open: false, user: null })}
+      />
     </div>
   );
 }

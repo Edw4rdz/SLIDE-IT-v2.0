@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { notify } from "../utils/notify";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable } from 'react-icons/fa';
 import { getTemplates, downloadPPTX } from '../api';
 import '../styles/edit-preview.css';
+import ConfirmDialog from "../components/ConfirmDialog";
 
 
 function fileOrUrlToDataUrl(uploadedImage) {
@@ -30,7 +32,7 @@ return new Promise((resolve) => {
 
 
 
-async function saveDraft(slides, topic, convId, design) {
+async function saveDraft(slides, topic, convId, design, imageProvider) {
 
   try {
 
@@ -51,7 +53,8 @@ async function saveDraft(slides, topic, convId, design) {
     const draft = { 
       slides: slidesWithImages, 
       topic, 
-      design: design ? { ...design } : null 
+      design: design ? { ...design } : null,
+      imageProvider: imageProvider || 'pollinations'
     };
 
     const key = convId ? `slideit_draft_${convId}` : `slideit_draft_${topic}`;
@@ -590,6 +593,8 @@ export default function EditPreview() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
   
 
   // Stickers: picker, selection and interaction state
@@ -637,6 +642,16 @@ export default function EditPreview() {
   const [showImageColumn, setShowImageColumn] = useState(
 
     location.state?.includeImages === true || location.state?.includeImages === 'true'
+
+  );
+
+  
+
+  // Get the image provider from navigation state (default to 'pollinations')
+
+  const [imageProvider, setImageProvider] = useState(
+
+    location.state?.imageProvider || 'pollinations'
 
   );
 
@@ -710,6 +725,97 @@ export default function EditPreview() {
 
 
   const [stickerCategories, setStickerCategories] = useState([]);
+
+  // Load draft on mount if available
+  useEffect(() => {
+    if (draftLoaded) return; // Prevent multiple loads
+    
+    const convId = location.state?.convId || topic;
+    const draftKey = `slideit_draft_${convId}`;
+    
+    try {
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        const draft = JSON.parse(savedDraft);
+        console.log('[DRAFT] Loading saved draft from localStorage:', draftKey);
+        
+        // Update slides with draft data
+        if (draft.slides && Array.isArray(draft.slides)) {
+          const restoredSlides = draft.slides.map((slide, index) => ({
+            ...slide,
+            id: slide.id ?? `slide-${index}-${Date.now()}`,
+            layout: slide.layout || (index === 0 ? 'title' : 'content'),
+            uploadedImage: slide.uploadedImage || null,
+            tables: Array.isArray(slide.tables)
+              ? slide.tables.map((tbl) => {
+                  const rows = Number.isInteger(tbl?.rows) && tbl.rows > 0 ? tbl.rows : 1;
+                  const cols = Number.isInteger(tbl?.cols) && tbl.cols > 0 ? tbl.cols : 1;
+                  const baseTable = {
+                    ...tbl,
+                    rows,
+                    cols,
+                    borderStyle: tbl?.borderStyle || 'solid',
+                    borderWidth: typeof tbl?.borderWidth === 'number' ? tbl.borderWidth : DEFAULT_BORDER_WIDTH,
+                    borderColor: tbl?.borderColor || '#111827',
+                    background: tbl?.background || '#ffffff',
+                    cells: ensureTableCells(rows, cols, tbl?.cells),
+                    userResized: Boolean(tbl?.userResized),
+                    columnWidths: Array.isArray(tbl?.columnWidths) ? tbl.columnWidths : undefined,
+                    rowHeights: Array.isArray(tbl?.rowHeights) ? tbl.rowHeights : undefined
+                  };
+                  return ensureTableSizing(applyAutoSizeIfNeeded(baseTable));
+                })
+              : [],
+            styles: slide.styles || {
+              titleFont: 'Arial',
+              titleSize: 32,
+              titleBold: false,
+              titleItalic: false,
+              textFont: 'Arial',
+              textSize: 16,
+              textBold: false,
+              textItalic: false,
+              textAlign: 'left'
+            }
+          }));
+          
+          setEditedSlides(restoredSlides);
+        }
+        
+        // Update topic if present
+        if (draft.topic) {
+          setTopic(draft.topic);
+        }
+        
+        // Update design if present
+        if (draft.design) {
+          setCurrentDesign(draft.design);
+          if (draft.design.id) {
+            setSelectedTemplateId(draft.design.id);
+          }
+        }
+        
+        // Update imageProvider if present in draft, BUT only if not already set via navigation
+        // Navigation state should take priority over saved draft
+        if (draft.imageProvider && !location.state?.imageProvider) {
+          setImageProvider(draft.imageProvider);
+          console.log('[DRAFT] Loaded imageProvider from draft:', draft.imageProvider);
+        } else if (location.state?.imageProvider) {
+          console.log('[DRAFT] Using imageProvider from navigation:', location.state.imageProvider);
+        }
+        
+        setDraftLoaded(true);
+        console.log('[DRAFT] Draft loaded successfully');
+      } else {
+        console.log('[DRAFT] No draft found for key:', draftKey);
+        setDraftLoaded(true);
+      }
+    } catch (error) {
+      console.error('[DRAFT] Error loading draft:', error);
+      setDraftLoaded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
 
   useEffect(() => {
 
@@ -935,39 +1041,137 @@ export default function EditPreview() {
 
       setFetchingImages(true);
 
-      const urls = {};
+      const generateImageUrls = async () => {
 
-      editedSlides.forEach((slide) => {
+        const urls = {};
 
-        if (slide.id !== undefined) {
+        
 
-          if (slide.imagePrompt && !slide.uploadedImage) {
+        // If using Grok, we need to generate images via API IN PARALLEL
 
-            const url = getPollinationsImageUrl(slide.imagePrompt);
+        if (imageProvider === 'grok') {
 
-            console.log('[AI IMAGE DEBUG] Slide:', slide.id, 'Prompt:', slide.imagePrompt, 'URL:', url);
+          console.log('[AI IMAGE DEBUG] Using Grok image provider - PARALLEL generation');
 
-            urls[slide.id] = url;
+          
 
-          } else {
+          // Import the API function
 
-            console.log('[AI IMAGE DEBUG] Slide:', slide.id, 'No prompt or uploaded image.');
+          const { generateImageFromGrok } = await import('../api');
 
-          }
+          
+
+          // Create array of promises for parallel execution
+
+          const imagePromises = editedSlides.map(async (slide) => {
+
+            if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage) {
+
+              try {
+
+                console.log('[AI IMAGE DEBUG - Grok] Generating for slide:', slide.id, 'Prompt:', slide.imagePrompt);
+
+                const imageDataUrl = await generateImageFromGrok(slide.imagePrompt);
+
+                if (imageDataUrl) {
+
+                  return { slideId: slide.id, url: imageDataUrl };
+
+                } else {
+
+                  console.warn('[AI IMAGE DEBUG - Grok] No image returned for slide:', slide.id);
+
+                  return null;
+
+                }
+
+              } catch (error) {
+
+                console.error('[AI IMAGE DEBUG - Grok] Error generating image for slide:', slide.id, error);
+
+                return null;
+
+              }
+
+            }
+
+            return null;
+
+          });
+
+          
+
+          // Wait for all images to generate in parallel
+
+          const results = await Promise.all(imagePromises);
+
+          
+
+          // Populate urls object with results
+
+          results.forEach(result => {
+
+            if (result && result.slideId && result.url) {
+
+              urls[result.slideId] = result.url;
+
+            }
+
+          });
+
+          
+
+          console.log('[AI IMAGE DEBUG - Grok] All images generated in parallel:', Object.keys(urls).length);
 
         } else {
 
-          console.warn('[AI IMAGE DEBUG] Slide missing ID:', slide);
+          // Default to Pollinations (URL-based, no API call needed)
+
+          console.log('[AI IMAGE DEBUG] Using Pollinations image provider');
+
+          
+
+          editedSlides.forEach((slide) => {
+
+            if (slide.id !== undefined) {
+
+              if (slide.imagePrompt && !slide.uploadedImage) {
+
+                const url = getPollinationsImageUrl(slide.imagePrompt);
+
+                console.log('[AI IMAGE DEBUG - Pollinations] Slide:', slide.id, 'Prompt:', slide.imagePrompt, 'URL:', url);
+
+                urls[slide.id] = url;
+
+              } else {
+
+                console.log('[AI IMAGE DEBUG - Pollinations] Slide:', slide.id, 'No prompt or uploaded image.');
+
+              }
+
+            } else {
+
+              console.warn('[AI IMAGE DEBUG - Pollinations] Slide missing ID:', slide);
+
+            }
+
+          });
 
         }
 
-      });
+        
 
-      console.log('[AI IMAGE DEBUG] Final previewImageUrls:', urls);
+        console.log('[AI IMAGE DEBUG] Final previewImageUrls:', urls);
 
-      setPreviewImageUrls(urls);
+        setPreviewImageUrls(urls);
 
-      setFetchingImages(false);
+        setFetchingImages(false);
+
+      };
+
+      
+
+      generateImageUrls();
 
     } else {
 
@@ -977,7 +1181,7 @@ export default function EditPreview() {
 
     }
 
-  }, [editedSlides, showImageColumn]); 
+  }, [editedSlides, showImageColumn, imageProvider]); 
 
 
 
@@ -1091,7 +1295,7 @@ export default function EditPreview() {
             const added = { type: 'shape', baseSvg: txt, fillColor: fill, strokeColor: stroke, strokeWidth, url: dataUrl, x: 0.12, y: 0.12, width: 0.18, height: 0.18, rotate: 0 };
             return { ...s, stickers: [ ...(s.stickers || []), added ] };
           });
-          saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
+          saveDraft(updated, topic, (location.state?.convId || topic), currentDesign, imageProvider);
           return updated;
         });
 
@@ -1109,7 +1313,7 @@ export default function EditPreview() {
           const added = { type: 'image', url, x: 0.12, y: 0.12, width: 0.18, height: 0.18, opacity: 1, rotate: 0 };
           return { ...s, stickers: [ ...(s.stickers || []), added ] };
         });
-        saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
+        saveDraft(updated, topic, (location.state?.convId || topic), currentDesign, imageProvider);
         return updated;
       });
 
@@ -1141,7 +1345,7 @@ export default function EditPreview() {
         console.log('[handleRemoveSticker] Sticker removed. Clearing selection.');
         setTimeout(() => setSelectedSticker(null), 0);
       }
-      saveDraft(result, topic, (location.state?.convId || topic), currentDesign);
+      saveDraft(result, topic, (location.state?.convId || topic), currentDesign, imageProvider);
       return result;
     });
 
@@ -1173,7 +1377,7 @@ export default function EditPreview() {
         }));
         return { ...s, tables: [ ...(s.tables || []), added ] };
       });
-      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign, imageProvider);
       return updated;
     });
 
@@ -1195,7 +1399,7 @@ export default function EditPreview() {
           : [];
         return { ...s, tables };
       });
-      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign, imageProvider);
       return updated;
     });
 
@@ -1277,7 +1481,7 @@ export default function EditPreview() {
 
     if (!Number.isInteger(rows) || rows <= 0 || !Number.isInteger(cols) || cols <= 0) {
 
-      window.alert('Please enter positive whole numbers for rows and columns.');
+      notify('Please enter positive whole numbers for rows and columns.', 'error');
 
       return;
 
@@ -1300,7 +1504,7 @@ export default function EditPreview() {
         arr.splice(index, 1);
         return { ...s, tables: arr };
       });
-      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign, imageProvider);
       return updated;
     });
 
@@ -1339,7 +1543,7 @@ export default function EditPreview() {
         }) : [];
         return { ...s, tables };
       });
-      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign);
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign, imageProvider);
       return updated;
     });
 
@@ -2708,7 +2912,7 @@ export default function EditPreview() {
             s.id === slideId ? { ...s, uploadedImage: base64String, imagePrompt: "" } : s
           );
           // Save draft immediately after updating slides
-          saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign);
+          saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
           return updatedSlides;
         });
       };
@@ -2725,7 +2929,7 @@ export default function EditPreview() {
         s.id === slideId ? { ...s, uploadedImage: null, imagePrompt: "" } : s
       );
       // Save draft immediately after removing image
-      saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign);
+      saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
       return updatedSlides;
     });
   };
@@ -2780,14 +2984,14 @@ export default function EditPreview() {
 
   // ❌ Delete a slide by ID
 
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, slideId: null });
   const handleDeleteSlide = (slideId) => {
-
-    if (window.confirm("Are you sure you want to delete this slide?")) {
-
-      setEditedSlides(prev => prev.filter(s => s.id !== slideId));
-
-    }
-
+    setDeleteConfirm({ open: true, slideId });
+  };
+  const confirmDeleteSlide = () => {
+    const slideId = deleteConfirm.slideId;
+    setDeleteConfirm({ open: false, slideId: null });
+    setEditedSlides(prev => prev.filter(s => s.id !== slideId));
   };
 
 
@@ -2796,7 +3000,7 @@ export default function EditPreview() {
 
   // ✅ UPDATED: Handles relative sticker URLs by converting them to Base64 before download
   const handleDownload = async () => {
-    if (!editedSlides.length) return alert("No slides to download!");
+    if (!editedSlides.length) return notify("No slides to download!", 'error');
 
     const sanitizedTopic = topic.replace(/[\s/\\?%*:|"<>]/g, "_");
     const fileName = `${sanitizedTopic}_presentation.pptx`;
@@ -2852,7 +3056,7 @@ export default function EditPreview() {
     );
     
     // 2. Send the processed slides to the backend
-    downloadPPTX(slidesForExport, activeDesign, fileName, showImageColumn);
+    downloadPPTX(slidesForExport, activeDesign, fileName, showImageColumn, imageProvider);
   };
 
 
@@ -2932,6 +3136,15 @@ export default function EditPreview() {
       previewStyle.backgroundColor = theme.background || '#FFFFFF';
 
     }
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title="Delete Slide"
+        message="Are you sure you want to delete this slide?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteSlide}
+        onCancel={() => setDeleteConfirm({ open: false, slideId: null })}
+      />
 
 
 
@@ -4665,7 +4878,7 @@ export default function EditPreview() {
 
               const convId = location.state?.convId || topic;
 
-              saveDraft(editedSlides, topic, convId, currentDesign);
+              saveDraft(editedSlides, topic, convId, currentDesign, imageProvider);
 
               navigate(-1);
 

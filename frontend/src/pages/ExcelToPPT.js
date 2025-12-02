@@ -1,9 +1,11 @@
 import React, { useState, useRef } from "react";
+import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
 import { convertExcel, cache } from "../api";
 import "../styles/exceltoppt.css";
 import Sidebar from "../components/Sidebar";
 import AIProviderModal from "../components/AIProviderModal";
+import ImageProviderModal from "../components/ImageProviderModal";
 
 export default function ExcelToPPT() {
   const [file, setFile] = useState(null);
@@ -14,8 +16,10 @@ export default function ExcelToPPT() {
   const [loadingText, setLoadingText] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showProviderModal, setShowProviderModal] = useState(false);
+  const [showImageProviderModal, setShowImageProviderModal] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState("grockai");
+  const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
@@ -32,7 +36,7 @@ export default function ExcelToPPT() {
     ) {
       setFile(selectedFile);
     } else {
-      alert("Please upload a valid Excel file (.xlsx or .xls)");
+      notify("Please upload a valid Excel file (.xlsx or .xls)", "error");
       setFile(null);
     }
   };
@@ -40,9 +44,9 @@ export default function ExcelToPPT() {
   // *** NEW - Same behavior as PDFToPPT ***
   // Show provider modal first
   const handleConvert = () => {
-    if (!file) return alert("Please select an Excel file first");
+    if (!file) return notify("Please select an Excel file first", "error");
     if (!loggedInUser?.user_id)
-      return alert("You must be logged in to convert and save history.");
+      return notify("You must be logged in to convert and save history.", "error");
     setShowProviderModal(true);
   };
 
@@ -52,9 +56,23 @@ export default function ExcelToPPT() {
     setIsModalOpen(true); // Open "Include images?" modal next
   };
 
-  const handleConversionStart = async (includeImages) => {
+  const handleImageChoice = (includeImages) => {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
+    if (includeImages) {
+      setShowImageProviderModal(true);
+    } else {
+      handleConversionStart(false, null);
+    }
+  };
+
+  const handleImageProviderSelect = (provider) => {
+    setSelectedImageProvider(provider);
+    setShowImageProviderModal(false);
+    handleConversionStart(true, provider);
+  };
+
+  const handleConversionStart = async (includeImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Uploading Excel file...");
 
@@ -65,6 +83,9 @@ export default function ExcelToPPT() {
       formData.append("userId", String(loggedInUser.user_id));
       formData.append("includeImages", String(includeImages));
       formData.append("provider", selectedProvider);
+      if (imgProvider) {
+        formData.append("imageProvider", imgProvider);
+      }
 
       setLoadingText("Converting Excel to slides...");
       const response = await convertExcel(formData);
@@ -91,17 +112,17 @@ export default function ExcelToPPT() {
           cache.invalidate(`history-${loggedInUser.user_id}`);
         }
 
-        alert("✅ Conversion successful! You can now preview or edit it.");
+        notify("Conversion successful! You can now preview or edit it.", "success");
       } else {
         const errorMsg =
           payload?.error ||
           response?.error ||
           "Conversion failed: Invalid response from server.";
-        alert(errorMsg);
+        notify(errorMsg, "error");
       }
     } catch (err) {
       console.error("Excel conversion error:", err);
-      alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
+      notify(`Conversion failed: ${err.response?.data?.error || err.message}`, "error");
     } finally {
       setIsLoading(false);
       setLoadingText("");
@@ -183,6 +204,7 @@ export default function ExcelToPPT() {
                             slides: convertedSlides,
                             topic,
                             includeImages: includeImagesChoice,
+                            imageProvider: selectedImageProvider, // Pass the selected image provider
                           },
                         })
                       }
@@ -260,6 +282,13 @@ export default function ExcelToPPT() {
         onCancel={() => setShowProviderModal(false)}
       />
 
+      {/* Image Provider Selection Modal */}
+      <ImageProviderModal
+        isOpen={showImageProviderModal}
+        onSelect={handleImageProviderSelect}
+        onCancel={() => setShowImageProviderModal(false)}
+      />
+
       {/* Image choice modal */}
       {isModalOpen && (
         <div
@@ -276,14 +305,14 @@ export default function ExcelToPPT() {
             <div className="ai-modal-buttons">
               <button
                 className="ai-modal-btn text-only-btn"
-                onClick={() => handleConversionStart(false)}
+                onClick={() => handleImageChoice(false)}
               >
                 <span className="btn-icon">📄</span>
                 <span className="btn-text">Text Only</span>
               </button>
               <button
                 className="ai-modal-btn include-images-btn"
-                onClick={() => handleConversionStart(true)}
+                onClick={() => handleImageChoice(true)}
               >
                 <span className="btn-icon">🖼️</span>
                 <span className="btn-text">Include Images</span>

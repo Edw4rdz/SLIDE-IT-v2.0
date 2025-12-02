@@ -1,8 +1,10 @@
 import React, { useState, useRef } from "react";
+import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
 import { convertText, cache } from "../api";
 import Sidebar from "../components/Sidebar";
 import AIProviderModal from "../components/AIProviderModal";
+import ImageProviderModal from "../components/ImageProviderModal";
 import "../styles/texttoppt.css";
 
 export default function TextToPPT() {
@@ -15,8 +17,10 @@ export default function TextToPPT() {
   const [topic, setTopic] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showProviderModal, setShowProviderModal] = useState(false);
+  const [showImageProviderModal, setShowImageProviderModal] = useState(false);
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState("grockai");
+  const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
@@ -25,12 +29,12 @@ export default function TextToPPT() {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile || selectedFile.type !== "text/plain") {
-      alert("Please upload a valid .txt file");
+      notify("Please upload a valid .txt file", "error");
       setFile(null);
       return;
     }
     if (selectedFile.size > 25 * 1024 * 1024) {
-      alert("File too large (max 25MB)");
+      notify("File too large (max 25MB)", "error");
       setFile(null);
       return;
     }
@@ -38,7 +42,7 @@ export default function TextToPPT() {
     const reader = new FileReader();
     reader.onload = () => setFileContent(reader.result);
     reader.onerror = () => {
-      alert("Error reading file.");
+      notify("Error reading file.", "error");
       setFile(null);
       setFileContent("");
     };
@@ -48,7 +52,7 @@ export default function TextToPPT() {
   // Open provider modal
   const handleConvert = () => {
     if (!file || !fileContent.trim()) {
-      alert("Please upload a text file first");
+      notify("Please upload a text file first", "error");
       return;
     }
     // Check for minimum content length (e.g., at least 10 characters and 2 lines)
@@ -56,11 +60,11 @@ export default function TextToPPT() {
     const minLines = 2;
     const lines = fileContent.trim().split(/\r?\n/).filter(Boolean);
     if (fileContent.trim().length < minLength || lines.length < minLines) {
-      alert("Your text file is too short. Please upload a file with more content (at least 2 lines of text).");
+      notify("Your text file is too short. Please upload a file with more content (at least 2 lines of text).", "error");
       return;
     }
     if (!loggedInUser?.user_id) {
-      alert("You must be logged in to convert and save history.");
+      notify("You must be logged in to convert and save history.", "error");
       return;
     }
     setShowProviderModal(true);
@@ -73,10 +77,24 @@ export default function TextToPPT() {
     setIsModalOpen(true);
   };
 
-  // Start conversion after choosing image option
-  const handleConversionStart = async (includeImages) => {
+  const handleImageChoice = (includeImages) => {
     setIsModalOpen(false);
     setIncludeImagesChoice(includeImages);
+    if (includeImages) {
+      setShowImageProviderModal(true);
+    } else {
+      handleConversionStart(false, null);
+    }
+  };
+
+  const handleImageProviderSelect = (provider) => {
+    setSelectedImageProvider(provider);
+    setShowImageProviderModal(false);
+    handleConversionStart(true, provider);
+  };
+
+  // Start conversion after choosing image option
+  const handleConversionStart = async (includeImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Uploading text file...");
     try {
@@ -86,6 +104,9 @@ export default function TextToPPT() {
       formData.append("userId", String(loggedInUser.user_id));
       formData.append("includeImages", String(includeImages));
       formData.append("provider", selectedProvider);
+      if (imgProvider) {
+        formData.append("imageProvider", imgProvider);
+      }
       const response = await convertText(formData);
       const payload = response?.data;
       const slideArray = Array.isArray(payload)
@@ -105,10 +126,10 @@ export default function TextToPPT() {
       if (loggedInUser?.user_id) {
         cache.invalidate(`history-${loggedInUser.user_id}`);
       }
-      alert("✅ Conversion successful! You can now preview or edit slides.");
+      notify("Conversion successful! You can now preview or edit slides.", "success");
     } catch (err) {
       console.error(err);
-      alert(`❌ Conversion failed: ${err.response?.data?.error || err.message}`);
+      notify(`Conversion failed: ${err.response?.data?.error || err.message}`, "error");
     } finally {
       setIsLoading(false);
       setLoadingText("");
@@ -134,6 +155,12 @@ export default function TextToPPT() {
               onSelect={handleProviderSelect}
               onCancel={() => setShowProviderModal(false)}
             />
+            {/* Image Provider Selection Modal */}
+            <ImageProviderModal
+              isOpen={showImageProviderModal}
+              onSelect={handleImageProviderSelect}
+              onCancel={() => setShowImageProviderModal(false)}
+            />
             {/* Image Option Modal */}
             {isModalOpen && (
               <div className="ai-image-modal-backdrop" onClick={() => setIsModalOpen(false)}>
@@ -141,11 +168,11 @@ export default function TextToPPT() {
                   <h2>Image Generation</h2>
                   <p>Do you want to include AI-generated images in your presentation?</p>
                   <div className="ai-modal-buttons">
-                    <button className="ai-modal-btn text-only-btn" onClick={() => handleConversionStart(false)}>
+                    <button className="ai-modal-btn text-only-btn" onClick={() => handleImageChoice(false)}>
                       <span className="btn-icon">📄</span>
                       <span className="btn-text">Text Only</span>
                     </button>
-                    <button className="ai-modal-btn include-images-btn" onClick={() => handleConversionStart(true)}>
+                    <button className="ai-modal-btn include-images-btn" onClick={() => handleImageChoice(true)}>
                       <span className="btn-icon">🖼️</span>
                       <span className="btn-text">Include Images</span>
                     </button>
@@ -211,6 +238,7 @@ export default function TextToPPT() {
                             slides: convertedSlides,
                             topic,
                             includeImages: includeImagesChoice,
+                            imageProvider: selectedImageProvider, // Pass the selected image provider
                           },
                         })
                       }
