@@ -336,7 +336,7 @@ const calculateTextBoxHeight = (text, fontSize, boxWidth, lineHeight = 1.2, font
  * Main service function to generate the PPTX from frontend data.
  */
 export const generatePptxFromData = async (requestBody) => {
-  const { slides, includeImages, imageProvider } = requestBody;
+  const { slides, includeImages, imageProvider, forceSecondSlide } = requestBody;
   const incomingDesign = typeof requestBody.design === 'object' && requestBody.design !== null
     ? requestBody.design
     : {};
@@ -349,8 +349,14 @@ export const generatePptxFromData = async (requestBody) => {
     canvasBackground: incomingDesign.canvasBackground || '#f4f5fb'
   };
 
+
   if (!slides || slides.length === 0) {
     throw new Error("No slides data provided");
+  }
+
+  // Always copy the second slide from Edit Preview if provided
+  if (forceSecondSlide && slides.length > 1) {
+    slides[1] = forceSecondSlide;
   }
 
   console.log(`[PPTX Generation] Starting with ${slides.length} slides, imageProvider: ${imageProvider || 'none'}`);

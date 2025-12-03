@@ -4528,17 +4528,17 @@ export default function EditPreview() {
                const lineCount = Math.max(1, bulletLines.length);
                const containerRect = containerRefs.current[s.id]?.getBoundingClientRect();
 
-               // Font size is controlled directly by styles (no auto from box height)
-               // Match PPT defaults: body 24pt for title layout, else 18pt
-               const finalBodyFontSize = (() => {
-                 if (typeof s.styles?.textSize === 'number' && s.styles.textSize > 0) return s.styles.textSize;
-                 const layout = s.layout || 'content';
-                 return layout === 'title' ? 24 : 18;
-               })();
+               // Font size auto-shrink logic to prevent overflow
+               const bodyBoxHeightPx = containerRect ? containerRect.height * bodyBox.height : 300;
+               const baseFontSize = (typeof s.styles?.textSize === 'number' && s.styles.textSize > 0) ? s.styles.textSize : ((s.layout || 'content') === 'title' ? 24 : 18);
+               const lineHeightPx = 1.2 * baseFontSize * 1.33; // 1.2em, 1pt = 1.33px
+               let autoFontSize = baseFontSize;
+               if (lineCount * lineHeightPx > bodyBoxHeightPx) {
+                 autoFontSize = Math.max(Math.floor(bodyBoxHeightPx / (lineCount * 1.33)), 10); // Minimum 10pt
+               }
 
-               // Use the calculated bodyBox directly (no auto-sizing to match PPT exactly)
                const autoBodyBox = bodyBox;
-               
+
                return (
                  <div
                    data-textbox-wrapper
@@ -4596,13 +4596,13 @@ export default function EditPreview() {
                        justifyContent: 'flex-start',
                        color: s.textColor || theme.textColor || '#333',
                        fontFamily: s.styles?.textFont || theme.font,
-                       fontSize: `${finalBodyFontSize}pt`,
+                       fontSize: `${autoFontSize}pt`,
                        fontWeight: s.styles?.textBold ? 700 : 400,
                        fontStyle: s.styles?.textItalic ? 'italic' : 'normal',
                        textAlign: s.styles?.textAlign || 'left',
                        lineHeight: 1.2,
                        outline: 'none',
-                       overflow: 'visible',
+                       overflow: 'hidden',
                        whiteSpace: 'pre-wrap',
                        wordBreak: 'break-word',
                        pointerEvents: isEditing ? 'auto' : 'none'
