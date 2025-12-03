@@ -614,7 +614,8 @@ export const generatePptxFromData = async (requestBody) => {
 
     // Add title with dynamic height FIRST (so we can calculate body position)
     const adjustedTitleSize = titleFontSize;
-    const titleText = slide.title || '';
+    // Preserve original text exactly as typed (no markdown interpretation)
+    const titleText = (slide.title || '').replace(/\*\*/g, '"');
     
     let actualTitleHeight = 0;
     
@@ -654,7 +655,7 @@ export const generatePptxFromData = async (requestBody) => {
     // Resolve Body Box - AFTER title is calculated to avoid overlap
     let finalBodyX, finalBodyY, finalBodyW, finalBodyH;
     if (slide.bodyBox) {
-      // Use manual bodyBox if provided
+      // Use manual bodyBox if provided (takes precedence for custom positioning)
       finalBodyX = slide.bodyBox.x * SLIDE_WIDTH;
       finalBodyY = slide.bodyBox.y * SLIDE_HEIGHT;
       finalBodyW = slide.bodyBox.width * SLIDE_WIDTH;
@@ -663,9 +664,18 @@ export const generatePptxFromData = async (requestBody) => {
       // With image: use dynamic positioning based on image position
       finalBodyX = bodyX;
       finalBodyW = bodyW;
-      // Start below title with a small gap (0.15")
-      finalBodyY = finalTitleY + actualTitleHeight + 0.15;
-      finalBodyH = Math.max(1.0, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
+      
+      // For center image layout, position body below image
+      if (imagePosition === 'center') {
+        // Body starts below the centered image
+        finalBodyY = imgY + imgH + 0.1; // Image bottom + small gap
+        finalBodyH = Math.max(0.8, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
+      } else {
+        // For left/right layouts, body is beside image
+        // Start below title with a small gap (0.15")
+        finalBodyY = finalTitleY + actualTitleHeight + 0.15;
+        finalBodyH = Math.max(1.0, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
+      }
     } else {
       // No image: body below title
       finalBodyX = 0.5;
@@ -708,6 +718,8 @@ export const generatePptxFromData = async (requestBody) => {
       if (!bodyText && bulletLines.length) {
         bodyText = bulletLines.join('\n');
       }
+      // Preserve quotes instead of markdown asterisks
+      bodyText = bodyText.replace(/\*\*/g, '"');
       
       if (bodyText) {
         const dynamicBodyHeight = calculateTextBoxHeight(
@@ -718,11 +730,14 @@ export const generatePptxFromData = async (requestBody) => {
           bodyFontFace
         );
         
+        // Ensure body text doesn't overflow slide - use the smaller of dynamic or available height
+        const constrainedBodyHeight = Math.min(dynamicBodyHeight, finalBodyH);
+        
         pptxSlide.addText(bodyText, {
           x: finalBodyX,
           y: finalBodyY,
           w: finalBodyW,
-          h: dynamicBodyHeight,
+          h: constrainedBodyHeight,
           color: textColorPptx,
           fontFace: bodyFontFace,
           fontSize: bodyFontSize,
@@ -731,13 +746,14 @@ export const generatePptxFromData = async (requestBody) => {
           align: bodyAlign || 'left',
           margin: 0,
           lineSpacing: bodyFontSize * 1.2,
-          fit: 'resize', // Allow PowerPoint to resize if user edits
+          fit: 'shrink', // Shrink text if it doesn't fit
           valign: 'top' // Align text to top of box
         });
       }
     } else {
       // Content layout: show bullets or text
-      const bulletText = bulletLines.map(b => `• ${b}`).join('\n');
+      // Preserve quotes instead of markdown asterisks
+      const bulletText = bulletLines.map(b => `• ${b.replace(/\*\*/g, '"')}`).join('\n');
       
       const adjustedFontSize = bodyFontSize;
       
@@ -750,11 +766,14 @@ export const generatePptxFromData = async (requestBody) => {
           bodyFontFace
         );
         
+        // Ensure body text doesn't overflow slide - use the smaller of dynamic or available height
+        const constrainedBodyHeight = Math.min(dynamicBodyHeight, finalBodyH);
+        
         pptxSlide.addText(bulletText, {
           x: finalBodyX,
           y: finalBodyY,
           w: finalBodyW,
-          h: dynamicBodyHeight,
+          h: constrainedBodyHeight,
           color: textColorPptx,
           fontFace: bodyFontFace,
           fontSize: adjustedFontSize,
@@ -763,7 +782,7 @@ export const generatePptxFromData = async (requestBody) => {
           align: bodyAlign || 'left',
           margin: 0,
           lineSpacing: adjustedFontSize * 1.2,
-          fit: 'resize', // Allow PowerPoint to resize if user edits
+          fit: 'shrink', // Shrink text if it doesn't fit
           valign: 'top' // Align text to top of box
         });
       }
@@ -781,6 +800,12 @@ export const generatePptxFromData = async (requestBody) => {
         // If it's already a data URL, use it directly
         if (sticker.url.startsWith('data:')) {
           dataUrl = sticker.url;
+          
+          // Check if it's an SVG data URL - should be converted to PNG on frontend
+          if (dataUrl.includes('data:image/svg+xml')) {
+            console.log(`Note: SVG sticker detected. Frontend should convert to PNG for best compatibility.`);
+            // We'll still try to add it in case PptxGenJS can handle it
+          }
         } else {
           // Fetch external URL (like pollinations.ai images)
           try {

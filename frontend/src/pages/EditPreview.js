@@ -619,8 +619,10 @@ export default function EditPreview() {
   
 
   // Stickers: picker, selection and interaction state
-
+  const [stickerSearchQuery, setStickerSearchQuery] = useState("");
   const [openStickerFor, setOpenStickerFor] = useState(null); // slideId or null
+  const [externalStickers, setExternalStickers] = useState([]); // External search results
+  const [loadingExternalStickers, setLoadingExternalStickers] = useState(false);
 
   const [selectedSticker, setSelectedSticker] = useState(null); // { slideId, index }
 
@@ -885,6 +887,7 @@ export default function EditPreview() {
       if (!el || !el.contains(e.target)) {
 
         setOpenStickerFor(null);
+        setStickerSearchQuery(""); // Clear search when closing
 
       }
 
@@ -895,6 +898,102 @@ export default function EditPreview() {
     return () => document.removeEventListener('mousedown', onDocMouseDown);
 
   }, [openStickerFor]);
+
+  // Search external sticker sources (Iconify API - free, no API key needed)
+  const searchExternalStickers = useCallback(async (query) => {
+    setLoadingExternalStickers(true);
+    try {
+      // Use Iconify API to search for free icons/stickers
+      const response = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(query)}&limit=24`);
+      const data = await response.json();
+      
+      if (data.icons && data.icons.length > 0) {
+        // Fetch SVG data for each icon
+        const iconPromises = data.icons.slice(0, 24).map(async (iconName) => {
+          try {
+            const svgResponse = await fetch(`https://api.iconify.design/${iconName}.svg?height=40`);
+            const svgText = await svgResponse.text();
+            return {
+              name: iconName.split(':')[1] || iconName,
+              svg: svgText,
+              source: 'iconify',
+              fullName: iconName
+            };
+          } catch (err) {
+            return null;
+          }
+        });
+        
+        const icons = (await Promise.all(iconPromises)).filter(icon => icon !== null);
+        setExternalStickers(icons);
+      } else {
+        setExternalStickers([]);
+      }
+    } catch (error) {
+      console.error('External sticker search failed:', error);
+      setExternalStickers([]);
+    } finally {
+      setLoadingExternalStickers(false);
+    }
+  }, []);
+
+  // Filter stickers based on search query using AI-like keyword matching
+  const filterStickers = (query) => {
+    if (!query.trim()) {
+      return stickerCategories.flatMap(cat => cat.items.map(item => ({cat: cat.name, item})));
+    }
+    
+    const searchLower = query.toLowerCase().trim();
+    const keywords = searchLower.split(/\s+/);
+    
+    // Smart keyword matching for sticker names
+    const matchScore = (stickerName) => {
+      const nameLower = stickerName.toLowerCase();
+      let score = 0;
+      
+      keywords.forEach(keyword => {
+        if (nameLower.includes(keyword)) score += 10;
+        if (nameLower.startsWith(keyword)) score += 5;
+      });
+      
+      return score;
+    };
+    
+    const allStickers = stickerCategories.flatMap(cat => 
+      cat.items.map(item => ({
+        cat: cat.name, 
+        item,
+        score: matchScore(item)
+      }))
+    );
+    
+    const filtered = allStickers
+      .filter(s => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({cat, item}) => ({cat, item}));
+    
+    return filtered;
+  };
+
+  // useEffect to trigger external search when needed
+  useEffect(() => {
+    if (!stickerSearchQuery.trim()) {
+      setExternalStickers([]);
+      setLoadingExternalStickers(false);
+      return;
+    }
+    
+    const searchLower = stickerSearchQuery.toLowerCase().trim();
+    const filtered = filterStickers(stickerSearchQuery);
+    
+    // Trigger external search if no local results and query is meaningful
+    if (filtered.length === 0 && searchLower.length > 2) {
+      searchExternalStickers(searchLower);
+    } else {
+      setExternalStickers([]);
+      setLoadingExternalStickers(false);
+    }
+  }, [stickerSearchQuery, searchExternalStickers]);
 
   
 
@@ -3385,7 +3484,32 @@ export default function EditPreview() {
       }
     };
 
-    // 1. Prepare slides: Convert any relative sticker URLs to Base64
+    // Helper: Convert SVG data URL to PNG data URL (for PPTX compatibility)
+    const svgDataUrlToPng = async (svgDataUrl, width = 200, height = 200) => {
+      return new Promise((resolve) => {
+        try {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = () => {
+            console.warn('Failed to convert SVG to PNG, using original');
+            resolve(svgDataUrl); // Fallback to original
+          };
+          img.src = svgDataUrl;
+        } catch (err) {
+          console.warn('Error converting SVG to PNG:', err);
+          resolve(svgDataUrl); // Fallback to original
+        }
+      });
+    };
+
+    // 1. Prepare slides: Convert any relative sticker URLs to Base64 and SVG to PNG
     // This allows the backend to embed the image data directly.
     const slidesForExport = await Promise.all(
       editedSlides.map(async (slide) => {
@@ -3395,12 +3519,21 @@ export default function EditPreview() {
 
         const processedStickers = await Promise.all(
           slide.stickers.map(async (sticker) => {
+            let processedUrl = sticker.url;
+            
             // Check if it's a relative path (e.g. "/stickers/...") and not already a data URL
             if (sticker.url && typeof sticker.url === 'string' && sticker.url.startsWith('/') && !sticker.url.startsWith('//')) {
               const base64Data = await urlToBase64(sticker.url);
-              return { ...sticker, url: base64Data || sticker.url };
+              processedUrl = base64Data || sticker.url;
             }
-            return sticker;
+            
+            // Convert SVG data URLs to PNG (PptxGenJS doesn't handle SVG well)
+            if (processedUrl && typeof processedUrl === 'string' && processedUrl.includes('data:image/svg+xml')) {
+              console.log('Converting SVG sticker to PNG for PPTX compatibility...');
+              processedUrl = await svgDataUrlToPng(processedUrl, 400, 400);
+            }
+            
+            return { ...sticker, url: processedUrl };
           })
         );
 
@@ -3524,11 +3657,47 @@ export default function EditPreview() {
 
               <option>Inter</option>
 
+              <option>Poppins</option>
+
+              <option>Roboto</option>
+
+              <option>Montserrat</option>
+
+              <option>Open Sans</option>
+
+              <option>Lato</option>
+
+              <option>Raleway</option>
+
+              <option>Playfair Display</option>
+
+              <option>Merriweather</option>
+
               <option>Georgia</option>
 
               <option>Times New Roman</option>
 
               <option>Courier New</option>
+
+              <option>Verdana</option>
+
+              <option>Tahoma</option>
+
+              <option>Trebuchet MS</option>
+
+              <option>Impact</option>
+
+              <option>Gill Sans</option>
+
+              <option>Segoe UI</option>
+
+              <option>Helvetica</option>
+
+              <option>Garamond</option>
+
+              <option>Comic Sans MS</option>
+
+              <option>Lucida Console</option>
 
             </select>
 
@@ -3572,6 +3741,22 @@ export default function EditPreview() {
               <option>Arial</option>
 
               <option>Inter</option>
+
+              <option>Poppins</option>
+
+              <option>Roboto</option>
+
+              <option>Montserrat</option>
+
+              <option>Open Sans</option>
+
+              <option>Lato</option>
+
+              <option>Raleway</option>
+
+              <option>Playfair Display</option>
+
+              <option>Merriweather</option>
 
               <option>Georgia</option>
 
@@ -3706,19 +3891,124 @@ export default function EditPreview() {
 
                 <div
 
-                  style={{ position:'absolute', top:'100%', left:0, marginTop:6, background:'#fff', border:'1px solid rgba(0,0,0,0.12)', borderRadius:10, padding:8, display:'grid', gridTemplateColumns:'repeat(6, 40px)', gap:6, zIndex:1000, maxHeight:220, overflowY:'auto', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}
+                  style={{ position:'absolute', top:'100%', left:0, marginTop:6, background:'#fff', border:'1px solid rgba(0,0,0,0.12)', borderRadius:10, padding:8, display:'flex', flexDirection:'column', gap:8, zIndex:1000, maxHeight:280, boxShadow:'0 4px 12px rgba(0,0,0,0.12)', minWidth:260 }}
 
                   onMouseDown={(e) => e.stopPropagation()}
 
                 >
-
-                  {stickerCategories.flatMap(cat => cat.items.map(item => ({cat: cat.name, item}))).map(({cat,item},i) => {
-
-                    const full = `/stickers/${cat}/${item}`;
-
-                    return <img key={i} src={full} alt={`st-${i}`} onClick={() => handleAddSticker(s.id, full)} style={{ width: 40, height: 40, objectFit: 'contain', cursor: 'pointer' }} onError={(e)=>{ e.currentTarget.style.opacity = 0.3; }} />
-
-                  })}
+                  {/* AI Search Input */}
+                  <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Search stickers... (e.g., 'arrow', 'heart', 'star')"
+                      value={stickerSearchQuery}
+                      onChange={(e) => setStickerSearchQuery(e.target.value)}
+                      style={{
+                        width:'100%',
+                        padding:'8px 12px',
+                        border:'1px solid rgba(0,0,0,0.15)',
+                        borderRadius:8,
+                        fontSize:13,
+                        outline:'none',
+                        transition:'all 0.2s'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#6D4FC2';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(109, 79, 194, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = 'rgba(0,0,0,0.15)';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Sticker Grid */}
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 40px)', gap:6, maxHeight:200, overflowY:'auto' }}>
+                    {(() => {
+                      const filtered = filterStickers(stickerSearchQuery);
+                      
+                      // Show local stickers if found
+                      if (filtered.length > 0) {
+                        return filtered.map(({cat,item},i) => {
+                          const full = `/stickers/${cat}/${item}`;
+                          return <img key={i} src={full} alt={`st-${i}`} onClick={() => { handleAddSticker(s.id, full); setStickerSearchQuery(""); setExternalStickers([]); }} style={{ width: 40, height: 40, objectFit: 'contain', cursor: 'pointer', borderRadius:4, transition:'transform 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'} onError={(e)=>{ e.currentTarget.style.opacity = 0.3; }} />
+                        });
+                      }
+                      
+                      // Show loading state
+                      if (loadingExternalStickers) {
+                        return (
+                          <div style={{ gridColumn:'1/-1', padding:20, textAlign:'center', fontSize:13, color:'#6D4FC2' }}>
+                            <div style={{ margin:'0 auto 8px', width:20, height:20, border:'3px solid rgba(109, 79, 194, 0.3)', borderTop:'3px solid #6D4FC2', borderRadius:'50%', animation:'spin 0.8s linear infinite' }}></div>
+                            <div>🌐 Searching online stickers...</div>
+                          </div>
+                        );
+                      }
+                      
+                      // Show external stickers if found
+                      if (externalStickers.length > 0) {
+                        return (
+                          <>
+                            <div style={{ gridColumn:'1/-1', padding:'6px 4px', fontSize:11, fontWeight:600, color:'#6D4FC2', borderBottom:'1px solid rgba(109, 79, 194, 0.2)', marginBottom:4 }}>
+                              🌐 Online Stickers (Click to import)
+                            </div>
+                            {externalStickers.map((extSticker, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  width:40,
+                                  height:40,
+                                  cursor:'pointer',
+                                  display:'flex',
+                                  alignItems:'center',
+                                  justifyContent:'center',
+                                  borderRadius:6,
+                                  transition:'all 0.15s',
+                                  border:'2px solid rgba(109, 79, 194, 0.3)',
+                                  background:'linear-gradient(135deg, rgba(109, 79, 194, 0.08), rgba(147, 51, 234, 0.08))'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.transform = 'scale(1.15)';
+                                  e.currentTarget.style.boxShadow = '0 3px 12px rgba(109, 79, 194, 0.35)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                  e.currentTarget.style.boxShadow = 'none';
+                                }}
+                                onClick={() => {
+                                  // Convert SVG to data URL for direct embedding
+                                  const svgBlob = new Blob([extSticker.svg], { type: 'image/svg+xml' });
+                                  const url = URL.createObjectURL(svgBlob);
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    const dataUrl = reader.result;
+                                    handleAddSticker(s.id, dataUrl);
+                                    setStickerSearchQuery('');
+                                    setExternalStickers([]);
+                                    URL.revokeObjectURL(url);
+                                  };
+                                  reader.readAsDataURL(svgBlob);
+                                }}
+                                title={extSticker.name}
+                              >
+                                <div dangerouslySetInnerHTML={{ __html: extSticker.svg }} style={{ width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center' }} />
+                              </div>
+                            ))}
+                          </>
+                        );
+                      }
+                      
+                      // No results at all
+                      return (
+                        <div style={{ gridColumn:'1/-1', textAlign:'center', padding:20, color:'#999', fontSize:13 }}>
+                          {stickerSearchQuery.trim().length > 2 
+                            ? '🔍 No stickers found. Try different keywords!' 
+                            : 'Type to search local or online stickers'}
+                        </div>
+                      );
+                    })()}
+                  </div>
 
                 </div>
 
@@ -4161,6 +4451,9 @@ export default function EditPreview() {
 
                if (!computedBodyBox) {
                  // Calculate body box using exact backend logic
+                 const SLIDE_WIDTH = 10.0;  // inches
+                 const SLIDE_HEIGHT = 5.625; // inches
+                 
                  let bodyX_inches = 0.5;
                  let bodyW_inches = 9.0;
                  let bodyY_inches, bodyH_inches;
@@ -4173,12 +4466,13 @@ export default function EditPreview() {
                    // Body X/W depends on image position
                    if (imagePosition === 'left') {
                      // Image on left: body on right side
-                     // Backend: bodyX = (imageX + imageW + 0.04) * 10 = (0.05 + 0.35 + 0.04) * 10 = 4.4"
+                     // Backend: bodyX = (0.05 + 0.35 + 0.04) * 10 = 4.4"
+                     // Backend: bodyW = 10.0 - 4.4 - 0.5 = 5.1"
                      bodyX_inches = 4.4;
-                     bodyW_inches = 10.0 - 4.4 - 0.5; // 5.1"
+                     bodyW_inches = 5.1;
                    } else if (imagePosition === 'right') {
                      // Image on right: body on left side
-                     // Backend: bodyX = 0.5", bodyW = (imageX - 0.05) * 10 = (0.6 - 0.05) * 10 = 5.5"
+                     // Backend: bodyX = 0.5", bodyW = (0.6 - 0.05) * 10 = 5.5"
                      bodyX_inches = 0.5;
                      bodyW_inches = 5.5;
                    } else {
@@ -5986,47 +6280,36 @@ export default function EditPreview() {
                 const isSlide3CenterLayout = previewSlideIndex === 2 && slide.imagePosition === 'center';
 
                 if (hasImage && !computedBodyBox) {
-                  const SLIDE_W = 1.0;
+                  const SLIDE_WIDTH = 10.0;  // inches
+                  const SLIDE_HEIGHT = 5.625; // inches
                   const imagePosition = slide.imagePosition || 'right';
-                  const defaultImageData = imagePosition === 'center'
-                    ? { x: 0.35, y: 0.5, width: 0.3, height: 0.4 }
-                    : imagePosition === 'left'
-                    ? { x: 0.05, y: 0.2, width: 0.35, height: 0.65 }
-                    : { x: 0.6, y: 0.2, width: 0.35, height: 0.65 };
-                  const img = {
-                    ...defaultImageData,
-                    ...(slide.imageData || {})
-                  };
-                  let bodyXNorm = 0.05;
-                  let bodyWNorm = 0.9;
-                  if (imagePosition === 'left') {
-                    bodyXNorm = img.x + img.width + 0.04;
-                    bodyWNorm = Math.max(0.05, SLIDE_W - bodyXNorm - 0.05);
-                  } else if (imagePosition === 'right') {
-                    bodyXNorm = 0.05;
-                    bodyWNorm = Math.max(0.05, (img.x - 0.05));
-                  } else {
-                    // Center case: Text below image
-                    bodyXNorm = 0.05;
-                    bodyWNorm = 0.9;
-                  }
                   
-                  // Default values for left/right layouts
-                  let bodyYNorm = 0.2667;
-                  let bodyHNorm = 0.6222;
-
-                  if (imagePosition === 'center') {
-                     // For slide 3 only: Adjust layout for better spacing
-                     // Image at top-center, text below
-                     bodyYNorm = 0.63; // Text starts below image
-                     bodyHNorm = 0.32; // Text takes remaining height
+                  let bodyX_inches = 0.5;
+                  let bodyW_inches = 9.0;
+                  let bodyY_inches = 1.5;
+                  let bodyH_inches = 3.5;
+                  
+                  if (imagePosition === 'left') {
+                    // Image on left: body on right side
+                    bodyX_inches = 4.4;  // (0.05 + 0.35 + 0.04) * 10
+                    bodyW_inches = 5.1;  // 10.0 - 4.4 - 0.5
+                  } else if (imagePosition === 'right') {
+                    // Image on right: body on left side
+                    bodyX_inches = 0.5;
+                    bodyW_inches = 5.5;  // (0.6 - 0.05) * 10
+                  } else if (imagePosition === 'center') {
+                    // Center: body below image
+                    bodyX_inches = 0.5;
+                    bodyW_inches = 9.0;
+                    bodyY_inches = 3.54375; // Image bottom (1.265625 + 2.278125)
+                    bodyH_inches = 1.88125; // Remaining space
                   }
 
                   computedBodyBox = {
-                    x: bodyXNorm,
-                    y: bodyYNorm,
-                    width: bodyWNorm,
-                    height: bodyHNorm,
+                    x: bodyX_inches / SLIDE_WIDTH,
+                    y: bodyY_inches / SLIDE_HEIGHT,
+                    width: bodyW_inches / SLIDE_WIDTH,
+                    height: bodyH_inches / SLIDE_HEIGHT,
                     zIndex: 100
                   };
                 }

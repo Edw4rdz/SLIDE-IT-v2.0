@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaEnvelope, FaLock, FaGoogle } from "react-icons/fa";
+import { FaEnvelope, FaLock, FaGoogle, FaEye, FaEyeSlash } from "react-icons/fa";
 import loginImg from "../assets/loginImg.jpg";
 import "../styles/login.css";
 import { useNavigate } from "react-router-dom";
@@ -27,6 +27,7 @@ import {
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   
@@ -325,18 +326,35 @@ export default function Login() {
   {/* Password Field Group */}
   <div className="input-group">
     <label htmlFor="password" className="input-label">Password</label>
-    <div className="input-box">
+    <div className="input-box" style={{ position: 'relative' }}>
       <i><FaLock /></i>
       <input
-        id="password" // added id
-        type="password"
+        id="password"
+        type={showPassword ? "text" : "password"}
         placeholder="Enter your password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         required
-        style={{ paddingLeft: "50px" }}
+        style={{ paddingLeft: "50px", paddingRight: "45px" }}
         disabled={loading}
       />
+      {password && (
+        <i 
+          onClick={() => setShowPassword(!showPassword)}
+          style={{
+            position: 'absolute',
+            right: '15px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            cursor: 'pointer',
+            color: '#6D4FC2',
+            fontSize: '17px',
+            left: 'auto'
+          }}
+        >
+          {showPassword ? <FaEyeSlash /> : <FaEye />}
+        </i>
+      )}
     </div>
   </div>
 
