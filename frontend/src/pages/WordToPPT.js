@@ -219,8 +219,18 @@ export default function WordToPPT() {
                       min="1"
                       value={slides}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!isNaN(value) && value >= 1) setSlides(value);
+                        const val = e.target.value;
+                        if (val === '') {
+                          setSlides('');
+                        } else {
+                          const num = parseInt(val);
+                          if (!isNaN(num) && num >= 1) setSlides(num);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                          setSlides(1);
+                        }
                       }}
                       className="slide-input"
                     />

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from "../utils/notify";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable } from 'react-icons/fa';
+import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable, FaAngleDoubleUp, FaAngleUp, FaAngleDown, FaAngleDoubleDown, FaTrash } from 'react-icons/fa';
 import { getTemplates, downloadPPTX } from '../api';
 import '../styles/edit-preview.css';
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -179,9 +179,9 @@ const BASE_TABLE_CELL_WIDTH = 0.12; // approx 12% of slide width per column
 
 const BASE_TABLE_CELL_HEIGHT = 0.10; // approx 10% of slide height per row
 
-const MIN_TABLE_WIDTH = 0.06;
+const MIN_TABLE_WIDTH = 0.03;
 
-const MIN_TABLE_HEIGHT = 0.06;
+const MIN_TABLE_HEIGHT = 0.03;
 
 const MAX_TABLE_WIDTH = 0.94;
 
@@ -503,19 +503,45 @@ export default function EditPreview() {
 
   
 
-  const initialSlides = (location.state?.slides || []).map((slide, index) => ({
+  const initialSlides = (location.state?.slides || []).map((slide, index) => {
+    // Determine image position based on 3-slide pattern if not already set
+    let imagePosition = slide.imagePosition;
+    if (!imagePosition) {
+      const pattern = index % 3;
+      if (pattern === 0) imagePosition = 'right';
+      else if (pattern === 1) imagePosition = 'left';
+      else imagePosition = 'center';
+    }
+    
+    // Set imageData based on position for consistent layout
+    let imageData = slide.imageData;
+    if (!imageData && imagePosition) {
+      if (imagePosition === 'right') {
+        imageData = { x: 0.6, y: 0.2, width: 0.35, height: 0.65 };
+      } else if (imagePosition === 'left') {
+        imageData = { x: 0.05, y: 0.2, width: 0.35, height: 0.65 };
+      } else if (imagePosition === 'center') {
+        // Center image: placed below title, text will be below image
+        imageData = { x: 0.35, y: 0.23, width: 0.3, height: 0.36 };
+      }
+    }
+    
+    // Set bodyBox for center layout slides to position text below image
+    let bodyBox = slide.bodyBox;
+    if (!bodyBox && imagePosition === 'center') {
+      bodyBox = { x: 0.05, y: 0.63, width: 0.9, height: 0.32, zIndex: 100 };
+    }
 
-    ...slide,
-
-    id: slide.id ?? `slide-${index}-${Date.now()}`,
-
-    layout: index === 0 ? 'title' : 'content',
-
-    // If uploadedImage is present in slide (from draft), use it; otherwise, null
-
-    uploadedImage: slide.uploadedImage || null,
-
-    tables: Array.isArray(slide.tables)
+    return {
+      ...slide,
+      id: slide.id ?? `slide-${index}-${Date.now()}`,
+      layout: 'content',  // All slides use content layout with bullets
+      imagePosition,
+      imageData,
+      bodyBox,
+      // If uploadedImage is present in slide (from draft), use it; otherwise, null
+      uploadedImage: slide.uploadedImage || null,
+      tables: Array.isArray(slide.tables)
 
       ? slide.tables.map((tbl) => {
 
@@ -568,18 +594,13 @@ export default function EditPreview() {
       titleItalic: false,
 
       textFont: 'Arial',
-
       textSize: 16,
-
       textBold: false,
-
       textItalic: false,
-
       textAlign: 'left'
-
     }
-
-  }));
+  };
+  });
 
   const [editedSlides, setEditedSlides] = useState(initialSlides);
 
@@ -608,8 +629,13 @@ export default function EditPreview() {
   const [resizingSticker, setResizingSticker] = useState(null); // { slideId, index, mode, startX, startY, origX, origY, origW, origH, rect, origRotate }
 
   const [rotatingSticker, setRotatingSticker] = useState(null); // { slideId, index, startX, startY, centerX, centerY, startAngle, origRotate }
+  const [selectedTextBox, setSelectedTextBox] = useState(null); // { slideId, type: 'title'|'body' }
+  const [draggingTextBox, setDraggingTextBox] = useState(null);
+  const [resizingTextBox, setResizingTextBox] = useState(null);
 
   const [selectedTable, setSelectedTable] = useState(null); // { slideId, index }
+
+  const [selectedImage, setSelectedImage] = useState(null); // slideId of the selected image
 
   const [draggingTable, setDraggingTable] = useState(null);
 
@@ -621,7 +647,13 @@ export default function EditPreview() {
 
   const [activeTableCell, setActiveTableCell] = useState(null); // { slideId, tableIndex, rowIndex, colIndex }
 
+  // Temporary font size inputs (to allow typing without immediate updates)
+  const [tempFontSizes, setTempFontSizes] = useState({});
+  // Temporary image prompt input
+  const [tempImagePrompts, setTempImagePrompts] = useState({});
+
   const containerRefs = useRef({});
+  const promptTimeouts = useRef({});
 
   const tableFrameRefs = useRef({});
 
@@ -729,6 +761,11 @@ export default function EditPreview() {
   // Load draft on mount if available
   useEffect(() => {
     if (draftLoaded) return; // Prevent multiple loads
+    // If we navigated here with fresh slides, do NOT override with an older draft
+    if (Array.isArray(location.state?.slides) && location.state.slides.length > 0) {
+      setDraftLoaded(true);
+      return;
+    }
     
     const convId = location.state?.convId || topic;
     const draftKey = `slideit_draft_${convId}`;
@@ -744,7 +781,7 @@ export default function EditPreview() {
           const restoredSlides = draft.slides.map((slide, index) => ({
             ...slide,
             id: slide.id ?? `slide-${index}-${Date.now()}`,
-            layout: slide.layout || (index === 0 ? 'title' : 'content'),
+            layout: slide.layout || 'content',  // All slides use content layout
             uploadedImage: slide.uploadedImage || null,
             tables: Array.isArray(slide.tables)
               ? slide.tables.map((tbl) => {
@@ -1183,7 +1220,63 @@ export default function EditPreview() {
 
   }, [editedSlides, showImageColumn, imageProvider]); 
 
+  // Auto-generate sticker images for slides that have sticker prompts but no URLs
+  useEffect(() => {
+    if (!editedSlides || editedSlides.length === 0) return;
 
+    const generateStickers = async () => {
+      let updatesNeeded = false;
+      const updates = [];
+
+      // Identify stickers needing generation
+      for (const slide of editedSlides) {
+        if (Array.isArray(slide.stickers)) {
+          for (let i = 0; i < slide.stickers.length; i++) {
+            const sticker = slide.stickers[i];
+            if (sticker.prompt && !sticker.url) {
+               updates.push({ slideId: slide.id, stickerIndex: i, prompt: sticker.prompt });
+               updatesNeeded = true;
+            }
+          }
+        }
+      }
+
+      if (!updatesNeeded) return;
+
+      // Generate images
+      const results = await Promise.all(updates.map(async (u) => {
+          let url = null;
+          if (imageProvider === 'grok') {
+             try {
+                 const { generateImageFromGrok } = await import('../api');
+                 url = await generateImageFromGrok(u.prompt);
+             } catch (e) { console.error("Sticker generation error:", e); }
+          } else {
+             url = getPollinationsImageUrl(u.prompt);
+          }
+          return { ...u, url };
+      }));
+      
+      const successful = results.filter(r => r.url);
+      
+      if (successful.length > 0) {
+          setEditedSlides(prev => prev.map(s => {
+              const slideUpdates = successful.filter(u => u.slideId === s.id);
+              if (slideUpdates.length === 0) return s;
+              
+              const newStickers = [...(s.stickers || [])];
+              slideUpdates.forEach(u => {
+                  if (newStickers[u.stickerIndex]) {
+                      newStickers[u.stickerIndex] = { ...newStickers[u.stickerIndex], url: u.url };
+                  }
+              });
+              return { ...s, stickers: newStickers };
+          }));
+      }
+    };
+    
+    generateStickers();
+  }, [editedSlides, imageProvider]);
 
   // Clamp helper for safe positioning
 
@@ -1228,27 +1321,29 @@ export default function EditPreview() {
 
 
   // Normalize bullets/text into an array of lines for consistent preview
-
   const getBulletLines = (slide) => {
-
     if (!slide) return [];
 
-    let bullets = [];
+    let rawBullets = [];
     if (Array.isArray(slide.bullets)) {
-      bullets = slide.bullets.filter(Boolean);
+      rawBullets = slide.bullets.filter(Boolean);
     } else {
       const source = typeof slide.bullets === 'string' && slide.bullets.trim().length
         ? slide.bullets
         : (typeof slide.text === 'string' ? slide.text : '');
-      bullets = source
-        .split(/\n|•/)
-        .map(l => (l || '').trim())
-        .filter(Boolean);
+      rawBullets = [source];
     }
+
+    // Process all items to fix missing spaces and split
+    const bullets = rawBullets
+      .map(b => String(b))
+      .map(b => b.replace(/([a-z])\.([A-Z])/g, '$1.\n$2')) // Fix missing spaces between sentences
+      .flatMap(b => b.split(/\n|•/))
+      .map(l => (l || '').trim())
+      .filter(Boolean);
 
     // Replace **text** with "text" for display
     return bullets.map(b => replaceMarkdownBold(b));
-
   };
 
   // Replace markdown bold syntax **text** with quotes "text"
@@ -2023,9 +2118,30 @@ export default function EditPreview() {
 
         const dy = (ev.clientY - startY) / rect.height;
 
+        console.log('[IMAGE DRAG] Moving:', { index, dx, dy, clientX: ev.clientX, clientY: ev.clientY });
+
         setEditedSlides((prev) => prev.map((s) => {
 
           if (s.id !== slideId) return s;
+
+          // Handle image dragging (index === -1)
+          if (index === -1) {
+            console.log('[IMAGE DRAG] Updating image position');
+            const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+            const maxX = 1 - (imgData.width || 0.4);
+            const maxY = 1 - (imgData.height || 0.6);
+            const newX = clamp((origX || 0.5) + dx, 0, maxX);
+            const newY = clamp((origY || 0.15) + dy, 0, maxY);
+            console.log('[IMAGE DRAG] New position:', { newX, newY, origX, origY });
+            return { 
+              ...s, 
+              imageData: {
+                ...imgData,
+                x: newX,
+                y: newY
+              }
+            };
+          }
 
           const arr = Array.isArray(s.stickers) ? [...s.stickers] : [];
 
@@ -2062,6 +2178,22 @@ export default function EditPreview() {
         setEditedSlides((prev) => prev.map((s) => {
 
           if (s.id !== slideId) return s;
+
+          // Handle image resizing (index === -1)
+          if (index === -1) {
+            const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+            let x = origX || 0.5, y = origY || 0.15, w = origW || 0.4, h = origH || 0.6;
+
+            if (mode === 'se') { w = clamp(w + dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
+            if (mode === 'ne') { w = clamp(w + dx, 0.1, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, 0.1, 1); }
+            if (mode === 'sw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
+            if (mode === 'nw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, 0.1, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, 0.1, 1); }
+
+            return { 
+              ...s, 
+              imageData: { x, y, width: w, height: h }
+            };
+          }
 
           const arr = Array.isArray(s.stickers) ? [...s.stickers] : [];
 
@@ -2484,79 +2616,186 @@ export default function EditPreview() {
 
 
       if (draggingSticker) {
-
         const { slideId, index, startX, startY, origX, origY, rect } = draggingSticker;
-
         const dx = (ev.clientX - startX) / rect.width;
-
         const dy = (ev.clientY - startY) / rect.height;
-
         setEditedSlides((prev) => prev.map((s) => {
-
           if (s.id !== slideId) return s;
 
+          // Handle image dragging (index === -1)
+          if (index === -1) {
+            const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+            const maxX = 1 - (imgData.width || 0.4);
+            const maxY = 1 - (imgData.height || 0.6);
+            const newX = clamp((origX !== undefined ? origX : 0.5) + dx, 0, maxX);
+            const newY = clamp((origY !== undefined ? origY : 0.15) + dy, 0, maxY);
+            return { 
+              ...s, 
+              imageData: {
+                ...imgData,
+                x: newX,
+                y: newY
+              }
+            };
+          }
+
           const arr = Array.isArray(s.stickers) ? [...s.stickers] : [];
-
           const g = { ...(arr[index] || {}) };
-
           const maxX = 1 - (g.width || 0.18);
-
           const maxY = 1 - (g.height || 0.18);
-
-          g.x = clamp((origX || 0) + dx, 0, maxX);
-
-          g.y = clamp((origY || 0) + dy, 0, maxY);
-
+          g.x = clamp((origX !== undefined ? origX : 0) + dx, 0, maxX);
+          g.y = clamp((origY !== undefined ? origY : 0) + dy, 0, maxY);
           arr[index] = g;
-
           return { ...s, stickers: arr };
-
         }));
-
         return;
-
       }
 
       if (resizingSticker) {
-
         const { slideId, index, startX, startY, origX, origY, origW, origH, rect, mode } = resizingSticker;
-
         const dx = (ev.clientX - startX) / rect.width;
-
         const dy = (ev.clientY - startY) / rect.height;
-
         setEditedSlides((prev) => prev.map((s) => {
-
           if (s.id !== slideId) return s;
 
+          // Handle image resizing (index === -1)
+          if (index === -1) {
+            const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+            let x = origX !== undefined ? origX : 0.5, y = origY !== undefined ? origY : 0.15, w = origW || 0.4, h = origH || 0.6;
+
+            if (mode === 'se') { w = clamp(w + dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
+            if (mode === 'ne') { w = clamp(w + dx, 0.1, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, 0.1, 1); }
+            if (mode === 'sw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
+            if (mode === 'nw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, 0.1, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, 0.1, 1); }
+
+            return { 
+              ...s, 
+              imageData: { x, y, width: w, height: h }
+            };
+          }
+
           const arr = Array.isArray(s.stickers) ? [...s.stickers] : [];
-
           const g = { ...(arr[index] || {}) };
-
-          let x = origX || 0, y = origY || 0, w = origW || 0.18, h = origH || 0.18;
-
+          let x = origX !== undefined ? origX : 0, y = origY !== undefined ? origY : 0, w = origW || 0.18, h = origH || 0.18;
           if (mode === 'se') { w = clamp(w + dx, 0.04, 1); h = clamp(h + dy, 0.04, 1); }
-
           if (mode === 'ne') { w = clamp(w + dx, 0.04, 1); y = clamp(y + dy, 0, 1 - h); h = clamp(h - dy, 0.04, 1); }
-
           if (mode === 'sw') { x = clamp(x + dx, 0, 1 - w); w = clamp(w - dx, 0.04, 1); h = clamp(h + dy, 0.04, 1); }
-
           if (mode === 'nw') { x = clamp(x + dx, 0, 1 - w); y = clamp(y + dy, 0, 1 - h); w = clamp(w - dx, 0.04, 1); h = clamp(h - dy, 0.04, 1); }
-
           g.x = clamp(x, 0, 1 - w);
-
           g.y = clamp(y, 0, 1 - h);
-
           g.width = w; g.height = h;
-
           arr[index] = g;
-
           return { ...s, stickers: arr };
-
         }));
-
         return;
+      }
 
+      // Text Box dragging
+      if (draggingTextBox) {
+        const { slideId, type, startX, startY, origX, origY, origW, origH, rect } = draggingTextBox;
+        const dx = (ev.clientX - startX) / rect.width;
+        const dy = (ev.clientY - startY) / rect.height;
+        setEditedSlides((prev) => prev.map((s) => {
+          if (s.id !== slideId) return s;
+          
+          const boxKey = type === 'title' ? 'titleBox' : 'bodyBox';
+          const defaultBox = type === 'title' 
+            ? { x: 0.05, y: 0.0622, width: 0.9, height: 0.1778 } 
+            : { x: 0.05, y: 0.2844, width: 0.9, height: 0.64 };
+            
+          const currentW = origW !== undefined ? origW : (s[boxKey]?.width || defaultBox.width);
+          const currentH = origH !== undefined ? origH : (s[boxKey]?.height || defaultBox.height);
+
+          const box = { ...(s[boxKey] || defaultBox) };
+          box.width = currentW;
+          box.height = currentH;
+
+          const maxX = 1 - currentW;
+          const maxY = 1 - currentH;
+          
+          box.x = clamp((origX !== undefined ? origX : defaultBox.x) + dx, 0, maxX);
+          box.y = clamp((origY !== undefined ? origY : defaultBox.y) + dy, 0, maxY);
+          
+          return { ...s, [boxKey]: box };
+        }));
+        return;
+      }
+
+      // Text Box resizing
+      if (resizingTextBox) {
+        const { slideId, type, startX, startY, origX, origY, origW, origH, origFontSize, rect, mode } = resizingTextBox;
+        const dx = (ev.clientX - startX) / rect.width;
+        const dy = (ev.clientY - startY) / rect.height;
+        setEditedSlides((prev) => prev.map((s) => {
+          if (s.id !== slideId) return s;
+          
+          const boxKey = type === 'title' ? 'titleBox' : 'bodyBox';
+          const defaultBox = type === 'title' 
+            ? { x: 0.05, y: 0.0622, width: 0.9, height: 0.1778 } 
+            : { x: 0.05, y: 0.2844, width: 0.9, height: 0.64 };
+            
+          let x = origX !== undefined ? origX : defaultBox.x, y = origY !== undefined ? origY : defaultBox.y, w = origW || defaultBox.width, h = origH || defaultBox.height;
+
+          // Corner resizing: Scale proportionally (Canva-style)
+          if (['nw', 'ne', 'se', 'sw'].includes(mode)) {
+             // Calculate new width first
+             if (mode === 'se' || mode === 'ne') w = clamp(w + dx, 0.1, 1);
+             if (mode === 'sw' || mode === 'nw') {
+                const newW = clamp(w - dx, 0.1, 1);
+                x = clamp(x + (w - newW), 0, 1 - newW);
+                w = newW;
+             }
+             
+             // Enforce aspect ratio for height
+             const aspect = (origW || defaultBox.width) / (origH || defaultBox.height);
+             const newH = w / aspect;
+             
+             // Adjust Y if resizing from top
+             if (mode === 'ne' || mode === 'nw') {
+                y = clamp(y + (h - newH), 0, 1 - newH);
+             }
+             h = newH;
+          }
+          // Side resizing: Change width only, height auto-adjusts (handled by render logic)
+          else {
+             if (mode === 'e') { w = clamp(w + dx, 0.1, 1); }
+             if (mode === 'w') { 
+                const newW = clamp(w - dx, 0.1, 1);
+                x = clamp(x + (w - newW), 0, 1 - newW);
+                w = newW;
+             }
+             // Do not change h for side resizing
+          }
+          
+          const newBox = { ...(s[boxKey] || defaultBox) };
+          newBox.x = clamp(x, 0, 1 - w);
+          newBox.y = clamp(y, 0, 1 - h);
+          newBox.width = w;
+          newBox.height = h;
+
+          // Font scaling logic
+          const newStyles = { ...(s.styles || {}) };
+          if (type === 'title') {
+            // For title: corner resize scales font proportionally
+            if (['nw', 'ne', 'se', 'sw'].includes(mode) && origFontSize && origW) {
+               const ratio = w / origW; // Scale based on width change
+               const newSize = Math.max(8, Math.min(200, Math.round(origFontSize * ratio)));
+               newStyles.titleSize = newSize;
+            }
+            // Side resize: preserve titleSize (do nothing)
+          } else {
+            // For body text: corner resize scales font
+            if (['nw', 'ne', 'se', 'sw'].includes(mode) && origFontSize && origW) {
+               const ratio = w / origW; // Scale based on width change
+               const newSize = Math.max(8, Math.min(200, Math.round(origFontSize * ratio)));
+               newStyles.textSize = newSize;
+            }
+            // Side resize: do not change textSize
+          }
+          
+          return { ...s, [boxKey]: newBox, styles: newStyles };
+        }));
+        return;
       }
 
       if (rotatingSticker) {
@@ -2673,7 +2912,16 @@ export default function EditPreview() {
 
     };
 
-  const onPointerUp = () => { setDraggingSticker(null); setResizingSticker(null); setRotatingSticker(null); setDraggingTable(null); setResizingTable(null); setResizingTableAxis(null); };
+  const onPointerUp = () => { 
+    setDraggingSticker(null); 
+    setResizingSticker(null); 
+    setRotatingSticker(null); 
+    setDraggingTable(null); 
+    setResizingTable(null); 
+    setResizingTableAxis(null);
+    setDraggingTextBox(null);
+    setResizingTextBox(null);
+  };
 
     window.addEventListener('pointermove', onPointerMove);
 
@@ -2687,7 +2935,7 @@ export default function EditPreview() {
 
     };
 
-  }, [draggingSticker, resizingSticker, rotatingSticker, draggingTable, resizingTable, resizingTableAxis]);
+  }, [draggingSticker, resizingSticker, rotatingSticker, draggingTable, resizingTable, resizingTableAxis, draggingTextBox, resizingTextBox]);
 
 
 
@@ -2743,7 +2991,32 @@ export default function EditPreview() {
 
   }, [selectedSticker]);
 
+  // Deselect image on outside click
+  useEffect(() => {
+    if (!selectedImage) return;
+    const onPointerDownGlobal = (e) => {
+      const inImage = e.target.closest('[data-image-wrapper]');
+      if (!inImage) {
+        setSelectedImage(null);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDownGlobal, true);
+    return () => document.removeEventListener('pointerdown', onPointerDownGlobal, true);
+  }, [selectedImage]);
 
+  // Deselect text box on outside click
+  useEffect(() => {
+    if (!selectedTextBox) return;
+    const onPointerDownGlobal = (e) => {
+      const inTextBox = e.target.closest('[data-textbox-wrapper]');
+      const inToolbar = e.target.closest('[data-textbox-toolbar]');
+      if (!inTextBox && !inToolbar) {
+        setSelectedTextBox(null);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDownGlobal, true);
+    return () => document.removeEventListener('pointerdown', onPointerDownGlobal, true);
+  }, [selectedTextBox]);
 
   useEffect(() => {
 
@@ -2842,15 +3115,10 @@ export default function EditPreview() {
       currentSlides.map((s) => {
 
         if (s.id === id) {
-
           let updatedSlide = {
-
             ...s,
-
-            [field]: field === 'bullets' ? value.split('\n') : value
-
+            [field]: field === 'bullets' && typeof value === 'string' ? value.split('\n') : value
           };
-
           if (field === 'imagePrompt') {
 
             updatedSlide.uploadedImage = null; 
@@ -2926,12 +3194,71 @@ export default function EditPreview() {
   const handleRemoveImage = (slideId) => {
     setEditedSlides(currentSlides => {
       const updatedSlides = currentSlides.map(s =>
-        s.id === slideId ? { ...s, uploadedImage: null, imagePrompt: "" } : s
+        s.id === slideId ? { ...s, uploadedImage: null, imagePrompt: "", removedImage: true } : s
       );
       // Save draft immediately after removing image
       saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
       return updatedSlides;
     });
+  };
+
+  const handleLayering = (slideId, type, index, action) => {
+    setEditedSlides(prev => prev.map(s => {
+      if (s.id !== slideId) return s;
+
+      // Gather all elements to determine z-index range
+      const elements = [
+        ...(s.tables || []).map(t => ({ zIndex: t.zIndex || 10 })),
+        ...(s.stickers || []).map(st => ({ zIndex: st.zIndex || 20 })),
+        ...(s.uploadedImage || previewImageUrls[s.id] || showImageColumn ? [{ zIndex: s.imageData?.zIndex !== undefined ? s.imageData.zIndex : 110 }] : []),
+        { zIndex: s.titleBox?.zIndex !== undefined ? s.titleBox.zIndex : 100 },
+        { zIndex: s.bodyBox?.zIndex !== undefined ? s.bodyBox.zIndex : 100 }
+      ];
+      
+      // Find current zIndex of target
+      let currentZ = 0;
+      if (type === 'table') currentZ = s.tables[index]?.zIndex || 10;
+      if (type === 'sticker') currentZ = s.stickers[index]?.zIndex || 20;
+      if (type === 'image') currentZ = s.imageData?.zIndex !== undefined ? s.imageData.zIndex : 110;
+      if (type === 'title') currentZ = s.titleBox?.zIndex !== undefined ? s.titleBox.zIndex : 100;
+      if (type === 'body') currentZ = s.bodyBox?.zIndex !== undefined ? s.bodyBox.zIndex : 100;
+
+      let newZ = currentZ;
+      
+      if (action === 'front') {
+        const maxZ = Math.max(...elements.map(e => e.zIndex || 0), 0);
+        newZ = maxZ + 1;
+      } else if (action === 'back') {
+        const minZ = Math.min(...elements.map(e => e.zIndex || 0), 0);
+        newZ = minZ - 1;
+      } else if (action === 'forward') {
+        newZ = currentZ + 1;
+      } else if (action === 'backward') {
+        newZ = currentZ - 1;
+      }
+
+      // Apply new Z
+      if (type === 'table') {
+        const newTables = [...(s.tables || [])];
+        newTables[index] = { ...newTables[index], zIndex: newZ };
+        return { ...s, tables: newTables };
+      }
+      if (type === 'sticker') {
+        const newStickers = [...(s.stickers || [])];
+        newStickers[index] = { ...newStickers[index], zIndex: newZ };
+        return { ...s, stickers: newStickers };
+      }
+      if (type === 'image') {
+        return { ...s, imageData: { ...(s.imageData || {}), zIndex: newZ } };
+      }
+      if (type === 'title') {
+        return { ...s, titleBox: { ...(s.titleBox || { x: 0.05, y: 0.0622, width: 0.9, height: 0.1778 }), zIndex: newZ } };
+      }
+      if (type === 'body') {
+        return { ...s, bodyBox: { ...(s.bodyBox || { x: 0.05, y: 0.2844, width: 0.9, height: 0.64 }), zIndex: newZ } };
+      }
+      return s;
+    }));
   };
 
     // ➕ Add a new blank slide
@@ -2951,6 +3278,10 @@ export default function EditPreview() {
       uploadedImage: null,
 
       imagePrompt: "",
+
+      titleBox: { x: 0.05, y: 0.0622, width: 0.9, height: 0.1778, zIndex: 100 },
+      
+      bodyBox: { x: 0.05, y: 0.2844, width: 0.9, height: 0.64, zIndex: 100 },
 
       styles: {
 
@@ -2986,12 +3317,34 @@ export default function EditPreview() {
 
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, slideId: null });
   const handleDeleteSlide = (slideId) => {
+    // Prevent deleting the last slide
+    if (editedSlides.length <= 1) {
+      notify("Cannot delete the last slide!", 'error');
+      return;
+    }
     setDeleteConfirm({ open: true, slideId });
   };
   const confirmDeleteSlide = () => {
     const slideId = deleteConfirm.slideId;
     setDeleteConfirm({ open: false, slideId: null });
-    setEditedSlides(prev => prev.filter(s => s.id !== slideId));
+    
+    setEditedSlides(prev => {
+      const updated = prev.filter(s => s.id !== slideId);
+      
+      // Clear any selections related to the deleted slide
+      if (selectedSticker?.slideId === slideId) setSelectedSticker(null);
+      if (selectedTable?.slideId === slideId) setSelectedTable(null);
+      if (selectedImage === slideId) setSelectedImage(null);
+      if (selectedTextBox?.slideId === slideId) setSelectedTextBox(null);
+      if (activeTableCell?.slideId === slideId) setActiveTableCell(null);
+      
+      // Save draft after deletion
+      saveDraft(updated, topic, (location.state?.convId || topic), currentDesign, imageProvider);
+      
+      return updated;
+    });
+    
+    notify("Slide deleted successfully", 'success');
   };
 
 
@@ -3136,17 +3489,6 @@ export default function EditPreview() {
       previewStyle.backgroundColor = theme.background || '#FFFFFF';
 
     }
-      <ConfirmDialog
-        open={deleteConfirm.open}
-        title="Delete Slide"
-        message="Are you sure you want to delete this slide?"
-        confirmText="Delete"
-        cancelText="Cancel"
-        onConfirm={confirmDeleteSlide}
-        onCancel={() => setDeleteConfirm({ open: false, slideId: null })}
-      />
-
-
 
     return (
 
@@ -3190,13 +3532,29 @@ export default function EditPreview() {
 
             </select>
 
-            <input
-              type="number"
-              value={s.styles?.titleSize === undefined ? '' : s.styles?.titleSize}
-              min={10}
-              max={80}
-              style={{ width: 64 }}
-              onChange={(e) => handleStyleChange(s.id, 'titleSize', e.target.value === '' ? undefined : Number(e.target.value))}
+            <input 
+              type="number" 
+              value={tempFontSizes[`title-${s.id}`] !== undefined ? tempFontSizes[`title-${s.id}`] : (s.styles?.titleSize || 32)}
+              style={{width:64}} 
+              onChange={(e) => {
+                const val = e.target.value;
+                setTempFontSizes(prev => ({...prev, [`title-${s.id}`]: val}));
+              }} 
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val === '') {
+                  handleStyleChange(s.id, 'titleSize', 32);
+                } else {
+                  const num = Number(val);
+                  if (!isNaN(num)) {
+                    handleStyleChange(s.id, 'titleSize', num);
+                  }
+                }
+                setTempFontSizes(prev => ({...prev, [`title-${s.id}`]: undefined}));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.target.blur();
+              }}
             />
 
             <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'titleBold', !s.styles?.titleBold)} style={{fontWeight: s.styles?.titleBold ? 700 : 400}}>B</button>
@@ -3223,13 +3581,29 @@ export default function EditPreview() {
 
             </select>
 
-            <input
-              type="number"
-              value={s.styles?.textSize === undefined ? '' : s.styles?.textSize}
-              min={8}
-              max={48}
-              style={{ width: 56 }}
-              onChange={(e) => handleStyleChange(s.id, 'textSize', e.target.value === '' ? undefined : Number(e.target.value))}
+            <input 
+              type="number" 
+              value={tempFontSizes[`text-${s.id}`] !== undefined ? tempFontSizes[`text-${s.id}`] : (s.styles?.textSize || 16)}
+              style={{width:56}} 
+              onChange={(e) => {
+                const val = e.target.value;
+                setTempFontSizes(prev => ({...prev, [`text-${s.id}`]: val}));
+              }} 
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val === '') {
+                  handleStyleChange(s.id, 'textSize', 16);
+                } else {
+                  const num = Number(val);
+                  if (!isNaN(num)) {
+                    handleStyleChange(s.id, 'textSize', num);
+                  }
+                }
+                setTempFontSizes(prev => ({...prev, [`text-${s.id}`]: undefined}));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.target.blur();
+              }}
             />
 
             <button className="toolbar-button" onClick={() => handleStyleChange(s.id, 'textBold', !s.styles?.textBold)} style={{fontWeight: s.styles?.textBold ? 700 : 400}}>B</button>
@@ -3426,6 +3800,12 @@ export default function EditPreview() {
 
                         onChange={(e) => handleTableInputChange('rows', e.target.value)}
 
+                        onBlur={(e) => {
+                          if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                            handleTableInputChange('rows', '2');
+                          }
+                        }}
+
                         onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmTable(s.id); }}
 
                         style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: '#1f1f1f', color: '#f7f7f7' }}
@@ -3447,6 +3827,12 @@ export default function EditPreview() {
                         value={tableCreator.cols}
 
                         onChange={(e) => handleTableInputChange('cols', e.target.value)}
+
+                        onBlur={(e) => {
+                          if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                            handleTableInputChange('cols', '2');
+                          }
+                        }}
 
                         onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmTable(s.id); }}
 
@@ -3502,7 +3888,10 @@ export default function EditPreview() {
 
             className="delete-slide-btn"
 
-            onClick={() => handleDeleteSlide(s.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteSlide(s.id);
+            }}
 
             title="Delete this slide"
 
@@ -3514,279 +3903,51 @@ export default function EditPreview() {
 
               right: '10px',
 
-              backgroundColor: theme.titleColor,
+              backgroundColor: '#ef4444',
 
-              color: theme.background,
+              color: '#ffffff',
 
               border: 'none',
 
               borderRadius: '50%',
 
-              width: '32px',
+              width: '36px',
 
-              height: '32px',
+              height: '36px',
 
               cursor: 'pointer',
 
-              fontSize: '16px',
+              zIndex: 1000,
 
-              fontWeight: 'bold',
+              display: 'flex',
 
+              alignItems: 'center',
+
+              justifyContent: 'center',
+
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+
+              transition: 'all 0.2s ease',
+
+            }}
+
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#dc2626';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#ef4444';
+              e.currentTarget.style.transform = 'scale(1)';
             }}
 
           >
 
-            ×
+            <FaTrash size={14} />
 
           </button>
 
-          <div className="slide-content-area">
-
-            <div className="form-group">
-
-              <label htmlFor={`title-${s.id}`} className="sr-only">Slide Title</label>
-
-              <input
-
-                id={`title-${s.id}`}
-
-                type="text"
-
-                className="form-control-title-preview"
-
-                value={s.title || ''}
-
-                onChange={(e) => handleSlideChange(s.id, 'title', e.target.value)}
-
-                style={{
-
-                  color: s.titleColor || titleColor || '#000',
-
-                  fontFamily: s.styles?.titleFont || theme.font,
-
-                  borderColor: s.titleColor || titleColor || '#000',
-
-                  fontSize: `${s.styles?.titleSize || 32}px`,
-
-                  fontWeight: s.styles?.titleBold ? 700 : 400,
-
-                  fontStyle: s.styles?.titleItalic ? 'italic' : 'normal'
-
-                }}
-
-                placeholder="Type your title..."
-
-              />
-
-            </div>
-
-            <div className="form-group">
-
-              <label htmlFor={`bullets-${s.id}`} className="sr-only">Slide Bullets</label>
-
-              <textarea
-
-                id={`bullets-${s.id}`}
-
-                className="form-control-bullets-preview"
-
-                value={(s.bullets || []).map(b => replaceMarkdownBold(b)).join('\n')}
-
-                onChange={(e) => {
-                  // Convert quotes back to markdown when saving
-                  const processedValue = convertQuotesToMarkdown(e.target.value);
-                  handleSlideChange(s.id, 'bullets', processedValue);
-                }}
-
-                rows={8}
-
-                style={{
-
-                  color: s.textColor || textColor || '#333',
-
-                  fontFamily: s.styles?.textFont || theme.font,
-
-                  borderColor: s.textColor || textColor || '#333',
-
-                  fontSize: `${s.styles?.textSize || 16}px`,
-
-                  fontWeight: s.styles?.textBold ? 700 : 400,
-
-                  fontStyle: s.styles?.textItalic ? 'italic' : 'normal',
-
-                  textAlign: s.styles?.textAlign || 'left'
-
-                }}
-
-                placeholder="Type your bullet points (one per line)..."
-
-              />
-
-            </div>
-
-          </div>
-
-          {/* Image prompt / upload controls + preview are inside the slide card */}
-
-          {showImageColumn && (
-
-            <div className="slide-image-prompt-area" style={{ borderColor: theme.textColor, color: theme.textColor }}>
-
-              <div className="form-group">
-
-                <label htmlFor={`imagePrompt-${s.id}`} style={{ color: theme.titleColor, fontWeight: 'bold' }}>
-
-                  AI Image Prompt
-
-                </label>
-
-                <input
-
-                  id={`imagePrompt-${s.id}`}
-
-                  type="text"
-
-                  className="image-prompt-input"
-
-                  value={s.imagePrompt || ""}
-
-                  onChange={(e) => handleSlideChange(s.id, "imagePrompt", e.target.value)}
-
-                  style={{
-
-                    fontFamily: theme.font,
-
-                    color: theme.textColor,
-
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-
-                    border: `1px solid ${theme.textColor}`,
-
-                    borderRadius: '8px',
-
-                    width: '100%',
-
-                    padding: '10px',
-
-                    marginTop: '5px',
-
-                    boxSizing: 'border-box'
-
-                  }}
-
-                  placeholder="Describe an AI image..."
-
-                />
-
-              </div>
-
-
-
-              <div className="image-buttons-container">
-
-                <label htmlFor={`upload-${s.id}`} className="upload-image-btn">
-
-                  <FaUpload /> Upload
-
-                </label>
-
-                <input 
-
-                  type="file" 
-
-                  id={`upload-${s.id}`}
-
-                  className="hidden-file-input"
-
-                  accept="image/png, image/jpeg, image/gif"
-
-                  onChange={(e) => handleImageUpload(e, s.id)}
-
-                />
-
-                {(s.uploadedImage || s.imagePrompt) && (
-
-                  <button 
-
-                    className="remove-image-btn"
-
-                    onClick={() => handleRemoveImage(s.id)}
-
-                  >
-
-                    <FaTimesCircle /> Pure Text
-
-                  </button>
-
-                )}
-
-              </div>
-
-
-
-              <div className="image-preview-container" style={{marginTop:12}}>
-
-                {s.uploadedImage ? (
-
-                  <img
-
-                    key={s.id}
-
-                    src={s.uploadedImage}
-
-                    alt="User upload"
-
-                    className="preview-image loaded"
-
-                    style={{ opacity: 1, objectFit: 'cover' }}
-
-                    onError={handleImageError}
-
-                  />
-
-                ) : fetchingImages && previewImageUrls[s.id] === undefined && s.imagePrompt ? (
-
-                  <p className="loading-text">Generating...</p>
-
-                ) : previewImageUrls[s.id] ? (
-
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
-
-                    <img
-
-                      key={previewImageUrls[s.id]}
-
-                      src={previewImageUrls[s.id]}
-
-                      alt={`AI prompt: ${s.imagePrompt || s.title}`}
-
-                      className="preview-image loaded"
-
-                      style={{ opacity: 1 }}
-
-                      onLoad={(e) => e.target.classList.add('loaded')}
-
-                      onError={e => handleImageError(e, s.id, s.imagePrompt)}
-
-                    />
-
-                    
-
-                  </div>
-
-                ) : (
-
-                  <p className="no-image-text">(No image prompt or upload)</p>
-
-                )}
-
-              </div>
-
-            </div>
-
-          )}
-
-
+          <div className="slide-content-area" style={{ display: 'none' }}></div>
 
           {/* Tables & stickers overlay container */}
 
@@ -3794,9 +3955,394 @@ export default function EditPreview() {
 
             ref={(el) => { if (el) containerRefs.current[s.id] = el; }}
 
-            style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 100 }}
+            style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}
 
           >
+            {/* Title Box */}
+            {(() => {
+               // IMPORTANT: This must EXACTLY match the backend PPTX generation logic
+               // The backend calculates image/body/title positioning independently
+               // DO NOT rely on frontend imageData - mirror backend defaults exactly
+               
+               const SLIDE_WIDTH = 10.0;  // inches
+               const SLIDE_HEIGHT = 5.625; // inches
+               const hasImage = Boolean(s.uploadedImage || (s.imagePrompt && (s.imageData || s.imagePosition)));
+               const imagePosition = s.imagePosition || 'right';
+               
+               // Convert backend inches to normalized (0-1) for CSS positioning
+               const toNormalized = (inches, slideSize) => inches / slideSize;
+               
+               let finalTitleX, finalTitleY, finalTitleW, finalTitleH;
+               
+               if (s.titleBox) {
+                 // Use manual titleBox if provided (already in normalized form)
+                 finalTitleX = s.titleBox.x;
+                 finalTitleY = s.titleBox.y;
+                 finalTitleW = s.titleBox.width;
+                 finalTitleH = s.titleBox.height;
+               } else if (hasImage) {
+                 // Mirror backend logic exactly for image positioning
+                 // Backend calculates bodyX/bodyW based on image position
+                 let bodyX_inches = 0.5;
+                 let bodyW_inches = 9.0;
+                 
+                 if (imagePosition === 'center') {
+                   bodyX_inches = 0.5;
+                   bodyW_inches = 9.0;
+                 } else if (imagePosition === 'left') {
+                   bodyX_inches = (0.05 + 0.35 + 0.04) * 10.0; // After image + margin
+                   bodyW_inches = 10.0 - bodyX_inches - 0.5;
+                 } else {
+                   // right
+                   bodyX_inches = 0.5;
+                   bodyW_inches = (0.6 - 0.05) * 10.0; // Space before image
+                 }
+                 
+                 // Convert to normalized
+                 finalTitleX = toNormalized(bodyX_inches, SLIDE_WIDTH);
+                 finalTitleW = toNormalized(bodyW_inches, SLIDE_WIDTH);
+                 
+                 // Title positioning for center layout
+                 if (imagePosition === 'center') {
+                   finalTitleY = toNormalized(0.35, SLIDE_HEIGHT);   // Backend: 0.35"
+                   finalTitleH = toNormalized(0.56, SLIDE_HEIGHT);   // Backend: 0.56" (0.1 * 5.625)
+                 } else {
+                   finalTitleY = toNormalized(0.5, SLIDE_HEIGHT);
+                   finalTitleH = toNormalized(0.8, SLIDE_HEIGHT);
+                 }
+               } else {
+                 // Fallback defaults (no image)
+                 finalTitleX = toNormalized(0.5, SLIDE_WIDTH);
+                 finalTitleW = toNormalized(9.0, SLIDE_WIDTH);
+                 finalTitleY = toNormalized(0.35, SLIDE_HEIGHT);
+                 finalTitleH = toNormalized(1.0, SLIDE_HEIGHT);
+               }
+               
+               const titleBox = { x: finalTitleX, y: finalTitleY, width: finalTitleW, height: finalTitleH, zIndex: 100 };
+               const isSelected = selectedTextBox?.slideId === s.id && selectedTextBox?.type === 'title';
+               const isEditing = s.editingTitle;
+               
+               // Match PPT defaults: title 44pt for title layout, else 32pt
+               const finalTitleFontSize = (() => {
+                 if (typeof s.styles?.titleSize === 'number' && s.styles.titleSize > 0) return s.styles.titleSize;
+                 const layout = s.layout || 'content';
+                 return layout === 'title' ? 44 : 32;
+               })();
+               
+               return (
+                 <div
+                   data-textbox-wrapper
+                   onPointerDown={(ev) => {
+                     if (isEditing) return;
+                     ev.stopPropagation();
+                     ev.preventDefault();
+                     const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                     try { ev.currentTarget.setPointerCapture && ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+                     setSelectedTextBox({ slideId: s.id, type: 'title' });
+                     setSelectedSticker(null);
+                     setSelectedImage(null);
+                     setSelectedTable(null);
+                     setDraggingTextBox({ slideId: s.id, type: 'title', startX: ev.clientX, startY: ev.clientY, origX: titleBox.x, origY: titleBox.y, origW: titleBox.width, origH: titleBox.height, rect, pointerId: ev.pointerId });
+                   }}
+                   onClick={(ev) => {
+                     ev.stopPropagation();
+                     setSelectedTextBox({ slideId: s.id, type: 'title' });
+                     setSelectedSticker(null);
+                     setSelectedImage(null);
+                     setSelectedTable(null);
+                   }}
+                   onDoubleClick={(ev) => {
+                     ev.stopPropagation();
+                     handleSlideChange(s.id, 'editingTitle', true);
+                   }}
+                   style={{
+                     position: 'absolute',
+                     left: `${titleBox.x * 100}%`,
+                     top: `${titleBox.y * 100}%`,
+                     width: `${titleBox.width * 100}%`,
+                     height: `${titleBox.height * 100}%`,
+                     zIndex: titleBox.zIndex !== undefined ? titleBox.zIndex : 100,
+                     border: 'none',
+                     cursor: isEditing ? 'text' : 'move',
+                     pointerEvents: 'auto'
+                   }}
+                 >
+                   <div 
+                     contentEditable={isEditing}
+                     suppressContentEditableWarning
+                     onBlur={(e) => {
+                       handleSlideChange(s.id, 'title', e.target.textContent);
+                       handleSlideChange(s.id, 'editingTitle', false);
+                     }}
+                     style={{
+                       width: '100%',
+                       height: '100%',
+                       padding: '2px 6px',
+                       boxSizing: 'border-box',
+                       display: 'flex',
+                       alignItems: 'center',
+                       justifyContent: 'flex-start',
+                       color: s.titleColor || titleColor || '#000',
+                       fontFamily: s.styles?.titleFont || theme.font,
+                       fontSize: `${finalTitleFontSize}pt`,
+                       fontWeight: s.styles?.titleBold ? 700 : 400,
+                       fontStyle: s.styles?.titleItalic ? 'italic' : 'normal',
+                       lineHeight: 1.0,
+                       outline: 'none',
+                       overflow: 'visible',
+                       wordBreak: 'break-word',
+                       pointerEvents: isEditing ? 'auto' : 'none'
+                     }}
+                   >
+                     {s.title || 'Click to add title'}
+                   </div>
+                   {isSelected && !isEditing && (
+                     <>
+                       <div style={{ position: 'absolute', inset: -2, border: '2px solid #8b5cf6', pointerEvents: 'none', zIndex: 10 }} />
+                       {['nw', 'ne', 'se', 'sw'].map(mode => {
+                         const style = {
+                           nw: { top: -5, left: -5, cursor: 'nwse-resize' },
+                           ne: { top: -5, right: -5, cursor: 'nesw-resize' },
+                           se: { bottom: -5, right: -5, cursor: 'nwse-resize' },
+                           sw: { bottom: -5, left: -5, cursor: 'nesw-resize' }
+                         }[mode];
+                         return (
+                           <div
+                             key={mode}
+                             onPointerDown={(e) => {
+                               e.stopPropagation();
+                               e.preventDefault();
+                               const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                               try { e.currentTarget.setPointerCapture(e.pointerId); } catch(err) {}
+                               setResizingTextBox({ slideId: s.id, type: 'title', mode, startX: e.clientX, startY: e.clientY, origX: titleBox.x, origY: titleBox.y, origW: titleBox.width, origH: titleBox.height, rect });
+                             }}
+                             style={{ position: 'absolute', width: 10, height: 10, backgroundColor: '#fff', border: '1px solid #8b5cf6', borderRadius: '50%', zIndex: 20, pointerEvents: 'auto', ...style }}
+                           />
+                         );
+                       })}
+                       {['w', 'e'].map(mode => {
+                         const style = {
+                           w: { top: '50%', left: -4, transform: 'translateY(-50%)', cursor: 'ew-resize', height: 16, width: 6, borderRadius: 4 },
+                           e: { top: '50%', right: -4, transform: 'translateY(-50%)', cursor: 'ew-resize', height: 16, width: 6, borderRadius: 4 }
+                         }[mode];
+                         return (
+                           <div
+                             key={mode}
+                             onPointerDown={(e) => {
+                               e.stopPropagation();
+                               e.preventDefault();
+                               const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                               try { e.currentTarget.setPointerCapture(e.pointerId); } catch(err) {}
+                               setResizingTextBox({ slideId: s.id, type: 'title', mode, startX: e.clientX, startY: e.clientY, origX: titleBox.x, origY: titleBox.y, origW: titleBox.width, origH: titleBox.height, rect });
+                             }}
+                             style={{ position: 'absolute', backgroundColor: '#fff', border: '1px solid #8b5cf6', zIndex: 20, pointerEvents: 'auto', ...style }}
+                           />
+                         );
+                       })}
+                     </>
+                   )}
+                 </div>
+               );
+            })()}
+
+            {/* Body Box */}
+            {(() => {
+               // IMPORTANT: This must EXACTLY match the backend PPTX generation logic in pptxService.js
+               // Backend uses inches; we convert to normalized (0-1) for CSS positioning
+               const SLIDE_WIDTH = 10.0;  // inches (backend uses 10 inches for width)
+               const SLIDE_HEIGHT = 5.625; // inches (backend uses 5.625 inches for height)
+               
+               // Convert backend inches to normalized (0-1) for CSS positioning
+               const toNormalized = (inches, slideSize) => inches / slideSize;
+               
+               const hasImage = Boolean(s.uploadedImage || (s.imagePrompt && (s.imageData || s.imagePosition)));
+               const imagePosition = s.imagePosition || 'right';
+               let computedBodyBox = s.bodyBox;
+
+               if (!computedBodyBox) {
+                 // Calculate body box using exact backend logic
+                 let bodyX_inches = 0.5;
+                 let bodyW_inches = 9.0;
+                 let bodyY_inches, bodyH_inches;
+                 
+                 if (hasImage) {
+                   // Backend places body at Y=1.5", H=3.5" when image is present
+                   bodyY_inches = 1.5;
+                   bodyH_inches = 3.5;
+                   
+                   // Body X/W depends on image position
+                   if (imagePosition === 'left') {
+                     // Image on left: body on right side
+                     // Backend: bodyX = (imageX + imageW + 0.04) * 10 = (0.05 + 0.35 + 0.04) * 10 = 4.4"
+                     bodyX_inches = 4.4;
+                     bodyW_inches = 10.0 - 4.4 - 0.5; // 5.1"
+                   } else if (imagePosition === 'right') {
+                     // Image on right: body on left side
+                     // Backend: bodyX = 0.5", bodyW = (imageX - 0.05) * 10 = (0.6 - 0.05) * 10 = 5.5"
+                     bodyX_inches = 0.5;
+                     bodyW_inches = 5.5;
+                   } else {
+                     // Image in center: body spans full width
+                     bodyX_inches = 0.5;
+                     bodyW_inches = 9.0;
+                   }
+                 } else {
+                   // No image: body takes full width
+                   // Backend: Y=1.6", H=3.6" (slightly lower and taller than with image)
+                   bodyX_inches = 0.5;
+                   bodyW_inches = 9.0;
+                   bodyY_inches = 1.6;
+                   bodyH_inches = 3.6;
+                 }
+                 
+                 // Convert inches to normalized (0-1)
+                 computedBodyBox = {
+                   x: toNormalized(bodyX_inches, SLIDE_WIDTH),
+                   y: toNormalized(bodyY_inches, SLIDE_HEIGHT),
+                   width: toNormalized(bodyW_inches, SLIDE_WIDTH),
+                   height: toNormalized(bodyH_inches, SLIDE_HEIGHT),
+                   zIndex: 100
+                 };
+               }
+
+               const bodyBox = computedBodyBox;
+               const isSelected = selectedTextBox?.slideId === s.id && selectedTextBox?.type === 'body';
+               const isEditing = s.editingContent;
+               
+               const bulletLines = getBulletLines(s);
+               const lineCount = Math.max(1, bulletLines.length);
+               const containerRect = containerRefs.current[s.id]?.getBoundingClientRect();
+
+               // Font size is controlled directly by styles (no auto from box height)
+               // Match PPT defaults: body 24pt for title layout, else 18pt
+               const finalBodyFontSize = (() => {
+                 if (typeof s.styles?.textSize === 'number' && s.styles.textSize > 0) return s.styles.textSize;
+                 const layout = s.layout || 'content';
+                 return layout === 'title' ? 24 : 18;
+               })();
+
+               // Use the calculated bodyBox directly (no auto-sizing to match PPT exactly)
+               const autoBodyBox = bodyBox;
+               
+               return (
+                 <div
+                   data-textbox-wrapper
+                   onPointerDown={(ev) => {
+                     if (isEditing) return;
+                     ev.stopPropagation();
+                     ev.preventDefault();
+                     const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                     try { ev.currentTarget.setPointerCapture && ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+                     setSelectedTextBox({ slideId: s.id, type: 'body' });
+                     setSelectedSticker(null);
+                     setSelectedImage(null);
+                     setSelectedTable(null);
+                     setDraggingTextBox({ slideId: s.id, type: 'body', startX: ev.clientX, startY: ev.clientY, origX: autoBodyBox.x, origY: autoBodyBox.y, origW: autoBodyBox.width, origH: autoBodyBox.height, rect, pointerId: ev.pointerId });
+                   }}
+                   onClick={(ev) => {
+                     ev.stopPropagation();
+                     setSelectedTextBox({ slideId: s.id, type: 'body' });
+                     setSelectedSticker(null);
+                     setSelectedImage(null);
+                     setSelectedTable(null);
+                   }}
+                   onDoubleClick={(ev) => {
+                     ev.stopPropagation();
+                     handleSlideChange(s.id, 'editingContent', true);
+                   }}
+                   style={{
+                     position: 'absolute',
+                     left: `${autoBodyBox.x * 100}%`,
+                     top: `${autoBodyBox.y * 100}%`,
+                     width: `${autoBodyBox.width * 100}%`,
+                     height: `${autoBodyBox.height * 100}%`,
+                     zIndex: autoBodyBox.zIndex !== undefined ? autoBodyBox.zIndex : 100,
+                     border: 'none',
+                     cursor: isEditing ? 'text' : 'move',
+                     pointerEvents: 'auto'
+                   }}
+                 >
+                   <div 
+                     contentEditable={isEditing}
+                     suppressContentEditableWarning
+                     onBlur={(e) => {
+                       const text = e.target.innerText;
+                       const lines = text.split('\n').filter(l => l.trim());
+                       handleSlideChange(s.id, 'bullets', lines);
+                       handleSlideChange(s.id, 'editingContent', false);
+                     }}
+                     style={{
+                       width: '100%',
+                       height: '100%',
+                       padding: '4px 8px',
+                       boxSizing: 'border-box',
+                       display: 'flex',
+                       flexDirection: 'column',
+                       justifyContent: 'flex-start',
+                       color: s.textColor || theme.textColor || '#333',
+                       fontFamily: s.styles?.textFont || theme.font,
+                       fontSize: `${finalBodyFontSize}pt`,
+                       fontWeight: s.styles?.textBold ? 700 : 400,
+                       fontStyle: s.styles?.textItalic ? 'italic' : 'normal',
+                       textAlign: s.styles?.textAlign || 'left',
+                       lineHeight: 1.2,
+                       outline: 'none',
+                       overflow: 'visible',
+                       whiteSpace: 'pre-wrap',
+                       wordBreak: 'break-word',
+                       pointerEvents: isEditing ? 'auto' : 'none'
+                     }}
+                   >
+                     {bulletLines.map(line => `• ${line}`).join('\n')}
+                   </div>
+                   {isSelected && !isEditing && (
+                     <>
+                       <div style={{ position: 'absolute', inset: -2, border: '2px solid #8b5cf6', pointerEvents: 'none', zIndex: 10 }} />
+                       {['nw', 'ne', 'se', 'sw'].map(mode => {
+                         const style = {
+                           nw: { top: -5, left: -5, cursor: 'nwse-resize' },
+                           ne: { top: -5, right: -5, cursor: 'nesw-resize' },
+                           se: { bottom: -5, right: -5, cursor: 'nwse-resize' },
+                           sw: { bottom: -5, left: -5, cursor: 'nesw-resize' }
+                         }[mode];
+                         return (
+                           <div
+                             key={mode}
+                             onPointerDown={(e) => {
+                               e.stopPropagation();
+                               e.preventDefault();
+                               const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                               try { e.currentTarget.setPointerCapture(e.pointerId); } catch(err) {}
+                               setResizingTextBox({ slideId: s.id, type: 'body', mode, startX: e.clientX, startY: e.clientY, origX: autoBodyBox.x, origY: autoBodyBox.y, origW: autoBodyBox.width, origH: autoBodyBox.height, origFontSize: s.styles?.textSize || 16, rect });
+                             }}
+                             style={{ position: 'absolute', width: 10, height: 10, backgroundColor: '#fff', border: '1px solid #8b5cf6', borderRadius: '50%', zIndex: 20, pointerEvents: 'auto', ...style }}
+                           />
+                         );
+                       })}
+                       {['w', 'e'].map(mode => {
+                         const style = {
+                           w: { top: '50%', left: -4, transform: 'translateY(-50%)', cursor: 'ew-resize', height: 16, width: 6, borderRadius: 4 },
+                           e: { top: '50%', right: -4, transform: 'translateY(-50%)', cursor: 'ew-resize', height: 16, width: 6, borderRadius: 4 }
+                         }[mode];
+                         return (
+                           <div
+                             key={mode}
+                             onPointerDown={(e) => {
+                               e.stopPropagation();
+                               e.preventDefault();
+                               const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                               try { e.currentTarget.setPointerCapture(e.pointerId); } catch(err) {}
+                               setResizingTextBox({ slideId: s.id, type: 'body', mode, startX: e.clientX, startY: e.clientY, origX: autoBodyBox.x, origY: autoBodyBox.y, origW: autoBodyBox.width, origH: autoBodyBox.height, origFontSize: s.styles?.textSize || 16, rect });
+                             }}
+                             style={{ position: 'absolute', backgroundColor: '#fff', border: '1px solid #8b5cf6', zIndex: 20, pointerEvents: 'auto', ...style }}
+                           />
+                         );
+                       })}
+                     </>
+                   )}
+                 </div>
+               );
+            })()}
 
             {(s.tables || []).map((t, tIdx) => {
 
@@ -3898,6 +4444,8 @@ export default function EditPreview() {
 
                     setSelectedSticker(null);
 
+                    setSelectedImage(null);
+
                     setSelectedTable({ slideId: s.id, index: tIdx });
 
                     setDraggingTable({ slideId: s.id, index: tIdx, startX: ev.clientX, startY: ev.clientY, origX: t.x || 0, origY: t.y || 0, rect, pointerId: ev.pointerId });
@@ -3911,6 +4459,8 @@ export default function EditPreview() {
                     ev.stopPropagation();
 
                     setSelectedSticker(null);
+
+                    setSelectedImage(null);
 
                     setSelectedTable({ slideId: s.id, index: tIdx });
 
@@ -3942,7 +4492,9 @@ export default function EditPreview() {
 
                     boxShadow: 'none',
 
-                    overflow: 'visible'
+                    overflow: 'visible',
+
+                    zIndex: t.zIndex !== undefined ? t.zIndex : (isSelected ? 100 : 10)
 
                   }}
 
@@ -4028,7 +4580,7 @@ export default function EditPreview() {
 
                                   color: '#111827',
 
-                                  fontSize: cellFontSize,
+                                  fontSize: `${cellFontSize}pt`,
 
                                   fontFamily: 'inherit',
 
@@ -4084,27 +4636,27 @@ export default function EditPreview() {
 
                           position: 'absolute',
 
-                          top: -48,
+                          top: 0,
 
                           left: '50%',
 
-                          transform: 'translate(-50%, -100%)',
+                          transform: 'translate(-50%, calc(-100% - 8px))',
 
                           display: 'flex',
 
                           alignItems: 'center',
 
-                          gap: 14,
+                          gap: 10,
 
-                          flexWrap: 'wrap',
+                          flexWrap: 'nowrap',
 
-                          background: 'rgba(17,17,17,0.92)',
+                          background: 'linear-gradient(135deg, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.98) 100%)',
 
-                          padding: '6px 14px',
+                          padding: '8px 12px',
 
-                          borderRadius: 18,
+                          borderRadius: 12,
 
-                          boxShadow: '0 8px 18px rgba(0,0,0,0.35)',
+                          boxShadow: '0 6px 20px rgba(0,0,0,0.6)',
 
                           pointerEvents: 'auto',
 
@@ -4114,19 +4666,23 @@ export default function EditPreview() {
 
                           fontWeight: 600,
 
-                          zIndex: 35
+                          zIndex: 35,
+
+                          border: '1px solid rgba(148,163,184,0.25)'
 
                         }}
 
                       >
 
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 4 }}>
 
                           <button
 
                             onClick={() => handleAddTableRow(s.id, tIdx)}
 
-                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'inherit', borderRadius: 10, padding: '4px 10px', cursor: 'pointer' }}
+                            style={{ background: '#3b82f6', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 10, fontWeight: 600 }}
+
+                            title="Add Row"
 
                           >
 
@@ -4138,7 +4694,9 @@ export default function EditPreview() {
 
                             onClick={() => handleAddTableColumn(s.id, tIdx)}
 
-                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'inherit', borderRadius: 10, padding: '4px 10px', cursor: 'pointer' }}
+                            style={{ background: '#3b82f6', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 10, fontWeight: 600 }}
+
+                            title="Add Column"
 
                           >
 
@@ -4150,9 +4708,11 @@ export default function EditPreview() {
 
                             onClick={() => handleRemoveTableRow(s.id, tIdx)}
 
-                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'inherit', borderRadius: 10, padding: '4px 10px', cursor: 'pointer', opacity: (t.rows || 1) <= 1 ? 0.4 : 1 }}
+                            style={{ background: '#ef4444', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 10, fontWeight: 600, opacity: (t.rows || 1) <= 1 ? 0.4 : 1 }}
 
                             disabled={(t.rows || 1) <= 1}
+
+                            title="Remove Row"
 
                           >
 
@@ -4164,9 +4724,11 @@ export default function EditPreview() {
 
                             onClick={() => handleRemoveTableColumn(s.id, tIdx)}
 
-                            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'inherit', borderRadius: 10, padding: '4px 10px', cursor: 'pointer', opacity: (t.cols || 1) <= 1 ? 0.4 : 1 }}
+                            style={{ background: '#ef4444', border: 'none', color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 10, fontWeight: 600, opacity: (t.cols || 1) <= 1 ? 0.4 : 1 }}
 
                             disabled={(t.cols || 1) <= 1}
+
+                            title="Remove Column"
 
                           >
 
@@ -4176,13 +4738,13 @@ export default function EditPreview() {
 
                         </div>
 
-                        <div style={{ width: 1, height: 20, background: 'rgba(148,163,184,0.3)' }} />
+                        <div style={{ width: 1, height: 24, background: 'rgba(148,163,184,0.3)' }} />
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
 
-                            <span>Shading</span>
+                            <span style={{ fontSize: 10 }}>Shading</span>
 
                             <input
 
@@ -4192,15 +4754,15 @@ export default function EditPreview() {
 
                               onChange={(ev) => handleTableBackgroundChange(s.id, tIdx, ev.target.value)}
 
-                              style={{ width: 28, height: 18, border: 'none', cursor: 'pointer', background: 'transparent' }}
+                              style={{ width: 26, height: 20, border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', borderRadius: 4 }}
 
                             />
 
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
 
-                            <span>Border</span>
+                            <span style={{ fontSize: 10 }}>Border</span>
 
                             <input
 
@@ -4210,15 +4772,15 @@ export default function EditPreview() {
 
                               onChange={(ev) => handleTableBorderColorChange(s.id, tIdx, ev.target.value)}
 
-                              style={{ width: 28, height: 18, border: 'none', cursor: 'pointer', background: 'transparent' }}
+                              style={{ width: 26, height: 20, border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', borderRadius: 4 }}
 
                             />
 
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
 
-                            <span>Width</span>
+                            <span style={{ fontSize: 10 }}>Width</span>
 
                             <select
 
@@ -4226,7 +4788,7 @@ export default function EditPreview() {
 
                               onChange={(ev) => handleTableBorderWidthChange(s.id, tIdx, Number(ev.target.value))}
 
-                              style={{ background: 'rgba(31,41,55,0.9)', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}
+                              style={{ background: 'rgba(15,23,42,0.95)', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '3px 7px', fontSize: 10, cursor: 'pointer', fontWeight: 600 }}
 
                             >
 
@@ -4240,9 +4802,9 @@ export default function EditPreview() {
 
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
 
-                            <span>Style</span>
+                            <span style={{ fontSize: 10 }}>Style</span>
 
                             <select
 
@@ -4250,7 +4812,7 @@ export default function EditPreview() {
 
                               onChange={(ev) => handleTableBorderStyleChange(s.id, tIdx, ev.target.value)}
 
-                              style={{ background: 'rgba(31,41,55,0.9)', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '2px 8px', fontSize: 11, cursor: 'pointer' }}
+                              style={{ background: 'rgba(15,23,42,0.95)', color: '#f8fafc', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '3px 7px', fontSize: 10, cursor: 'pointer', fontWeight: 600 }}
 
                             >
 
@@ -4264,6 +4826,15 @@ export default function EditPreview() {
 
                           </label>
 
+                        </div>
+
+                        <div style={{ width: 1, height: 24, background: 'rgba(148,163,184,0.3)' }} />
+
+                        <div style={{ display: 'flex', gap: 2 }}>
+                          <button onClick={() => handleLayering(s.id, 'table', tIdx, 'front')} title="Bring to Front" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4 }}><FaAngleDoubleUp size={12} /></button>
+                          <button onClick={() => handleLayering(s.id, 'table', tIdx, 'forward')} title="Bring Forward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4 }}><FaAngleUp size={12} /></button>
+                          <button onClick={() => handleLayering(s.id, 'table', tIdx, 'backward')} title="Send Backward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4 }}><FaAngleDown size={12} /></button>
+                          <button onClick={() => handleLayering(s.id, 'table', tIdx, 'back')} title="Send to Back" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4 }}><FaAngleDoubleDown size={12} /></button>
                         </div>
 
                       </div>
@@ -4372,11 +4943,13 @@ export default function EditPreview() {
 
                   setSelectedTable(null);
 
+                  setSelectedImage(null);
+
                   setDraggingSticker({ slideId: s.id, index: idx, startX: ev.clientX, startY: ev.clientY, origX: g.x || 0, origY: g.y || 0, rect, pointerId: ev.pointerId });
 
                 }}
 
-                onClick={(ev) => { ev.stopPropagation(); setSelectedSticker({ slideId: s.id, index: idx }); setSelectedTable(null); }}
+                onClick={(ev) => { ev.stopPropagation(); setSelectedSticker({ slideId: s.id, index: idx }); setSelectedTable(null); setSelectedImage(null); }}
 
                 style={{
 
@@ -4399,6 +4972,8 @@ export default function EditPreview() {
                   touchAction: 'none',
 
                   cursor: 'move',
+
+                  zIndex: g.zIndex !== undefined ? g.zIndex : ((selectedSticker && selectedSticker.slideId === s.id && selectedSticker.index === idx) ? 100 : 20)
 
                 }}
 
@@ -4509,6 +5084,31 @@ export default function EditPreview() {
                           ⟳
 
                         </div>
+
+                    {/* Layering Toolbar for Stickers */}
+                    <div
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: 'absolute',
+                        bottom: -40,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        display: 'flex',
+                        gap: 4,
+                        background: 'rgba(15, 23, 42, 0.9)',
+                        padding: '4px 8px',
+                        borderRadius: 8,
+                        zIndex: 40,
+                        pointerEvents: 'auto',
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      <button onClick={() => handleLayering(s.id, 'sticker', idx, 'front')} title="Bring to Front" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 2 }}><FaAngleDoubleUp size={12} /></button>
+                      <button onClick={() => handleLayering(s.id, 'sticker', idx, 'forward')} title="Bring Forward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 2 }}><FaAngleUp size={12} /></button>
+                      <button onClick={() => handleLayering(s.id, 'sticker', idx, 'backward')} title="Send Backward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 2 }}><FaAngleDown size={12} /></button>
+                      <button onClick={() => handleLayering(s.id, 'sticker', idx, 'back')} title="Send to Back" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 2 }}><FaAngleDoubleDown size={12} /></button>
+                    </div>
 
                     {g.type === 'shape' && (
 
@@ -4709,6 +5309,291 @@ export default function EditPreview() {
               </div>
 
             ))}
+
+            {/* AI Generated / Uploaded Image Overlay */}
+            {!s.removedImage && (s.uploadedImage || previewImageUrls[s.id] || showImageColumn) && (
+              <div
+                key={`img-${s.id}`}
+                data-image-wrapper
+                onPointerDown={(ev) => {
+                  console.log('[IMAGE] Pointer down on image', s.id);
+                  ev.stopPropagation();
+                  ev.preventDefault();
+                  const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                  console.log('[IMAGE] Container rect:', rect);
+                  try { ev.currentTarget.setPointerCapture && ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+                  setSelectedImage(s.id);
+                  setSelectedTable(null);
+                  setSelectedSticker(null);
+                  
+                  // Start dragging
+                  const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+                  console.log('[IMAGE] Starting drag with imgData:', imgData);
+                  const dragData = { 
+                    slideId: s.id, 
+                    index: -1, // Special index for image
+                    startX: ev.clientX, 
+                    startY: ev.clientY, 
+                    origX: imgData.x || 0.5, 
+                    origY: imgData.y || 0.15, 
+                    rect, 
+                    pointerId: ev.pointerId 
+                  };
+                  console.log('[IMAGE] Setting draggingSticker:', dragData);
+                  setDraggingSticker(dragData);
+                }}
+                onClick={(ev) => { 
+                  ev.stopPropagation(); 
+                  setSelectedImage(s.id);
+                  setSelectedTable(null);
+                  setSelectedSticker(null);
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `${((s.imageData?.x || 0.5) * 100)}%`,
+                  top: `${((s.imageData?.y || 0.15) * 100)}%`,
+                  width: `${((s.imageData?.width || 0.4) * 100)}%`,
+                  height: `${((s.imageData?.height || 0.6) * 100)}%`,
+                  pointerEvents: 'auto',
+                  touchAction: 'none',
+                  cursor: 'move',
+                  borderRadius: '8px',
+                  overflow: 'visible',
+                  border: selectedImage === s.id ? '3px solid rgba(139, 92, 246, 0.9)' : '2px solid rgba(255, 255, 255, 0.5)',
+                  boxShadow: selectedImage === s.id ? '0 4px 12px rgba(139, 92, 246, 0.4)' : '0 2px 8px rgba(0,0,0,0.2)',
+                  transition: 'border 0.2s, box-shadow 0.2s',
+                  zIndex: s.imageData?.zIndex !== undefined ? s.imageData.zIndex : (selectedImage === s.id ? 200 : 110)
+                }}
+              >
+                {s.uploadedImage || previewImageUrls[s.id] ? (
+                  <img
+                    src={s.uploadedImage || previewImageUrls[s.id]}
+                    alt="Slide"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      userSelect: 'none',
+                      pointerEvents: 'none',
+                      borderRadius: '6px'
+                    }}
+                    onError={(e) => {
+                      if (s.uploadedImage) handleImageError(e);
+                      else handleImageError(e, s.id, s.imagePrompt);
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    background: 'rgba(255,255,255,0.15)',
+                    border: '2px dashed rgba(0,0,0,0.2)',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'rgba(0,0,0,0.5)',
+                    gap: 8
+                  }}>
+                    <FaUpload size={24} style={{ opacity: 0.5 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>No Image</span>
+                  </div>
+                )}
+
+                {/* Floating toolbar when image is selected */}
+                {selectedImage === s.id && (
+                  <div
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute',
+                      top: '-80px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4)',
+                      minWidth: '420px',
+                      zIndex: 1000,
+                      display: 'flex',
+                      gap: '12px',
+                      alignItems: 'center',
+                      flexWrap: 'nowrap',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}
+                  >
+                    {/* AI Prompt Input */}
+                    <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                      <FaSearch style={{ position: 'absolute', left: 10, color: '#94a3b8', fontSize: 16 }} />
+                      <input
+                        type="text"
+                        value={tempImagePrompts[s.id] !== undefined ? tempImagePrompts[s.id] : (s.imagePrompt || "")}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setTempImagePrompts({ ...tempImagePrompts, [s.id]: val });
+                          if (promptTimeouts.current[s.id]) clearTimeout(promptTimeouts.current[s.id]);
+                          promptTimeouts.current[s.id] = setTimeout(() => {
+                            handleSlideChange(s.id, 'imagePrompt', val);
+                          }, 1000);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.target.blur();
+                          }
+                        }}
+                        placeholder="AI image prompt..."
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px 10px 36px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          color: '#f1f5f9',
+                          outline: 'none',
+                          transition: 'all 0.2s'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.background = 'rgba(0,0,0,0.5)';
+                          e.target.style.borderColor = '#8b5cf6';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.background = 'rgba(0,0,0,0.3)';
+                          e.target.style.borderColor = 'rgba(255,255,255,0.1)';
+                          if (tempImagePrompts[s.id] !== undefined) {
+                            handleSlideChange(s.id, 'imagePrompt', tempImagePrompts[s.id]);
+                            setTempImagePrompts(prev => {
+                              const next = { ...prev };
+                              delete next[s.id];
+                              return next;
+                            });
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
+
+                    {/* Layering Buttons */}
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button onClick={() => handleLayering(s.id, 'image', -1, 'front')} title="Bring to Front" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 6 }}><FaAngleDoubleUp size={16} /></button>
+                      <button onClick={() => handleLayering(s.id, 'image', -1, 'forward')} title="Bring Forward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 6 }}><FaAngleUp size={16} /></button>
+                      <button onClick={() => handleLayering(s.id, 'image', -1, 'backward')} title="Send Backward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 6 }}><FaAngleDown size={16} /></button>
+                      <button onClick={() => handleLayering(s.id, 'image', -1, 'back')} title="Send to Back" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 6 }}><FaAngleDoubleDown size={16} /></button>
+                    </div>
+
+                    <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
+
+                    {/* Upload Button */}
+                    <label htmlFor={`upload-${s.id}`} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 36,
+                      height: 36,
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      color: '#e2e8f0',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    title="Upload Image"
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#e2e8f0'; }}
+                    >
+                      <FaUpload size={16} />
+                    </label>
+                    <input
+                      type="file"
+                      id={`upload-${s.id}`}
+                      style={{ display: 'none' }}
+                      accept="image/png, image/jpeg, image/gif"
+                      onChange={(e) => handleImageUpload(e, s.id)}
+                    />
+
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => {
+                        handleRemoveImage(s.id);
+                        setSelectedImage(null);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 36,
+                        height: 36,
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'; e.currentTarget.style.color = '#fca5a5'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.color = '#f87171'; }}
+                      title="Delete Image"
+                    >
+                      <span style={{ fontSize: 18 }}>×</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Resize handles when selected */}
+                {selectedImage === s.id && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                    {[
+                      { mode: 'nw', cursor: 'nw-resize', pos: { top: -9, left: -9 } },
+                      { mode: 'ne', cursor: 'ne-resize', pos: { top: -9, right: -9 } },
+                      { mode: 'sw', cursor: 'sw-resize', pos: { bottom: -9, left: -9 } },
+                      { mode: 'se', cursor: 'se-resize', pos: { bottom: -9, right: -9 } }
+                    ].map(({ mode, cursor, pos }) => (
+                      <div
+                        key={mode}
+                        onPointerDown={(ev) => {
+                          ev.stopPropagation();
+                          ev.preventDefault();
+                          const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
+                          try { ev.currentTarget.setPointerCapture && ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+                          const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+                          setResizingSticker({ 
+                            slideId: s.id, 
+                            index: -1, // Special index for image
+                            mode, 
+                            startX: ev.clientX, 
+                            startY: ev.clientY, 
+                            origX: imgData.x || 0.5, 
+                            origY: imgData.y || 0.15, 
+                            origW: imgData.width || 0.4, 
+                            origH: imgData.height || 0.6, 
+                            rect, 
+                            pointerId: ev.pointerId 
+                          });
+                        }}
+                        style={{ 
+                          position: 'absolute', 
+                          width: 18, 
+                          height: 18, 
+                          background: '#fff', 
+                          border: '2px solid rgb(139, 92, 246)', 
+                          borderRadius: '50%', 
+                          pointerEvents: 'auto', 
+                          touchAction: 'none', 
+                          cursor,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)', 
+                          zIndex: 25, 
+                          ...pos 
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
 
@@ -4970,7 +5855,7 @@ export default function EditPreview() {
 
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:3000 }}>
 
-          <div style={{ background:'#fff', width:'80%', maxWidth:1100, maxHeight:'85%', borderRadius:12, padding:16, display:'flex', flexDirection:'column', boxShadow:'0 8px 24px rgba(0,0,0,0.25)', overflow:'hidden' }}>
+          <div style={{ background:'#fff', width:'90%', maxWidth:1300, maxHeight:'90%', borderRadius:12, padding:16, display:'flex', flexDirection:'column', boxShadow:'0 8px 24px rgba(0,0,0,0.25)', overflow:'hidden' }}>
 
             {/* Header */}
 
@@ -4978,15 +5863,43 @@ export default function EditPreview() {
 
               <h2 style={{ margin:0, fontSize:18 }}>Download Preview</h2>
 
-              <button onClick={closePreviewModal} style={{ background:'#ff5a5f', color:'#fff', border:'none', width:26, height:26, borderRadius:'50%', cursor:'pointer', fontSize:14, lineHeight:'26px', textAlign:'center' }} title="Close">✕</button>
+              <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+
+                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:14, color:'#555' }}>
+
+                  <input 
+
+                    type="checkbox" 
+
+                    checked={showImageColumn} 
+
+                    onChange={(e) => setShowImageColumn(e.target.checked)}
+
+                    style={{ cursor:'pointer' }}
+
+                  />
+
+                  <span>Include Images in Download</span>
+
+                </label>
+
+                <button onClick={closePreviewModal} style={{ background:'#ff5a5f', color:'#fff', border:'none', width:26, height:26, borderRadius:'50%', cursor:'pointer', fontSize:14, lineHeight:'26px', textAlign:'center' }} title="Close">✕</button>
+
+              </div>
 
             </div>
 
-            <div style={{ fontSize:12, color:'#555', padding:'0 8px 10px 8px' }}>Slide {previewSlideIndex + 1} of {editedSlides.length}</div>
+            <div style={{ fontSize:12, color:'#555', padding:'0 8px 10px 8px' }}>
+
+              Slide {previewSlideIndex + 1} of {editedSlides.length}
+
+              {!showImageColumn && <span style={{ marginLeft:12, color:'#f59e0b', fontWeight:600 }}>⚠ Images will not be included in download</span>}
+
+            </div>
 
             {/* Slide area */}
 
-            <div style={{ flex:1, overflow:'auto', border:'1px solid rgba(0,0,0,0.1)', borderRadius:10, padding:20, background:'linear-gradient(135deg,#dae4f8,#6b76a9 60%,#2d3c7a)' }}>
+            <div style={{ flex:1, overflow:'auto', border:'none', borderRadius:10, padding:20, background:'transparent', display:'flex', justifyContent:'center' }}>
 
               {(() => {
 
@@ -5039,12 +5952,15 @@ export default function EditPreview() {
                 // Only treat as paragraph text if explicit slide.text provided.
 
                 // Do NOT auto-merge bullet arrays into one paragraph so preview matches editor.
-
+                // UPDATE: Force usage of bulletLines to match backend behavior and ensure bullets are rendered
+                const bodyText = null;
+                /*
                 const bodyText = (typeof slide.text === 'string' && slide.text.trim().length)
 
                   ? slide.text
 
                   : '';
+                */
 
                 const textAlignValue = slide.styles?.textAlign || 'left';
 
@@ -5058,394 +5974,218 @@ export default function EditPreview() {
 
                   : (slide.styles?.textFont || currentDesign.font);
 
+                // Define boxes for preview matching editor
+                const titleBox = slide.titleBox || { x: 0.05, y: 0.0622, width: 0.9, height: 0.1778, zIndex: 100 };
+                
+                // Dynamic body box calculation to match PPT export logic
+                // If showImageColumn is false, we treat it as having no image, so text expands
+                const hasImage = showImageColumn && !slide.removedImage && Boolean(slide.uploadedImage || (slide.imagePrompt && (slide.imageData || slide.imagePosition)));
+                let computedBodyBox = slide.bodyBox;
+                
+                // Check if this is slide 3 (index 2) with center layout
+                const isSlide3CenterLayout = previewSlideIndex === 2 && slide.imagePosition === 'center';
+
+                if (hasImage && !computedBodyBox) {
+                  const SLIDE_W = 1.0;
+                  const imagePosition = slide.imagePosition || 'right';
+                  const defaultImageData = imagePosition === 'center'
+                    ? { x: 0.35, y: 0.5, width: 0.3, height: 0.4 }
+                    : imagePosition === 'left'
+                    ? { x: 0.05, y: 0.2, width: 0.35, height: 0.65 }
+                    : { x: 0.6, y: 0.2, width: 0.35, height: 0.65 };
+                  const img = {
+                    ...defaultImageData,
+                    ...(slide.imageData || {})
+                  };
+                  let bodyXNorm = 0.05;
+                  let bodyWNorm = 0.9;
+                  if (imagePosition === 'left') {
+                    bodyXNorm = img.x + img.width + 0.04;
+                    bodyWNorm = Math.max(0.05, SLIDE_W - bodyXNorm - 0.05);
+                  } else if (imagePosition === 'right') {
+                    bodyXNorm = 0.05;
+                    bodyWNorm = Math.max(0.05, (img.x - 0.05));
+                  } else {
+                    // Center case: Text below image
+                    bodyXNorm = 0.05;
+                    bodyWNorm = 0.9;
+                  }
+                  
+                  // Default values for left/right layouts
+                  let bodyYNorm = 0.2667;
+                  let bodyHNorm = 0.6222;
+
+                  if (imagePosition === 'center') {
+                     // For slide 3 only: Adjust layout for better spacing
+                     // Image at top-center, text below
+                     bodyYNorm = 0.63; // Text starts below image
+                     bodyHNorm = 0.32; // Text takes remaining height
+                  }
+
+                  computedBodyBox = {
+                    x: bodyXNorm,
+                    y: bodyYNorm,
+                    width: bodyWNorm,
+                    height: bodyHNorm,
+                    zIndex: 100
+                  };
+                }
+
+                const bodyBox = computedBodyBox || { x: 0.05, y: 0.2844, width: 0.9, height: 0.64, zIndex: 100 };
+
+                // Calculate auto font size for title to match editor logic
+                // Editor uses container height * box height * 0.75
+                // Preview card is approx 1200x675
+                const previewHeight = 675; 
+                const titleBoxHeightPx = previewHeight * titleBox.height;
+                const autoTitleFontSize = Math.max(12, Math.floor(titleBoxHeightPx * 0.75));
+                const finalTitleFontSize = slide.styles?.titleSize ?? autoTitleFontSize;
+
                 return (
-
-                  <div style={{ position:'relative', width:'100%', minHeight:380, color:textColor, fontFamily: bodyFontFamily, borderRadius:8, padding:'30px 40px', display:'grid', gridTemplateColumns: columns, gap:40, alignItems:'flex-start', ...modalPreviewStyle }}>
-
-                    {/* Render title and body like the editor slide card: left-aligned title + body, optional image column */}
-
-                    <>
-
-                      <div style={{ fontSize: slide.styles?.textSize || 16, display:'flex', flexDirection:'column', gap:10, fontFamily: bodyFontFamily }}>
-
-                        <h2 style={{ fontSize: slide.styles?.titleSize || 32, fontFamily: slide.styles?.titleFont || currentDesign.font, color:titleColor, margin:'0 0 16px', fontWeight: slide.styles?.titleBold ? 700 : 500, fontStyle: slide.styles?.titleItalic ? 'italic' : 'normal' }}>{slide.title}</h2>
-
-                        {/* If this is a title layout with paragraph text, show it as left-aligned body (editor shows paragraph inside left content area) */}
-
-                        {bodyText ? (
-
-                          <div
-
-                            style={{
-
-                              lineHeight: '1.4',
-
-                              color: textColor,
-
-                              textAlign: textAlignValue,
-
-                              fontWeight: bodyFontWeight,
-
-                              fontStyle: bodyFontStyle,
-
-                              fontFamily: bodyFontFamily,
-
-                              fontSize: slide.styles?.textSize || 16
-
-                            }}
-
-                          >
-
-                            {bodyText.split('\n').map((ln, idx) => (
-
-                              <div key={idx} style={{ marginBottom: 6, fontFamily: bodyFontFamily }}>{ln}</div>
-
-                            ))}
-
-                          </div>
-
-                        ) : (
-
-                          bulletLines.map((line,i) => (
-
-                            <div
-
-                              key={i}
-
-                              style={{
-
-                                display:'flex',
-
-                                alignItems:'flex-start',
-
-                                gap:8,
-
-                                justifyContent: textAlignValue === 'right' ? 'flex-end' : textAlignValue === 'center' ? 'center' : 'flex-start',
-
-                                marginBottom: 6
-
-                              }}
-
-                            >
-
-                              <span
-
-                                style={{
-
-                                  fontSize: slide.styles?.textSize || 16,
-
-                                  lineHeight:'1.2',
-
-                                  color:titleColor,
-
-                                  fontWeight: bodyFontWeight,
-
-                                  fontStyle: bodyFontStyle,
-
-                                  fontFamily: bodyFontFamily
-
-                                }}
-
-                              >
-
-                                •
-
-                              </span>
-
-                              <span
-
-                                style={{
-
-                                  lineHeight:'1.2',
-
-                                  color: textColor,
-
-                                  fontWeight: bodyFontWeight,
-
-                                  fontStyle: bodyFontStyle,
-
-                                  textAlign: textAlignValue,
-
-                                  fontFamily: bodyFontFamily,
-
-                                  fontSize: slide.styles?.textSize || 16
-
-                                }}
-
-                              >
-
-                                {replaceMarkdownBold(line)}
-
-                              </span>
-
-                            </div>
-
-                          ))
-
-                        )}
-
-                      </div>
-
-                      {showImageColumn && (
-
-                        <div style={{ display:'flex', justifyContent:'center' }}>
-
-                          <div style={{ background:'#fff', padding:12, borderRadius:14, boxShadow:'0 10px 26px rgba(0,0,0,0.2)' }}>
-
-                            {slide.uploadedImage ? (
-
-                              <img src={slide.uploadedImage} alt="uploaded" style={{ width:300, height:300, objectFit:'cover', borderRadius:8 }} onError={handleImageError} />
-
-                            ) : slide.imagePrompt ? (
-
-                              <div style={{ position: 'relative', display: 'inline-block' }}>
-
-                                <img src={getPollinationsImageUrl(slide.imagePrompt)} alt="prompt" style={{ width:300, height:300, objectFit:'cover', borderRadius:8 }} onError={e => handleImageError(e, slide.id, slide.imagePrompt)} />
-
-                             
-
-                              </div>
-
-                            ) : (
-
-                              (() => {
-
-                                // Prefer slide background, then design background, then generated color
-
-                                function stringToColor(str) {
-
-                                  let hash = 0;
-
-                                  for (let i = 0; i < str.length; i++) {
-
-                                    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-
-                                  }
-
-                                  const h = Math.abs(hash) % 360;
-
-                                  return `hsl(${h}, 70%, 65%)`;
-
-                                }
-
-                                const bgColor = slide.background
-
-                                  ? slide.background
-
-                                  : (currentDesign && currentDesign.globalBackground
-
-                                      ? currentDesign.globalBackground
-
-                                      : stringToColor(slide.title || ''));
-
-                                return (
-
-                                  <div
-
-                                    style={{
-
-                                      width: 300,
-
-                                      height: 220,
-
-                                      background: bgColor,
-
-                                      borderRadius: 8,
-
-                                      display: 'flex',
-
-                                      flexDirection: 'column',
-
-                                      alignItems: 'center',
-
-                                      justifyContent: 'center',
-
-                                      color: '#222',
-
-                                      fontWeight: 700,
-
-                                      fontSize: 20,
-
-                                      textAlign: 'center',
-
-                                      padding: '0 8px',
-
-                                    }}
-
-                                  >
-
-                                    <span style={{fontSize: 38, marginBottom: 4, opacity: 0.7, display: 'block'}}>
-
-                                      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-
-                                        <rect x="3" y="5" width="18" height="12" rx="2" fill="#fff" fillOpacity="0.5"/>
-
-                                        <rect x="7" y="9" width="6" height="2" rx="1" fill="#fff" fillOpacity="0.8"/>
-
-                                        <rect x="7" y="13" width="10" height="2" rx="1" fill="#fff" fillOpacity="0.8"/>
-
-                                      </svg>
-
-                                    </span>
-
-                                    <span>
-
-                                      {slide.title && slide.title.length > 22 ? slide.title.slice(0, 20) + '…' : (slide.title || 'No image')}
-
-                                    </span>
-
-                                  </div>
-
-                                );
-
-                              })()
-
-                            )}
-
-                          </div>
-
-                        </div>
-
-                      )}
-
-                    </>
-
-                    {/* Tables and stickers render (absolute overlay using percentage layout) */}
-
-                    <div style={{ position:'absolute', inset:0, pointerEvents:'none' }}>
-
-                      {(slide.tables || []).map((tbl, ti) => {
-
-                        const previewCells = ensureTableCells(tbl.rows || 1, tbl.cols || 1, tbl.cells);
-
-                        const previewBackground = (!tbl.background || tbl.background === 'rgba(255,255,255,0.3)') ? '#ffffff' : tbl.background;
-
-                        const previewBorder = tbl.borderColor || '#111827';
-
-                        const previewBorderWidth = typeof tbl.borderWidth === 'number' ? tbl.borderWidth : DEFAULT_BORDER_WIDTH;
-
-                        const previewBorderStyle = (tbl.borderStyle === 'dotted') ? 'dashed' : (tbl.borderStyle || 'solid');
-
-                        const previewRowCount = Math.max(1, tbl.rows || previewCells.length || 1);
-
-                        const previewColCount = Math.max(1, tbl.cols || (previewCells[0]?.length ?? 1));
-
-                        const previewDensity = Math.max(previewRowCount - 3, 0) + Math.max(previewColCount - 3, 0);
-
-                        const previewPadding = clampValue(10 - previewDensity * 1.1, 3, 10);
-
-                        const previewFontSize = clampValue(13 - previewDensity * 0.6, 9, 13);
-
-                        const previewColumnWidths = Array.isArray(tbl.columnWidths) ? ensureSegments(previewColCount, tbl.columnWidths, MIN_COLUMN_RATIO) : ensureSegments(previewColCount, undefined, MIN_COLUMN_RATIO);
-
-                        const previewRowHeights = Array.isArray(tbl.rowHeights) ? ensureSegments(previewRowCount, tbl.rowHeights, MIN_ROW_RATIO) : ensureSegments(previewRowCount, undefined, MIN_ROW_RATIO);
-
-                        return (
-
-                          <div
-
-                          key={`preview-table-${ti}`}
-
-                          style={{
-
-                            position:'absolute',
-
-                            left:`${(tbl.x || 0) * 100}%`,
-
-                            top:`${(tbl.y || 0) * 100}%`,
-
-                            width:`${(tbl.width || 0.5) * 100}%`,
-
-                            height:`${(tbl.height || 0.3) * 100}%`,
-
-                            pointerEvents:'none',
-
-                            // Remove clipping so full table shows
-
-                            overflow:'visible'
-
-                          }}
-
-                        >
-
-                          <table style={{ width:'100%', height:'100%', borderCollapse:'collapse', tableLayout:'fixed', border: `${previewBorderWidth}px ${previewBorderStyle} ${previewBorder}` }}>
-
-                            <colgroup>
-
-                              {previewColumnWidths.map((portion, cIdx) => (
-
-                                <col key={`preview-table-${ti}-col-${cIdx}`} style={{ width: `${portion * 100}%` }} />
-
-                              ))}
-
-                            </colgroup>
-
-                            <tbody>
-
-                              {previewCells.map((row, rIdx) => (
-
-                                <tr key={`preview-table-${ti}-row-${rIdx}`} style={{ height: `${(previewRowHeights[rIdx] || (1 / previewRowCount)) * 100}%` }}>
-
-                                  {row.map((cellValue, cIdx) => (
-
-                                    <td
-
-                                      key={`preview-table-${ti}-cell-${rIdx}-${cIdx}`}
-
-                                      style={{
-
-                                        border: `${previewBorderWidth}px ${previewBorderStyle} ${previewBorder}`,
-
-                                        background: previewBackground,
-
-                                        textAlign: 'left',
-
-                                        padding: `${previewPadding}px`,
-
-                                        fontSize: previewFontSize,
-
-                                        color: '#111827',
-
-                                        whiteSpace: 'pre-wrap',
-
-                                        lineHeight: 1.35,
-
-                                        verticalAlign: 'top'
-
-                                      }}
-
-                                    >{cellValue && cellValue.trim() ? cellValue : '\u00a0'}</td>
-
-                                  ))}
-
-                                </tr>
-
-                              ))}
-
-                            </tbody>
-
-                          </table>
-
-                        </div>
-
-                        );
-
-                      })}
-
-                      {(slide.stickers || []).map((st, si) => (
-
-                        <div key={si} style={{ position:'absolute', left:`${(st.x||0)*100}%`, top:`${(st.y||0)*100}%`, width:`${(st.width||0.18)*100}%`, height:`${(st.height||0.18)*100}%`, transform:`rotate(${st.rotate||0}deg)`, transformOrigin:'top left' }}>
-
-                          <img src={st.url} alt="st" style={{ width:'100%', height:'100%', objectFit:'contain', userSelect:'none', pointerEvents:'none' }} />
-
-                        </div>
-
-                      ))}
-
+                  <div style={{ position:'relative', width:'100%', maxWidth: 1200, aspectRatio: '16/9', minHeight:675, color:textColor, fontFamily: bodyFontFamily, borderRadius:8, overflow:'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 0, ...modalPreviewStyle }}>
+                    
+                    {/* Title */}
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        left: `${titleBox.x * 100}%`,
+                        top: `${titleBox.y * 100}%`,
+                        width: `${titleBox.width * 100}%`,
+                        height: `${titleBox.height * 100}%`,
+                        zIndex: titleBox.zIndex !== undefined ? titleBox.zIndex : 100,
+                        padding: '2px 6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        overflow: 'visible'
+                      }}
+                    >
+                       <h2 style={{ fontSize: `${finalTitleFontSize}pt`, fontFamily: slide.styles?.titleFont || currentDesign.font, color:titleColor, margin:0, fontWeight: slide.styles?.titleBold ? 700 : 500, fontStyle: slide.styles?.titleItalic ? 'italic' : 'normal', width: '100%', lineHeight: 1.05 }}>{slide.title}</h2>
                     </div>
 
-                  </div>
+                    {/* Content */}
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        left: `${bodyBox.x * 100}%`,
+                        top: `${bodyBox.y * 100}%`,
+                        width: `${bodyBox.width * 100}%`,
+                        height: `${bodyBox.height * 100}%`,
+                        zIndex: bodyBox.zIndex !== undefined ? bodyBox.zIndex : 100,
+                        padding: '4px 8px',
+                        overflow: 'visible',
+                        color:textColor, 
+                        fontFamily: bodyFontFamily,
+                        fontSize: `${slide.styles?.textSize || 16}pt`,
+                        fontWeight: bodyFontWeight,
+                        fontStyle: bodyFontStyle,
+                        textAlign: textAlignValue,
+                        lineHeight: '1.3'
+                      }}
+                    >
+                        {bodyText ? (
+                          bodyText.split('\n').map((ln, idx) => (
+                              <div key={idx} style={{ marginBottom: 6 }}>{replaceMarkdownBold(ln)}</div>
+                          ))
+                        ) : (
+                          bulletLines.map((line,i) => (
+                            <div key={i} style={{ marginBottom: 6 }}>
+                              • {replaceMarkdownBold(line)}
+                            </div>
+                          ))
+                        )}
+                    </div>
 
+                    {/* Image (Absolute) - only show if showImageColumn is enabled AND there's an actual image */}
+                    {showImageColumn && !slide.removedImage && (slide.uploadedImage || previewImageUrls[slide.id]) && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${((slide.imageData?.x || (previewSlideIndex === 2 ? 0.35 : 0.5)) * 100)}%`,
+                          top: `${((slide.imageData?.y || (previewSlideIndex === 2 ? 0.23 : 0.15)) * 100)}%`,
+                          width: `${((slide.imageData?.width || (previewSlideIndex === 2 ? 0.3 : 0.4)) * 100)}%`,
+                          height: `${((slide.imageData?.height || (previewSlideIndex === 2 ? 0.36 : 0.6)) * 100)}%`,
+                          zIndex: slide.imageData?.zIndex !== undefined ? slide.imageData.zIndex : 110,
+                          borderRadius: 8,
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <img 
+                          src={slide.uploadedImage || previewImageUrls[slide.id]} 
+                          alt="slide-img" 
+                          style={{ width:'100%', height:'100%', objectFit:'cover' }} 
+                        />
+                      </div>
+                    )}
+
+                    {/* Tables and stickers render (absolute overlay using percentage layout) */}
+                    <div style={{ position:'absolute', inset:0, pointerEvents:'none' }}>
+                      {(slide.tables || []).map((tbl, ti) => {
+                        const previewCells = ensureTableCells(tbl.rows || 1, tbl.cols || 1, tbl.cells);
+                        const previewBackground = (!tbl.background || tbl.background === 'rgba(255,255,255,0.3)') ? '#ffffff' : tbl.background;
+                        const previewBorder = tbl.borderColor || '#111827';
+                        const previewBorderWidth = typeof tbl.borderWidth === 'number' ? tbl.borderWidth : DEFAULT_BORDER_WIDTH;
+                        const previewBorderStyle = (tbl.borderStyle === 'dotted') ? 'dashed' : (tbl.borderStyle || 'solid');
+                        const previewRowCount = Math.max(1, tbl.rows || previewCells.length || 1);
+                        const previewColCount = Math.max(1, tbl.cols || (previewCells[0]?.length ?? 1));
+                        const previewDensity = Math.max(previewRowCount - 3, 0) + Math.max(previewColCount - 3, 0);
+                        const previewPadding = clampValue(10 - previewDensity * 1.1, 3, 10);
+                        const previewFontSize = clampValue(13 - previewDensity * 0.6, 9, 13);
+                        const previewColumnWidths = Array.isArray(tbl.columnWidths) ? ensureSegments(previewColCount, tbl.columnWidths, MIN_COLUMN_RATIO) : ensureSegments(previewColCount, undefined, MIN_COLUMN_RATIO);
+                        const previewRowHeights = Array.isArray(tbl.rowHeights) ? ensureSegments(previewRowCount, tbl.rowHeights, MIN_ROW_RATIO) : ensureSegments(previewRowCount, undefined, MIN_ROW_RATIO);
+                        return (
+                          <div
+                          key={`preview-table-${ti}`}
+                          style={{
+                            position:'absolute',
+                            left:`${(tbl.x || 0) * 100}%`,
+                            top:`${(tbl.y || 0) * 100}%`,
+                            width:`${(tbl.width || 0.5) * 100}%`,
+                            height:`${(tbl.height || 0.3) * 100}%`,
+                            pointerEvents:'none',
+                            // Remove clipping so full table shows
+                            overflow:'visible'
+                          }}
+                        >
+                          <table style={{ width:'100%', height:'100%', borderCollapse:'collapse', tableLayout:'fixed', border: `${previewBorderWidth}px ${previewBorderStyle} ${previewBorder}` }}>
+                            <colgroup>
+                              {previewColumnWidths.map((portion, cIdx) => (
+                                <col key={`preview-table-${ti}-col-${cIdx}`} style={{ width: `${portion * 100}%` }} />
+                              ))}
+                            </colgroup>
+                            <tbody>
+                              {previewCells.map((row, rIdx) => (
+                                <tr key={`preview-table-${ti}-row-${rIdx}`} style={{ height: `${(previewRowHeights[rIdx] || (1 / previewRowCount)) * 100}%` }}>
+                                  {row.map((cellValue, cIdx) => (
+                                    <td
+                                      key={`preview-table-${ti}-cell-${rIdx}-${cIdx}`}
+                                      style={{
+                                        border: `${previewBorderWidth}px ${previewBorderStyle} ${previewBorder}`,
+                                        background: previewBackground,
+                                        textAlign: 'left',
+                                        padding: `${previewPadding}px`,
+                                        fontSize: `${previewFontSize}pt`,
+                                        color: '#111827',
+                                        whiteSpace: 'pre-wrap',
+                                        lineHeight: 1.35,
+                                        verticalAlign: 'top'
+                                      }}
+                                    >{cellValue && cellValue.trim() ? cellValue : '\u00a0'}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        );
+                      })}
+                      {(slide.stickers || []).map((st, si) => (
+                        <div key={si} style={{ position:'absolute', left:`${(st.x||0)*100}%`, top:`${(st.y||0)*100}%`, width:`${(st.width||0.18)*100}%`, height:`${(st.height||0.18)*100}%`, transform:`rotate(${st.rotate||0}deg)`, transformOrigin:'top left' }}>
+                          <img src={st.url} alt="st" style={{ width:'100%', height:'100%', objectFit:'contain', userSelect:'none', pointerEvents:'none' }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 );
 
               })()}
@@ -5483,6 +6223,17 @@ export default function EditPreview() {
         </div>
 
       )}
+
+      {/* Confirm Dialog for Delete Slide */}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title="Delete Slide"
+        message="Are you sure you want to delete this slide? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteSlide}
+        onCancel={() => setDeleteConfirm({ open: false, slideId: null })}
+      />
 
     </div>
 

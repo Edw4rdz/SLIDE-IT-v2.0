@@ -191,7 +191,20 @@ export default function AIGenerator() {
         type="number"
         id="slides"
         value={slides}
-        onChange={(e) => setSlides(parseInt(e.target.value) || 1)}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val === '') {
+            setSlides('');
+          } else {
+            const num = parseInt(val);
+            if (!isNaN(num)) setSlides(num);
+          }
+        }}
+        onBlur={(e) => {
+          if (e.target.value === '' || parseInt(e.target.value) < 1) {
+            setSlides(1);
+          }
+        }}
         className="slide-input"
       />
       <button

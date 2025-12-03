@@ -233,8 +233,18 @@ export default function ExcelToPPT() {
                       id="slidesCount"
                       value={slidesCount}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val) && val >= 1) setSlidesCount(val);
+                        const val = e.target.value;
+                        if (val === '') {
+                          setSlidesCount('');
+                        } else {
+                          const num = parseInt(val);
+                          if (!isNaN(num) && num >= 1) setSlidesCount(num);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                          setSlidesCount(1);
+                        }
                       }}
                       className="slide-input"
                     />

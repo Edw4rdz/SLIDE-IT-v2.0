@@ -111,7 +111,7 @@ const getGradientColor = (stops, t) => {
   };
 };
 
-const createCardBackgroundImage = (colors, width = 1280, height = 720) => {
+const createCardBackgroundImage = (colors, width = 1920, height = 1080) => {
   const colorStops = ensureColorArray(colors).map(hexToRgb);
   if (!colorStops.length) return null;
   const key = `${width}x${height}:${colorStops.map(c => `${c.r}-${c.g}-${c.b}`).join('|')}`;
@@ -121,7 +121,8 @@ const createCardBackgroundImage = (colors, width = 1280, height = 720) => {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (width * y + x) << 2;
-      const t = (x + y) / (width + height);
+      // Vertical gradient from top to bottom (matches preview better)
+      const t = y / height;
       const color = getGradientColor(colorStops, t);
       png.data[idx] = color.r;
       png.data[idx + 1] = color.g;
@@ -172,6 +173,7 @@ const getBulletLines = (slide) => {
   }
   const source = typeof slide.text === 'string' ? slide.text : '';
   return source
+    .replace(/([a-z])\.([A-Z])/g, '$1.\n$2') // Fix missing spaces between sentences
     .split(/\n|•/)
     .map(line => (line || '').trim())
     .filter(Boolean);
@@ -247,6 +249,87 @@ const fetchImageAsBase64 = async (url) => {
     console.error(`Error fetching image for PPTX: ${url}`, err.message);
     return null; // Return null if fetching fails
   }
+};
+
+/**
+ * Helper to calculate text box height based on text content
+ * 
+ * @param {string} text - The text content
+ * @param {number} fontSize - Font size in points
+ * @param {number} boxWidth - Text box width in inches
+ * @param {number} lineHeight - Line height multiplier (default 1.2)
+ * @param {string} fontFace - Font family name (default 'Arial')
+ * @returns {number} - Calculated height in inches
+ */
+const calculateTextBoxHeight = (text, fontSize, boxWidth, lineHeight = 1.2, fontFace = 'Arial') => {
+  if (!text || text.trim() === '') return 0.5;
+  
+  // Average character width ratio based on font size (empirically adjusted)
+  // Most fonts have an average character width of about 0.5-0.6 times the font size
+  const avgCharWidthRatio = 0.55;
+  
+  // Convert box width from inches to points (1 inch = 72 points)
+  const boxWidthPts = boxWidth * 72;
+  
+  // Estimate average character width in points
+  const avgCharWidth = fontSize * avgCharWidthRatio;
+  
+  // Calculate characters per line
+  const charsPerLine = Math.floor(boxWidthPts / avgCharWidth);
+  
+  // Ensure minimum characters per line
+  const effectiveCharsPerLine = Math.max(charsPerLine, 10);
+  
+  // Split text into lines and count wrapped lines
+  const lines = text.split('\n');
+  let totalLines = 0;
+  
+  for (const line of lines) {
+    if (line.length === 0) {
+      // Empty line still takes vertical space
+      totalLines += 1;
+    } else {
+      // Account for word wrapping - split by spaces to simulate word wrap
+      const words = line.split(/\s+/);
+      let currentLineLength = 0;
+      let linesInParagraph = 0;
+      
+      for (const word of words) {
+        const wordLength = word.length;
+        
+        if (currentLineLength + wordLength + 1 <= effectiveCharsPerLine) {
+          // Word fits on current line
+          currentLineLength += wordLength + 1; // +1 for space
+        } else {
+          // Word needs new line
+          if (currentLineLength > 0) {
+            linesInParagraph += 1;
+          }
+          currentLineLength = wordLength + 1;
+        }
+      }
+      
+      // Add final line of paragraph
+      if (currentLineLength > 0) {
+        linesInParagraph += 1;
+      }
+      
+      totalLines += Math.max(linesInParagraph, 1);
+    }
+  }
+  
+  // Calculate height in points: totalLines * fontSize * lineHeight
+  const heightPts = totalLines * fontSize * lineHeight;
+  
+  // Convert points to inches (1 inch = 72 points)
+  const heightInches = heightPts / 72;
+  
+  // Add small padding (0.2 inches) and ensure minimum height
+  const finalHeight = Math.max(0.5, heightInches + 0.2);
+  
+  console.log(`[calculateTextBoxHeight] Text: "${text.substring(0, 50)}..." | fontSize: ${fontSize}pt | boxWidth: ${boxWidth}" | lines: ${totalLines} | height: ${finalHeight}"`);
+  
+  return finalHeight;
 };
 
 /**
@@ -392,7 +475,7 @@ export const generatePptxFromData = async (requestBody) => {
 
     // Full-slide background using template colors
     const bgColorNorm = normalizeColor(slideBg, design.globalBackground);
-    const gradientBackground = createCardBackgroundImage(slideBg, 1280, 720);
+    const gradientBackground = createCardBackgroundImage(slideBg, 1920, 1080);
     if (gradientBackground) {
       pptxSlide.addImage({
         data: gradientBackground,
@@ -426,28 +509,65 @@ export const generatePptxFromData = async (requestBody) => {
       h: contentBounds.h - cardPaddingY * 2
     };
 
-    // Image positioning - match old frontend
-    const imgW = 3.0;
-    const imgH = 3.5;
-    const imgMargin = 0.5;
+    // Image positioning - Convert normalized coordinates (0-1) to PPTX inches
+    const SLIDE_WIDTH_INCHES = 10.0;
+    const SLIDE_HEIGHT_INCHES = 5.625;
     const imagePosition = slide.imagePosition || "right";
-    const imgX = imagePosition === "left" ? imgMargin : 10 - imgMargin - imgW;
-    const imgY = 1.0;
-
-    // Calculate body positioning based on image
+    
+    let imgX, imgY, imgW, imgH;
+    
+    // Calculate body positioning based on image position
     let bodyX = 0.5;
     let bodyW = 9.0;
+    
     if (imageBase64) {
-      if (imagePosition === "left") {
-        bodyX = imgX + imgW + 0.3;
-        bodyW = 10 - bodyX - imgMargin;
-      } else {
-        bodyX = 0.5;
-        bodyW = 10 - imgW - imgMargin - 0.8;
-      }
-    }
+      // Frontend normalized coordinates to PPTX inches conversion
+      if (slide.imageData) {
+        // Use custom image data if available
+        imgX = slide.imageData.x * SLIDE_WIDTH_INCHES;
+        imgY = slide.imageData.y * SLIDE_HEIGHT_INCHES;
+        imgW = slide.imageData.width * SLIDE_WIDTH_INCHES;
+        imgH = slide.imageData.height * SLIDE_HEIGHT_INCHES;
 
-    if (imageBase64) {
+        // Recalculate body positioning based on custom image position
+        if (imagePosition === "left") {
+          bodyX = imgX + imgW + (0.04 * SLIDE_WIDTH_INCHES);
+          bodyW = Math.max(0.5, SLIDE_WIDTH_INCHES - bodyX - 0.5);
+        } else if (imagePosition === "right") {
+          bodyX = 0.5;
+          bodyW = Math.max(0.5, imgX - 0.5);
+        } else {
+          // Center or other
+          bodyX = 0.5;
+          bodyW = 9.0;
+        }
+      } else if (imagePosition === "center") {
+        // Center: normalized { x: 0.35, y: 0.5, width: 0.3, height: 0.4 }
+        imgX = 0.35 * SLIDE_WIDTH_INCHES;  // 3.5"
+        imgY = 0.5 * SLIDE_HEIGHT_INCHES;   // 2.8125"
+        imgW = 0.3 * SLIDE_WIDTH_INCHES;    // 3.0"
+        imgH = 0.4 * SLIDE_HEIGHT_INCHES;   // 2.25"
+        // Text takes full width at top
+        bodyX = 0.5;
+        bodyW = 9.0;
+      } else if (imagePosition === "left") {
+        // Left: normalized { x: 0.05, y: 0.2, width: 0.35, height: 0.65 }
+        imgX = 0.05 * SLIDE_WIDTH_INCHES;  // 0.5"
+        imgY = 0.2 * SLIDE_HEIGHT_INCHES;   // 1.125"
+        imgW = 0.35 * SLIDE_WIDTH_INCHES;   // 3.5"
+        imgH = 0.65 * SLIDE_HEIGHT_INCHES;  // 3.65625"
+        bodyX = (0.05 + 0.35 + 0.04) * SLIDE_WIDTH_INCHES; // After image + margin
+        bodyW = SLIDE_WIDTH_INCHES - bodyX - 0.5;
+      } else {
+        // Right: normalized { x: 0.6, y: 0.2, width: 0.35, height: 0.65 }
+        imgX = 0.6 * SLIDE_WIDTH_INCHES;   // 6.0"
+        imgY = 0.2 * SLIDE_HEIGHT_INCHES;   // 1.125"
+        imgW = 0.35 * SLIDE_WIDTH_INCHES;   // 3.5"
+        imgH = 0.65 * SLIDE_HEIGHT_INCHES;  // 3.65625"
+        bodyX = 0.5;
+        bodyW = (0.6 - 0.05) * SLIDE_WIDTH_INCHES; // Space before image
+      }
+      
       pptxSlide.addImage({
         data: imageBase64,
         x: imgX,
@@ -458,42 +578,122 @@ export const generatePptxFromData = async (requestBody) => {
       });
     }
 
-    // 4. ADD TEXT TO SLIDE - Match old frontend positioning
-    // Old frontend used: title at y: 0.35, body at y: 1.6
-    const titleX = imageBase64 ? bodyX : 0.5;
-    const titleW = imageBase64 ? bodyW : 9.0;
-    const bodyXPos = imageBase64 ? bodyX : 0.5;
-    const bodyWPos = imageBase64 ? bodyW : 9.0;
+    // 4. ADD TEXT TO SLIDE
+    
+    const SLIDE_WIDTH = 10.0;
+    const SLIDE_HEIGHT = 5.625;
 
-    // Add title
-    pptxSlide.addText(slide.title || '', {
-      x: titleX,
-      y: 0.35,
-      w: titleW,
-      h: 1.0,
-      color: titleColorPptx,
-      fontFace: titleFontFace,
-      fontSize: titleFontSize,
-      bold: titleBold,
-      italic: titleItalic,
-      align: titleAlign || (slideLayout === 'title' ? 'center' : 'left'),
-    });
+    // Resolve Title Box - if image exists, always use dynamic positioning
+    let finalTitleX, finalTitleY, finalTitleW, finalTitleH;
+    if (slide.titleBox) {
+      // Use manual titleBox if provided
+      finalTitleX = slide.titleBox.x * SLIDE_WIDTH;
+      finalTitleY = slide.titleBox.y * SLIDE_HEIGHT;
+      finalTitleW = slide.titleBox.width * SLIDE_WIDTH;
+      finalTitleH = slide.titleBox.height * SLIDE_HEIGHT;
+    } else if (imageBase64) {
+      // With image: use dynamic positioning based on image position
+      finalTitleX = bodyX;
+      finalTitleW = bodyW;
+      
+      // For center layout, use smaller title box to save space
+      if (imagePosition === 'center') {
+        finalTitleY = 0.35;  // 0.6" / 5.625"
+        finalTitleH = 0.56;  // 0.1 * 5.625" (reduced from 0.8")
+      } else {
+        finalTitleY = 0.5;
+        finalTitleH = 0.8;
+      }
+    } else {
+      // Fallback defaults
+      finalTitleX = 0.5;
+      finalTitleW = 9.0;
+      finalTitleY = 0.35;
+      finalTitleH = 1.0;
+    }
+
+    // Add title with dynamic height FIRST (so we can calculate body position)
+    const adjustedTitleSize = titleFontSize;
+    const titleText = slide.title || '';
+    
+    let actualTitleHeight = 0;
+    
+    if (titleText.trim()) {
+      // Calculate dynamic height based on title text
+      const dynamicTitleHeight = calculateTextBoxHeight(
+        titleText,
+        adjustedTitleSize,
+        finalTitleW,
+        1.2,
+        titleFontFace
+      );
+      
+      actualTitleHeight = dynamicTitleHeight;
+      
+      pptxSlide.addText(titleText, {
+        x: finalTitleX,
+        y: finalTitleY,
+        w: finalTitleW,
+        h: dynamicTitleHeight,
+        color: titleColorPptx,
+        fontFace: titleFontFace,
+        fontSize: adjustedTitleSize,
+        bold: titleBold,
+        italic: titleItalic,
+        align: titleAlign || (slideLayout === 'title' ? 'center' : 'left'),
+        margin: 0,
+        lineSpacing: adjustedTitleSize * 1.2,
+        fit: 'resize', // Allow PowerPoint to resize if user edits
+        valign: 'top' // Align text to top of box
+      });
+    } else {
+      // No title text - use a small default spacing
+      actualTitleHeight = 0.3;
+    }
+
+    // Resolve Body Box - AFTER title is calculated to avoid overlap
+    let finalBodyX, finalBodyY, finalBodyW, finalBodyH;
+    if (slide.bodyBox) {
+      // Use manual bodyBox if provided
+      finalBodyX = slide.bodyBox.x * SLIDE_WIDTH;
+      finalBodyY = slide.bodyBox.y * SLIDE_HEIGHT;
+      finalBodyW = slide.bodyBox.width * SLIDE_WIDTH;
+      finalBodyH = slide.bodyBox.height * SLIDE_HEIGHT;
+    } else if (imageBase64) {
+      // With image: use dynamic positioning based on image position
+      finalBodyX = bodyX;
+      finalBodyW = bodyW;
+      // Start below title with a small gap (0.15")
+      finalBodyY = finalTitleY + actualTitleHeight + 0.15;
+      finalBodyH = Math.max(1.0, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
+    } else {
+      // No image: body below title
+      finalBodyX = 0.5;
+      finalBodyW = 9.0;
+      // Start below title with a small gap (0.15")
+      finalBodyY = finalTitleY + actualTitleHeight + 0.15;
+      finalBodyH = Math.max(1.0, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
+    }
 
     // Get bullet lines using the same logic as the old frontend
     const getBulletLinesForSlide = (sdata) => {
       if (!sdata) return [];
+      
+      let sourceArray = [];
       if (Array.isArray(sdata.bullets)) {
-        return sdata.bullets
-          .filter(Boolean)
-          .map((b) => String(b).trim())
-          .filter(Boolean);
+        sourceArray = sdata.bullets.filter(Boolean);
+      } else {
+        const text = typeof sdata.bullets === 'string' && sdata.bullets.trim().length
+          ? sdata.bullets
+          : (typeof sdata.text === 'string' ? sdata.text : '');
+        sourceArray = [text];
       }
-      const src = typeof sdata.bullets === 'string' && sdata.bullets.trim().length
-        ? sdata.bullets
-        : (typeof sdata.text === 'string' ? sdata.text : '');
-      return src
-        .split(/\n|•/)
-        .map((l) => (l || '').trim())
+
+      return sourceArray
+        .map(b => String(b))
+        .map(b => b.replace(/([a-z])\.([A-Z])/g, '$1.\n$2')) // Fix missing spaces between sentences
+        .flatMap(b => b.split(/\n|•/))
+        .map(l => (l || '').trim())
         .filter(Boolean);
     };
 
@@ -501,74 +701,70 @@ export const generatePptxFromData = async (requestBody) => {
     const hasBullets = bulletLines.length > 0;
     const hasText = slide.text && slide.text.trim().length > 0;
 
-    // Match old frontend behavior: join bullets with \n and add • prefix
+    // Match old frontend behavior: use proper bullet formatting
     if (slideLayout === 'title') {
-      // Title layout: show text or bullets
+      // Title layout: show text (no bullets, just newlines)
       let bodyText = typeof slide.text === 'string' ? slide.text.trim() : '';
       if (!bodyText && bulletLines.length) {
-        bodyText = bulletLines.map((b) => `• ${b}`).join('\n');
+        bodyText = bulletLines.join('\n');
       }
+      
       if (bodyText) {
+        const dynamicBodyHeight = calculateTextBoxHeight(
+          bodyText,
+          bodyFontSize,
+          finalBodyW,
+          1.2,
+          bodyFontFace
+        );
+        
         pptxSlide.addText(bodyText, {
-          x: titleX,
-          y: 1.6,
-          w: titleW,
-          h: 3.6,
+          x: finalBodyX,
+          y: finalBodyY,
+          w: finalBodyW,
+          h: dynamicBodyHeight,
           color: textColorPptx,
           fontFace: bodyFontFace,
           fontSize: bodyFontSize,
           bold: bodyBold,
           italic: bodyItalic,
           align: bodyAlign || 'left',
-          lineSpacing: 20,
-        });
-      } else if (bulletLines.length) {
-        // Fallback: show bullets if no text
-        pptxSlide.addText(bulletLines.map((b) => `• ${b}`).join('\n'), {
-          x: titleX,
-          y: 1.6,
-          w: titleW,
-          h: 3.6,
-          color: textColorPptx,
-          fontFace: bodyFontFace,
-          fontSize: bodyFontSize,
-          bold: bodyBold,
-          italic: bodyItalic,
-          align: bodyAlign || 'left',
-          lineSpacing: 20,
+          margin: 0,
+          lineSpacing: bodyFontSize * 1.2,
+          fit: 'resize', // Allow PowerPoint to resize if user edits
+          valign: 'top' // Align text to top of box
         });
       }
     } else {
       // Content layout: show bullets or text
-      if (hasBullets) {
-        const bulletText = bulletLines.map((b) => `• ${b}`).join('\n');
+      const bulletText = bulletLines.map(b => `• ${b}`).join('\n');
+      
+      const adjustedFontSize = bodyFontSize;
+      
+      if (hasBullets || hasText) {
+        const dynamicBodyHeight = calculateTextBoxHeight(
+          bulletText,
+          adjustedFontSize,
+          finalBodyW,
+          1.2,
+          bodyFontFace
+        );
+        
         pptxSlide.addText(bulletText, {
-          x: bodyXPos,
-          y: 1.6,
-          w: bodyWPos,
-          h: 3.6,
+          x: finalBodyX,
+          y: finalBodyY,
+          w: finalBodyW,
+          h: dynamicBodyHeight,
           color: textColorPptx,
           fontFace: bodyFontFace,
-          fontSize: bodyFontSize,
+          fontSize: adjustedFontSize,
           bold: bodyBold,
           italic: bodyItalic,
           align: bodyAlign || 'left',
-          lineSpacing: 20,
-        });
-      } else if (hasText) {
-        // Only add text if there are NO bullets (matches old frontend logic)
-        pptxSlide.addText(slide.text.trim(), {
-          x: bodyXPos,
-          y: 1.6,
-          w: bodyWPos,
-          h: 3.6,
-          color: textColorPptx,
-          fontFace: bodyFontFace,
-          fontSize: bodyFontSize,
-          bold: bodyBold,
-          italic: bodyItalic,
-          align: bodyAlign || 'left',
-          lineSpacing: 20,
+          margin: 0,
+          lineSpacing: adjustedFontSize * 1.2,
+          fit: 'resize', // Allow PowerPoint to resize if user edits
+          valign: 'top' // Align text to top of box
         });
       }
     }

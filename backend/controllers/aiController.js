@@ -121,6 +121,41 @@ const getFileBuffer = (file) => {
   throw new Error("File buffer not found. Check multer configuration.");
 };
 
+// --- Helpers: enforce exact slide count ---
+const coerceSlideCount = (val, fallback = 10) => {
+  const n = parseInt(val, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(n, 1), 50); // clamp 1..50
+};
+
+const buildPlaceholderSlide = (index) => ({
+  title: `Slide ${index}`,
+  layout: 'content',
+  contentStyle: 'bullets',
+  bullets: [
+    'Add your key point here',
+    'Add supporting detail here'
+  ],
+  text: '',
+  imagePrompt: ''
+});
+
+const enforceSlideCount = (slides, count) => {
+  const arr = Array.isArray(slides) ? slides.filter(Boolean) : [];
+  if (arr.length === count) return arr;
+  if (arr.length > count) {
+    console.log(`[AI Normalize] Trimming slides ${arr.length} -> ${count}`);
+    return arr.slice(0, count);
+  }
+  // pad with placeholders
+  const padded = [...arr];
+  for (let i = arr.length + 1; i <= count; i++) {
+    padded.push(buildPlaceholderSlide(i));
+  }
+  console.log(`[AI Normalize] Padding slides ${arr.length} -> ${count}`);
+  return padded;
+};
+
 /**
  * Helper function to handle PPTX generation, S3 upload, and saving to both collections
  * @param {Array} slides - Generated slides data
@@ -259,7 +294,7 @@ export const generateFromPdf = async (req, res) => {
       return res.status(400).json({ success: false, data: [], error: error.message });
     }
 
-    const slideCount = req.body.slideCount || 10;
+    const slideCount = coerceSlideCount(req.body.slideCount, 10);
     const userId = req.body.userId || null;
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
@@ -279,7 +314,7 @@ export const generateFromPdf = async (req, res) => {
         const data = await (await import('pdf-parse')).default(buffer);
         const text = data.text;
         const truncatedText = text.length > 100000 ? text.substring(0, 100000) + "..." : text;
-        const geminiPrompt = `Create a presentation with about ${slideCount} slides based on the PDF text below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nPDF TEXT: ${truncatedText}`;
+        const geminiPrompt = `Create a presentation with EXACTLY ${slideCount} slides based on the PDF text below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nPDF TEXT: ${truncatedText}`;
         const geminiRes = await (await import('axios')).default.post(
           'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
           {
@@ -291,9 +326,9 @@ export const generateFromPdf = async (req, res) => {
           }
         );
         const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        slides = parseAIResponse(geminiText);
+        slides = enforceSlideCount(parseAIResponse(geminiText), slideCount);
       } else {
-        slides = await convertPdfToSlides(buffer, slideCount);
+        slides = enforceSlideCount(await convertPdfToSlides(buffer, slideCount), slideCount);
       }
     } catch (err) {
       console.error("PDF conversion error:", err);
@@ -339,7 +374,7 @@ export const generateFromWord = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    const slideCount = req.body.slideCount || 10;
+    const slideCount = coerceSlideCount(req.body.slideCount, 10);
     const userId = req.body.userId || null;
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
@@ -360,7 +395,7 @@ export const generateFromWord = async (req, res) => {
         const result = await mammoth.extractRawText({ buffer });
         const text = result.value;
         const truncatedText = text.length > 100000 ? text.substring(0, 100000) + "..." : text;
-        const geminiPrompt = `Create a presentation with about ${slideCount} slides based on the Word document text below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nWORD TEXT: ${truncatedText}`;
+        const geminiPrompt = `Create a presentation with EXACTLY ${slideCount} slides based on the Word document text below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nWORD TEXT: ${truncatedText}`;
         const geminiRes = await (await import('axios')).default.post(
           'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
           {
@@ -372,9 +407,9 @@ export const generateFromWord = async (req, res) => {
           }
         );
         const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        slides = parseAIResponse(geminiText);
+        slides = enforceSlideCount(parseAIResponse(geminiText), slideCount);
       } else {
-        slides = await convertWordToSlides(buffer, slideCount);
+        slides = enforceSlideCount(await convertWordToSlides(buffer, slideCount), slideCount);
       }
     } catch (err) {
       console.error("Word conversion error:", err);
@@ -419,7 +454,7 @@ export const generateFromExcel = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    const slideCount = req.body.slideCount || 10;
+    const slideCount = coerceSlideCount(req.body.slideCount, 10);
     const userId = req.body.userId || null;
     const provider = req.body.provider || 'grockai';
     const imageProvider = req.body.imageProvider || 'pollinations';
@@ -442,7 +477,7 @@ export const generateFromExcel = async (req, res) => {
           excelData += `\n--- Sheet: ${sheet} ---\n${data}`;
         });
         const truncatedText = excelData.length > 100000 ? excelData.substring(0, 100000) + "..." : excelData;
-        const geminiPrompt = `Create a presentation with about ${slideCount} slides based on the Excel data below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nEXCEL DATA: ${truncatedText}`;
+        const geminiPrompt = `Create a presentation with EXACTLY ${slideCount} slides based on the Excel data below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nEXCEL DATA: ${truncatedText}`;
         const geminiRes = await (await import('axios')).default.post(
           'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
           {
@@ -454,9 +489,9 @@ export const generateFromExcel = async (req, res) => {
           }
         );
         const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        slides = parseAIResponse(geminiText);
+        slides = enforceSlideCount(parseAIResponse(geminiText), slideCount);
       } else {
-        slides = await convertExcelToSlides(buffer, slideCount);
+        slides = enforceSlideCount(await convertExcelToSlides(buffer, slideCount), slideCount);
       }
     } catch (err) {
       console.error("Excel conversion error:", err);
@@ -491,7 +526,8 @@ export const generateFromExcel = async (req, res) => {
 
 export const generateFromTopic = async (req, res) => {
   try {
-    const { topic, slideCount, userId, includeImages, previewThumb, provider, imageProvider } = req.body;
+    const { topic, userId, includeImages, previewThumb, provider, imageProvider } = req.body;
+    const slideCount = coerceSlideCount(req.body.slideCount, 10);
 
     if (!topic) {
       return res.status(400).json({ error: "No topic provided." });
@@ -506,7 +542,7 @@ export const generateFromTopic = async (req, res) => {
       if (!geminiApiKey) {
         return res.status(500).json({ error: 'Gemini API key not configured. Please contact administrator.' });
       }
-      const geminiPrompt = `Create a presentation with about ${slideCount || 10} slides based on the topic below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nTOPIC: ${topic}`;
+      const geminiPrompt = `Create a presentation with EXACTLY ${slideCount} slides based on the topic below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nTOPIC: ${topic}`;
       const geminiRes = await axios.post(
         'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
         {
@@ -519,7 +555,7 @@ export const generateFromTopic = async (req, res) => {
       );
       // Gemini returns text in geminiRes.data.candidates[0].content.parts[0].text
       const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      slides = parseAIResponse(geminiText);
+      slides = enforceSlideCount(parseAIResponse(geminiText), slideCount);
     } else if (provider === 'openai') {
       // OpenAI provider not yet implemented
       return res.status(501).json({ 
@@ -529,7 +565,7 @@ export const generateFromTopic = async (req, res) => {
     } else {
       // Default: Use Grok
       try {
-        slides = await generateTopicsToSlides(topic, slideCount || 10);
+        slides = enforceSlideCount(await generateTopicsToSlides(topic, slideCount), slideCount);
       } catch (grokError) {
         // Check if it's a rate limit error
         if (grokError.message && grokError.message.includes('429')) {
@@ -582,7 +618,7 @@ export const generateFromTextFile = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    const slideCount = req.body.slideCount || 10;
+    const slideCount = coerceSlideCount(req.body.slideCount, 10);
     const userId = req.body.userId || null;
     const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true || false;
     const previewThumb = req.body.previewThumb || null;
@@ -600,7 +636,7 @@ export const generateFromTextFile = async (req, res) => {
         }
         const text = buffer.toString("utf-8");
         const truncatedText = text.length > 100000 ? text.substring(0, 100000) + "..." : text;
-        const geminiPrompt = `Create a presentation with about ${slideCount} slides based on the text file below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nTEXT FILE: ${truncatedText}`;
+        const geminiPrompt = `Create a presentation with EXACTLY ${slideCount} slides based on the text file below.\nFor each slide, provide a JSON object with:\n- title: catchy title\n- bullets: 3-5 concise bullet points\n- imagePrompt: a detailed image description\nReturn a JSON array.\nTEXT FILE: ${truncatedText}`;
         const geminiRes = await (await import('axios')).default.post(
           'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
           {
@@ -612,9 +648,9 @@ export const generateFromTextFile = async (req, res) => {
           }
         );
         const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        slides = parseAIResponse(geminiText);
+        slides = enforceSlideCount(parseAIResponse(geminiText), slideCount);
       } else {
-        slides = await convertTextFileToSlides(buffer, slideCount);
+        slides = enforceSlideCount(await convertTextFileToSlides(buffer, slideCount), slideCount);
       }
     } catch (err) {
       console.error("Text file conversion error:", err);

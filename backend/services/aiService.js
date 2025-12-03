@@ -13,7 +13,28 @@ export const parseAIResponse = (responseText) => {
     if (!Array.isArray(parsed)) {
       throw new Error("AI did not return an array of slides.");
     }
-    return parsed;
+    
+    // Apply 3-slide repeating pattern:
+    // Slide 1, 4, 7... (index % 3 === 0): Image RIGHT, text LEFT
+    // Slide 2, 5, 8... (index % 3 === 1): Image LEFT, text RIGHT
+    // Slide 3, 6, 9... (index % 3 === 2): Image CENTER/BOTTOM, text TOP
+    return parsed.map((slide, index) => {
+      const pattern = index % 3;
+      
+      let imagePosition;
+      if (pattern === 0) {
+        imagePosition = 'right'; // Slide 1, 4, 7...
+      } else if (pattern === 1) {
+        imagePosition = 'left';  // Slide 2, 5, 8...
+      } else {
+        imagePosition = 'center'; // Slide 3, 6, 9...
+      }
+      
+      return {
+        ...slide,
+        imagePosition
+      };
+    });
   } catch (error) {
     console.error("JSON Parse Error. Raw AI Output:", responseText);
     throw new Error("Failed to parse AI response. Please try again.");
@@ -27,15 +48,36 @@ const createSystemPrompt = () => {
 
 const createUserPrompt = (context, slideCount, sourceType) => {
   return `
-    I need to create a presentation with approximately ${slideCount} slides based on the ${sourceType} provided below.
+    I need to create a visually diverse presentation with EXACTLY ${slideCount} slides based on the ${sourceType} provided below.
+    
+    You must vary the layout and content style for each slide to make it engaging. Do NOT just use bullet points for every slide.
     
     For each slide, provide:
     1. "title": A catchy, professional title.
-    2. "bullets": An array of 3-5 concise bullet points summarizing key facts.
-    3. "imagePrompt": A detailed description for an AI image generator to create a background image.
+    2. "layout": One of ["title", "content", "two-column", "image-left", "image-right", "grid"].
+    3. "contentStyle": One of ["bullets", "paragraph", "numbered", "cards"].
+    4. "text": The main content text. Use markdown **bold** for headers or emphasis. Use \n for line breaks.
+    5. "bullets": (Optional) Array of strings if contentStyle is 'bullets'.
+    6. "imagePrompt": Description for the main background/slide image.
+    7. "imageData": (Optional) Object { "x": 0.5, "y": 0.2, "width": 0.4, "height": 0.6 } to position the main image.
+       - For "image-right": x=0.55, y=0.2, width=0.4, height=0.6. Body text should be on left.
+       - For "image-left": x=0.05, y=0.2, width=0.4, height=0.6. Body text should be on right.
+    8. "bodyBox": (Optional) Object { "x": 0.05, "y": 0.2, "width": 0.45, "height": 0.6 } to position the text.
+    9. "stickers": (Optional) Array of objects for *additional* images. { "prompt": "...", "x": 0.1, "y": 0.1, "width": 0.2, "height": 0.2 }.
 
     Output Format: JSON Array of objects.
-    Example: [{"title": "Intro", "bullets": ["Point 1", "Point 2"], "imagePrompt": "A futuristic office"}]
+    Example: 
+    [
+      {
+        "title": "Our Vision", 
+        "layout": "image-right",
+        "contentStyle": "paragraph",
+        "text": "**Vision:**\nTo be the best.\n\n**Mission:**\nTo serve everyone.",
+        "imagePrompt": "A mountain peak",
+        "imageData": { "x": 0.55, "y": 0.2, "width": 0.4, "height": 0.6 },
+        "bodyBox": { "x": 0.05, "y": 0.2, "width": 0.45, "height": 0.6 }
+      }
+    ]
 
     SOURCE CONTENT:
     """

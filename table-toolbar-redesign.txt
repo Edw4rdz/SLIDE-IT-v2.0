@@ -1,0 +1,38 @@
+REDESIGNED TABLE TOOLBAR
+========================
+
+Replace the table toolbar section (around line 4128-4285) with this redesigned version:
+
+The current toolbar has all buttons in one long row. The redesign groups them logically:
+
+GROUP 1: Row/Column Controls (Left)
+- + Row / - Row (stacked)
+- + Col / - Col (stacked)
+- Blue buttons for add, Red for remove
+
+GROUP 2: Border Controls (Middle)
+- Border color + width (same line)
+- Style dropdown (below)
+
+GROUP 3: Shading (Right)
+- Background color picker
+
+Visual improvements:
+- Vertical dividers between groups
+- 2-row layout for row/col buttons (more compact)
+- Better spacing and padding
+- Gradient background (dark blue-gray)
+- Larger, more visible color pickers
+- Clearer labels with opacity
+- No wrapping (flexWrap: 'nowrap')
+
+The code needs to replace lines starting from:
+  <div style={{ display: 'flex', gap: 6 }}>
+    <button onClick={() => handleAddTableRow...
+
+Through:
+  </div>
+  </div>  (closing the main toolbar div)
+
+Just before:
+  <button onPointerDown...  (the remove table × button)
