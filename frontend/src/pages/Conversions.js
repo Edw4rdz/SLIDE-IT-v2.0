@@ -113,8 +113,15 @@ export default function Conversions() {
     }
     const designForDownload = conv.draftDesign || conv.design || DEFAULT_DESIGN;
     const safeFileName = conv.fileName || "presentation.pptx";
-    // Calls the PPTX generator function from api.js
-    downloadPPTX(conv.slides, designForDownload, safeFileName, conv.includeImages);
+    // Always send forceSecondSlide to match Edit Preview
+    downloadPPTX(
+      conv.slides,
+      designForDownload,
+      safeFileName,
+      conv.includeImages,
+      conv.imageProvider,
+      { forceSecondSlide: Array.isArray(conv.slides) && conv.slides.length > 1 ? conv.slides[1] : undefined }
+    );
   };
 
   // ✅ Preview Slides (Only shows title and bullets count for brevity)
@@ -347,4 +354,4 @@ export default function Conversions() {
       />
     </div>
   );
-} 
+}
