@@ -1,167 +1,14 @@
-// src/prebuilttemplates.js
-export const PREBUILT_TEMPLATES = [
-  {
-    id: "tpl-tech-01",
-    name: "Futuristic Tech Couture",
-    thumbnail:
-      "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop",
-    link: "https://docs.google.com/presentation/d/1FuturisticTechDemo/copy",
-    slides: [
-      /* ... slide content ... */
-    ],
-    design: {
-      font: "Roboto",
-      // ✅ CHANGED to an array
-      globalBackground: ["#0A1F44", "#092F6B", "#005E90"], 
-      globalTitleColor: "#00E6FF",
-      globalTextColor: "#E5E5E5",
-      layouts: {
-        title: {
-          // ✅ CHANGED to an array
-          background: ["#0A1F44", "#092F6B", "#005E90"],
-          titleColor: "#00E6FF",
-          textColor: "#E5E5E5",
-        },
-        content: {
-          // ✅ CHANGED to an array
-          background: ["#0A1F44", "#092F6B", "#005E90"],
-          titleColor: "#00E6FF",
-          textColor: "#E5E5E5",
-        },
-      },
-    },
-  },
-  {
-    id: "tpl-business-01",
-    name: "Elegant Dark Business",
-    thumbnail:
-      "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?q=80&w=800&auto=format&fit=crop",
-    link: "https://docs.google.com/presentation/d/1ElegantDarkBusiness/copy",
-    slides: [
-      /* ... slide content ... */
-    ],
-    design: {
-      font: "Lato",
-      // ✅ CHANGED to an array
-      globalBackground: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
-      globalTitleColor: "#FFD700",
-      globalTextColor: "#E5E5E5",
-      layouts: {
-        title: {
-          // ✅ CHANGED to an array
-          background: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
-          titleColor: "#FFD700",
-          textColor: "#E5E5E5",
-        },
-        content: {
-          // ✅ CHANGED to an array
-          background: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
-          titleColor: "#FFD700",
-          textColor: "#E5E5E5",
-        },
-      },
-    },
-  },
-  {
-    id: "tpl-creative-01",
-    name: "Creative Gradient Splash",
-    thumbnail:
-      "https://png.pngtree.com/background/20250103/original/pngtree-vibrant-gradient-iridescent-colors-abstract-blur-shapes-transition-texture-for-eye-picture-image_15299202.jpg",
-    link: "https://docs.google.com/presentation/d/1CreativeGradientSplash/copy",
-    slides: [
-      /* ... slide content ... */
-    ],
-    design: {
-      font: "Montserrat",
-      // ✅ CHANGED to an array
-      globalBackground: ["#FF6A5E", "#D8458B", "#5E2BB8"],
-      globalTitleColor: "#FFFFFF",
-      globalTextColor: "#F0F0F0",
-      layouts: {
-        title: {
-          // ✅ CHANGED to an array
-          background: ["#FF6A5E", "#D8458B", "#5E2BB8"],
-          titleColor: "#FFFFFF",
-          textColor: "#F0F0F0",
-        },
-        content: {
-          // ✅ CHANGED to an array
-          background: ["#FF6A5E", "#D8458B", "#5E2BB8"],
-          titleColor: "#FFFFFF",
-          textColor: "#F0F0F0",
-        },
-      },
-    },
-  },
-  {
-    id: "tpl-minimal-01",
-    name: "Minimalist White Space",
-    thumbnail:
-      "https://www.slidescarnival.com/wp-content/uploads/Minimalist-White-Slides-1.jpg",
-    link: "https://docs.google.com/presentation/d/1MinimalistWhiteSpace/copy",
-    slides: [
-      /* ... slide content ... */
-    ],
-    design: {
-      font: "Helvetica Neue",
-      // ✅ CHANGED to an array
-      globalBackground: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
-      globalTitleColor: "#222222",
-      globalTextColor: "#555555",
-      layouts: {
-        title: {
-          // ✅ CHANGED to an array
-          background: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
-          titleColor: "#222222",
-          textColor: "#555555",
-        },
-        content: {
-          // ✅ CHANGED to an array
-          background: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
-          titleColor: "#222222",
-          textColor: "#555555",
-        },
-      },
-    },
-  },
-  {
-    id: "tpl-nature-01",
-    name: "Organic Nature Presentation",
-    thumbnail:
-      "https://www.slidekit.com/wp-content/uploads/2024/09/Free-Forest-PowerPoint-Template-For-Nature-and-Eco-Friendly-Presentations.jpg",
-    link: "https://docs.google.com/presentation/d/1OrganicNatureTemplate/copy",
-    slides: [
-      /* ... slide content ... */
-    ],
-    design: {
-      font: "Merriweather",
-      // ✅ CHANGED to an array
-      globalBackground: ["#A8E063", "#56AB2F", "#235E3B"],
-      globalTitleColor: "#235E3B",
-      globalTextColor: "#3E4E48",
-      layouts: {
-        title: {
-          // ✅ CHANGED to an array
-          background: ["#A8E063", "#56AB2F", "#235E3B"],
-          titleColor: "#FFFFFF", 
-          textColor: "#F0F0F0",
-        },
-        content: {
-          // ✅ This is a solid color, so it STAYS A STRING
-          background: "#FFFFFF", 
-          titleColor: "#235E3B",
-          textColor: "#3E4E48",
-        },
-      },
-    },
-  },
+// Script to add Academic/School and Office templates to Firestore
+import { db } from "../config/firebaseAdmin.js";
 
+const ACADEMIC_OFFICE_TEMPLATES = [
   // ============ ACADEMIC / SCHOOL TEMPLATES ============
   {
     id: "tpl-academic-01",
     name: "Classic University Blue",
-    thumbnail: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=800&auto=format&fit=crop",
+    thumbnail: "https://www.shutterstock.com/image-illustration/blue-silver-premium-background-creative-600nw-2645329981.jpg",
     category: "academic",
+    isPrebuilt: true,
     design: {
       font: "Georgia",
       globalBackground: ["#003366", "#004080", "#0066CC"],
@@ -174,7 +21,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#F5F5F5",
         },
         content: {
-          background: ["#E3F2FD", "#BBDEFB", "#90CAF9"],
+          background: "#FFFFFF",
           titleColor: "#003366",
           textColor: "#333333",
         },
@@ -186,6 +33,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Education Chalkboard",
     thumbnail: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=800&auto=format&fit=crop",
     category: "academic",
+    isPrebuilt: true,
     design: {
       font: "Courier New",
       globalBackground: ["#2C3E2C", "#3E5E3E", "#1A2A1A"],
@@ -210,6 +58,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Scientific Research",
     thumbnail: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=800&auto=format&fit=crop",
     category: "academic",
+    isPrebuilt: true,
     design: {
       font: "Times New Roman",
       globalBackground: "#FFFFFF",
@@ -234,6 +83,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Student Friendly Pastel",
     thumbnail: "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=800&auto=format&fit=crop",
     category: "academic",
+    isPrebuilt: true,
     design: {
       font: "Comic Sans MS",
       globalBackground: ["#FFE4E1", "#FFF0F5", "#FFE4F1"],
@@ -246,7 +96,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#4A4A4A",
         },
         content: {
-          background: ["#FFE4E1", "#FFF0F5", "#FFE4F1"],
+          background: "#FFFEF7",
           titleColor: "#D81B60",
           textColor: "#4A4A4A",
         },
@@ -258,6 +108,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Modern Campus Green",
     thumbnail: "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=800&auto=format&fit=crop",
     category: "academic",
+    isPrebuilt: true,
     design: {
       font: "Arial",
       globalBackground: ["#1B5E20", "#2E7D32", "#388E3C"],
@@ -270,7 +121,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#E8F5E9",
         },
         content: {
-          background: ["#E8F5E9", "#C8E6C9", "#A5D6A7"],
+          background: "#FFFFFF",
           titleColor: "#1B5E20",
           textColor: "#333333",
         },
@@ -284,6 +135,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Corporate Blue Professional",
     thumbnail: "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=800&auto=format&fit=crop",
     category: "office",
+    isPrebuilt: true,
     design: {
       font: "Calibri",
       globalBackground: ["#1565C0", "#1976D2", "#1E88E5"],
@@ -296,7 +148,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#F5F5F5",
         },
         content: {
-          background: ["#E3F2FD", "#BBDEFB", "#90CAF9"],
+          background: "#FFFFFF",
           titleColor: "#1565C0",
           textColor: "#424242",
         },
@@ -308,6 +160,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Executive Gray Suite",
     thumbnail: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=800&auto=format&fit=crop",
     category: "office",
+    isPrebuilt: true,
     design: {
       font: "Arial",
       globalBackground: ["#37474F", "#455A64", "#546E7A"],
@@ -320,7 +173,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#ECEFF1",
         },
         content: {
-          background: ["#ECEFF1", "#CFD8DC", "#B0BEC5"],
+          background: "#FAFAFA",
           titleColor: "#37474F",
           textColor: "#424242",
         },
@@ -332,6 +185,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Finance Green Report",
     thumbnail: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=800&auto=format&fit=crop",
     category: "office",
+    isPrebuilt: true,
     design: {
       font: "Verdana",
       globalBackground: ["#1B5E20", "#388E3C", "#4CAF50"],
@@ -344,7 +198,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#E8F5E9",
         },
         content: {
-          background: ["#E8F5E9", "#C8E6C9", "#A5D6A7"],
+          background: "#FFFFFF",
           titleColor: "#1B5E20",
           textColor: "#212121",
         },
@@ -356,6 +210,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Modern Startup Orange",
     thumbnail: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&auto=format&fit=crop",
     category: "office",
+    isPrebuilt: true,
     design: {
       font: "Poppins",
       globalBackground: ["#E65100", "#F57C00", "#FF9800"],
@@ -368,7 +223,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#FFF3E0",
         },
         content: {
-          background: ["#FFF3E0", "#FFE0B2", "#FFCC80"],
+          background: "#FFFFFF",
           titleColor: "#E65100",
           textColor: "#424242",
         },
@@ -380,6 +235,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Professional Navy Boardroom",
     thumbnail: "https://images.unsplash.com/photo-1553877522-43269d4ea984?q=80&w=800&auto=format&fit=crop",
     category: "office",
+    isPrebuilt: true,
     design: {
       font: "Calibri",
       globalBackground: ["#0D47A1", "#1565C0", "#1976D2"],
@@ -392,7 +248,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#E3F2FD",
         },
         content: {
-          background: ["#E3F2FD", "#BBDEFB", "#90CAF9"],
+          background: "#FFFFFF",
           titleColor: "#0D47A1",
           textColor: "#263238",
         },
@@ -404,6 +260,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Clean Minimalist White",
     thumbnail: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?q=80&w=800&auto=format&fit=crop",
     category: "office",
+    isPrebuilt: true,
     design: {
       font: "Helvetica Neue",
       globalBackground: "#FFFFFF",
@@ -428,6 +285,7 @@ export const PREBUILT_TEMPLATES = [
     name: "Tech Company Purple",
     thumbnail: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?q=80&w=800&auto=format&fit=crop",
     category: "office",
+    isPrebuilt: true,
     design: {
       font: "Roboto",
       globalBackground: ["#4A148C", "#6A1B9A", "#7B1FA2"],
@@ -440,7 +298,7 @@ export const PREBUILT_TEMPLATES = [
           textColor: "#F3E5F5",
         },
         content: {
-          background: ["#F3E5F5", "#E1BEE7", "#CE93D8"],
+          background: "#FFFFFF",
           titleColor: "#4A148C",
           textColor: "#424242",
         },
@@ -448,3 +306,53 @@ export const PREBUILT_TEMPLATES = [
     },
   },
 ];
+
+async function addTemplatesToFirestore() {
+  console.log("Starting to add Academic and Office templates to Firestore...\n");
+  
+  const batch = db.batch();
+  let addedCount = 0;
+  let skippedCount = 0;
+
+  for (const template of ACADEMIC_OFFICE_TEMPLATES) {
+    const templateRef = db.collection('templates').doc(template.id);
+    
+    // Check if template already exists
+    const doc = await templateRef.get();
+    
+    if (doc.exists) {
+      console.log(`⏭️  Skipping "${template.name}" (${template.id}) - already exists`);
+      skippedCount++;
+    } else {
+      batch.set(templateRef, template);
+      console.log(`✅ Adding "${template.name}" (${template.id}) - ${template.category}`);
+      addedCount++;
+    }
+  }
+
+  if (addedCount > 0) {
+    await batch.commit();
+    console.log(`\n🎉 Successfully added ${addedCount} new templates to Firestore!`);
+  }
+  
+  if (skippedCount > 0) {
+    console.log(`⏭️  Skipped ${skippedCount} existing templates`);
+  }
+  
+  console.log(`\n📊 Summary:`);
+  console.log(`   - Academic templates: 5`);
+  console.log(`   - Office templates: 7`);
+  console.log(`   - Total new templates: ${addedCount}`);
+  console.log(`   - Total in system: ${addedCount + skippedCount}`);
+}
+
+// Run the script
+addTemplatesToFirestore()
+  .then(() => {
+    console.log("\n✨ Template migration completed successfully!");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("\n❌ Error adding templates:", error);
+    process.exit(1);
+  });

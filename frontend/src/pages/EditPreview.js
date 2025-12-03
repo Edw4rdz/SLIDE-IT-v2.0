@@ -1045,6 +1045,27 @@ export default function EditPreview() {
 
       localStorage.setItem('selectedTemplate', JSON.stringify(newDesign));
 
+      // Apply per-slide backgrounds from template to user's slides
+      if (newDesign.slides && Array.isArray(newDesign.slides) && newDesign.slides.length > 0) {
+        setEditedSlides(prevSlides => {
+          return prevSlides.map((slide, index) => {
+            // Get background from corresponding template slide, or cycle through if needed
+            const templateSlideIndex = index % newDesign.slides.length;
+            const templateSlide = newDesign.slides[templateSlideIndex];
+            
+            if (templateSlide && templateSlide.background) {
+              return {
+                ...slide,
+                background: templateSlide.background,
+                titleColor: templateSlide.titleColor,
+                textColor: templateSlide.textColor
+              };
+            }
+            return slide;
+          });
+        });
+      }
+
     } else {
 
       console.warn("Selected template is missing 'design' object:", selected);

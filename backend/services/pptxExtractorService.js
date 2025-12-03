@@ -194,6 +194,25 @@ export const extractPptxDesign = async (pptxPath) => {
       design.slides.push(slideInfo);
     }
 
+    // Add layouts structure for compatibility with EditPreview
+    // Use the most common slide background or globalBackground for content layout
+    const contentBackground = design.slides.length > 0 
+      ? (design.slides[0].background || design.globalBackground)
+      : design.globalBackground;
+    
+    design.layouts = {
+      title: {
+        background: design.globalBackground,
+        titleColor: design.globalTitleColor,
+        textColor: design.globalTextColor
+      },
+      content: {
+        background: contentBackground,
+        titleColor: design.globalTitleColor,
+        textColor: design.globalTextColor
+      }
+    };
+
     return design;
   } catch (err) {
     console.error('Error extracting PPTX design:', err);
