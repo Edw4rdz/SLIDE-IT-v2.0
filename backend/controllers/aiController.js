@@ -163,7 +163,18 @@ const enforceSlideCount = (slides, count) => {
  * @returns {Promise<Object>} - Upload results with URLs
  */
 const handlePptxUploadAndSave = async (slides, params) => {
-  const { userId, fileName, conversionType, includeImages, previewThumb, imageProvider } = params;
+  const {
+    userId,
+    fileName,
+    conversionType,
+    includeImages,
+    previewThumb,
+    imageProvider,
+    // Optional: chart info for first slide
+    chartData,
+    chartType,
+    chartSummary,
+  } = params;
   
   console.log(`\n${'='.repeat(60)}`);
   console.log(`[UPLOAD FLOW] Starting for ${fileName}`);
@@ -206,7 +217,11 @@ const handlePptxUploadAndSave = async (slides, params) => {
         layouts: {}
       },
       includeImages: includeImages || false,
-      imageProvider: imageProvider
+      imageProvider: imageProvider,
+      // Pass through chart info so pptxService can build a first chart slide
+      chartData,
+      chartType,
+      chartSummary,
     });
 
     const pptxBuffer = pptxResult.buffer;
@@ -458,6 +473,18 @@ export const generateFromExcel = async (req, res) => {
     const userId = req.body.userId || null;
     const provider = req.body.provider || 'grockai';
     const imageProvider = req.body.imageProvider || 'pollinations';
+
+    // Optional chart data coming from frontend (for first slide)
+    const chartType = req.body.chartType || null;
+    const chartSummary = req.body.chartSummary || null;
+    let chartData = null;
+    if (req.body.chartData) {
+      try {
+        chartData = JSON.parse(req.body.chartData);
+      } catch (e) {
+        console.warn('Failed to parse chartData from Excel request:', e.message);
+      }
+    }
     const buffer = getFileBuffer(req.file);
 
     console.log(`Processing Excel: ${req.file.originalname} (Provider: ${provider})`);
@@ -507,7 +534,11 @@ export const generateFromExcel = async (req, res) => {
         conversionType: 'Excel-to-PPTs',
         includeImages,
         previewThumb: null,
-        imageProvider
+        imageProvider,
+        // forward chart info so PPTX generator can build a first chart slide
+        chartData,
+        chartType,
+        chartSummary,
       });
       console.log(`[EXCEL] Upload result:`, uploadResult);
     }

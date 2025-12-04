@@ -72,5 +72,6 @@
   "bugs": {
     "url": "https://github.com/Edw4rdz/Capstone1/issues"
   },
-  "homepage": ""
+  "homepage": "",
+  "proxy": "http://localhost:5000"
 }

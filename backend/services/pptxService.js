@@ -333,10 +333,26 @@ const calculateTextBoxHeight = (text, fontSize, boxWidth, lineHeight = 1.2, font
 };
 
 /**
+ * Automatically fit font size for a text box so content does not overflow the available height.
+ * Returns the largest font size that fits.
+ */
+function autoFitFontSize(text, boxWidth, boxHeight, minFont = 12, maxFont = 40, lineHeight = 1.2, fontFace = 'Arial') {
+  let fontSize = maxFont;
+  while (fontSize >= minFont) {
+    const height = calculateTextBoxHeight(text, fontSize, boxWidth, lineHeight, fontFace);
+    if (height <= boxHeight) {
+      return fontSize;
+    }
+    fontSize -= 1;
+  }
+  return minFont;
+}
+
+/**
  * Main service function to generate the PPTX from frontend data.
  */
 export const generatePptxFromData = async (requestBody) => {
-  const { slides, includeImages, imageProvider, forceSecondSlide } = requestBody;
+  const { slides, includeImages, imageProvider, forceSecondSlide, chartData, chartType, chartSummary } = requestBody;
   const incomingDesign = typeof requestBody.design === 'object' && requestBody.design !== null
     ? requestBody.design
     : {};
@@ -438,6 +454,65 @@ export const generatePptxFromData = async (requestBody) => {
   // Set layout using the correct method
   pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
   pptx.layout = 'LAYOUT_16x9';
+
+  // --- NEW: Always add chart slide as first slide if chartData/chartType/chartSummary are provided ---
+  let slideOffset = 0;
+  if (chartData && chartType && chartSummary) {
+    const chartSlide = pptx.addSlide();
+    // Default design for chart slide
+    chartSlide.background = { color: colorToPptx(design.globalBackground, '#ffffff') };
+    // Title
+    chartSlide.addText('Chart & Summary', {
+      x: 0.5, y: 0.3, w: 9, h: 0.8,
+      fontFace: design.font,
+      fontSize: 36,
+      color: colorToPptx(design.globalTitleColor, '#000000'),
+      bold: true,
+      align: 'center',
+      valign: 'top',
+    });
+    // Chart rendering (bar/line/pie)
+    let chartTypePptx = 'bar';
+    if (chartType === 'line') chartTypePptx = 'line';
+    if (chartType === 'pie') chartTypePptx = 'pie';
+    // Prepare chart data for pptxgenjs
+    let chartLabels = [];
+    let chartValues = [];
+    if (Array.isArray(chartData) && chartData.length > 0) {
+      const keys = Object.keys(chartData[0]);
+      if (keys.length >= 2) {
+        chartLabels = chartData.map(row => row[keys[0]]);
+        chartValues = chartData.map(row => Number(row[keys[1]]) || 0);
+      }
+    }
+    if (chartLabels.length && chartValues.length) {
+      chartSlide.addChart(chartTypePptx, [
+        {
+          name: 'Series',
+          labels: chartLabels,
+          values: chartValues,
+        }
+      ], {
+        x: 1.0, y: 1.2, w: 4.5, h: 3.0,
+        barDir: 'col',
+        showLegend: false,
+        showValue: true,
+      });
+    }
+    // Summary text box
+    if (chartSummary) {
+      chartSlide.addText(chartSummary, {
+        x: 5.7, y: 1.2, w: 3.3, h: 3.0,
+        fontFace: design.font,
+        fontSize: 22,
+        color: colorToPptx(design.globalTextColor, '#333333'),
+        align: 'left',
+        valign: 'top',
+        margin: 0.1,
+      });
+    }
+    slideOffset = 1;
+  }
 
   // Now create slides using the pre-generated images
   for (let slideIndex = 0; slideIndex < slides.length; slideIndex++) {
@@ -619,9 +694,25 @@ export const generatePptxFromData = async (requestBody) => {
     }
 
     // Add title with dynamic height FIRST (so we can calculate body position)
-    const adjustedTitleSize = titleFontSize;
+    // Match frontend auto‑shrink behavior so downloaded PPTX looks like EditPreview
     // Preserve original text exactly as typed (no markdown interpretation)
     const titleText = (slide.title || '').replace(/\*\*/g, '"');
+
+    let adjustedTitleSize = titleFontSize;
+    try {
+      const trimmed = titleText.trim();
+      const approxLength = trimmed.length;
+      if (approxLength > 0) {
+        const safeLength = 40; // keep full size up to ~40 chars
+        if (approxLength > safeLength) {
+          const shrinkRatio = safeLength / approxLength;
+          const estimated = Math.floor(titleFontSize * shrinkRatio);
+          adjustedTitleSize = Math.max(estimated, 14); // never below 14pt
+        }
+      }
+    } catch {
+      adjustedTitleSize = titleFontSize;
+    }
     
     let actualTitleHeight = 0;
     
@@ -962,3 +1053,4 @@ export const generatePptxFromData = async (requestBody) => {
   console.log(`PPTX buffer ready, size: ${pptxBuffer.length} bytes`);
   return { buffer: pptxBuffer, imageProviderFinal: imageProviderFinal || (includeImages ? 'none' : null) };
 };
+// All exports are now ES module style (export const ...), so no module.exports needed

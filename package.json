@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "chart.js": "^4.5.1",
     "dotenv": "^17.2.3",
-    "pptxgenjs": "^3.12.0"
+    "pptxgenjs": "^3.12.0",
+    "react-chartjs-2": "^5.3.1"
   }
 }

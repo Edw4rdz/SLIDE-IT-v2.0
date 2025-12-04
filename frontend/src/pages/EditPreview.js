@@ -453,6 +453,39 @@ const TEMPLATE_THUMB_OVERRIDES = {
 
 
 
+// Dynamically choose a reasonable starting font size based on content length.
+// This is only used for initial slide styles; the editor and PPTX export
+// still apply additional auto‑fit logic to prevent overflow.
+function calculateOptimalFontSize(text, type, defaultSize) {
+  const safeDefault = Number.isFinite(defaultSize) && defaultSize > 0 ? defaultSize : 16;
+  if (!text || typeof text !== 'string') return safeDefault;
+
+  const len = text.trim().length;
+
+  if (type === 'title') {
+    if (len > 50 && len <= 90) {
+      // Slightly long titles → moderate shrink
+      return Math.max(24, Math.round(safeDefault * 0.85));
+    }
+    if (len > 90) {
+      // Very long titles → stronger shrink
+      return Math.max(18, Math.round(safeDefault * 0.7));
+    }
+    return safeDefault;
+  }
+
+  // Body text rules
+  if (len > 400) {
+    return 10;
+  }
+  if (len > 200) {
+    return 12;
+  }
+  return safeDefault;
+}
+
+
+
 const buildTemplateFallbackThumb = (name = "Template") => {
 
   try {
@@ -532,6 +565,11 @@ export default function EditPreview() {
       bodyBox = { x: 0.05, y: 0.63, width: 0.9, height: 0.32, zIndex: 100 };
     }
 
+    // Safely build a single body string for initial sizing
+    const bodySource = Array.isArray(slide.bullets)
+      ? slide.bullets.filter(Boolean).join(' ')
+      : (typeof slide.text === 'string' ? slide.text : '');
+
     return {
       ...slide,
       id: slide.id ?? `slide-${index}-${Date.now()}`,
@@ -587,14 +625,14 @@ export default function EditPreview() {
 
       titleFont: 'Arial',
 
-      titleSize: 32,
+      titleSize: calculateOptimalFontSize(slide.title || '', 'title', 32),
 
       titleBold: false,
 
       titleItalic: false,
 
       textFont: 'Arial',
-      textSize: 16,
+      textSize: calculateOptimalFontSize(bodySource, 'body', 16),
       textBold: false,
       textItalic: false,
       textAlign: 'left'
@@ -4321,24 +4359,42 @@ export default function EditPreview() {
                    finalTitleY = toNormalized(0.5, SLIDE_HEIGHT);
                    finalTitleH = toNormalized(0.8, SLIDE_HEIGHT);
                  }
-               } else {
-                 // Fallback defaults (no image)
-                 finalTitleX = toNormalized(0.5, SLIDE_WIDTH);
-                 finalTitleW = toNormalized(9.0, SLIDE_WIDTH);
-                 finalTitleY = toNormalized(0.35, SLIDE_HEIGHT);
-                 finalTitleH = toNormalized(1.0, SLIDE_HEIGHT);
-               }
-               
-               const titleBox = { x: finalTitleX, y: finalTitleY, width: finalTitleW, height: finalTitleH, zIndex: 100 };
-               const isSelected = selectedTextBox?.slideId === s.id && selectedTextBox?.type === 'title';
-               const isEditing = s.editingTitle;
-               
-               // Match PPT defaults: title 44pt for title layout, else 32pt
-               const finalTitleFontSize = (() => {
-                 if (typeof s.styles?.titleSize === 'number' && s.styles.titleSize > 0) return s.styles.titleSize;
-                 const layout = s.layout || 'content';
-                 return layout === 'title' ? 44 : 32;
-               })();
+              } else {
+                // Fallback defaults (no image)
+                finalTitleX = toNormalized(0.5, SLIDE_WIDTH);
+                finalTitleW = toNormalized(9.0, SLIDE_WIDTH);
+                finalTitleY = toNormalized(0.35, SLIDE_HEIGHT);
+                finalTitleH = toNormalized(1.0, SLIDE_HEIGHT);
+              }
+              
+              const titleBox = { x: finalTitleX, y: finalTitleY, width: finalTitleW, height: finalTitleH, zIndex: 100 };
+              const isSelected = selectedTextBox?.slideId === s.id && selectedTextBox?.type === 'title';
+              const isEditing = s.editingTitle;
+              
+              // Match PPT defaults: title 44pt for title layout, else 32pt
+              const baseTitleFontSize = (() => {
+                if (typeof s.styles?.titleSize === 'number' && s.styles.titleSize > 0) return s.styles.titleSize;
+                const layout = s.layout || 'content';
+                return layout === 'title' ? 44 : 32;
+              })();
+
+              // Auto-shrink title font size for very long titles so it stays inside the slide
+              let autoTitleFontSize = baseTitleFontSize;
+              try {
+                const titleText = (s.title || 'Click to add title').trim();
+                const approxLength = titleText.length;
+                if (approxLength > 0) {
+                  // Heuristic: keep full size up to ~40 chars, then shrink gradually
+                  const safeLength = 40;
+                  if (approxLength > safeLength) {
+                    const shrinkRatio = safeLength / approxLength;
+                    const estimated = Math.floor(baseTitleFontSize * shrinkRatio);
+                    autoTitleFontSize = Math.max(estimated, 14); // never go below 14pt
+                  }
+                }
+              } catch {
+                autoTitleFontSize = baseTitleFontSize;
+              }
                
                return (
                  <div
@@ -4392,15 +4448,15 @@ export default function EditPreview() {
                        boxSizing: 'border-box',
                        display: 'flex',
                        alignItems: 'center',
-                       justifyContent: 'flex-start',
+                      justifyContent: 'flex-start',
                        color: s.titleColor || titleColor || '#000',
                        fontFamily: s.styles?.titleFont || theme.font,
-                       fontSize: `${finalTitleFontSize}pt`,
+                      fontSize: `${autoTitleFontSize}pt`,
                        fontWeight: s.styles?.titleBold ? 700 : 400,
                        fontStyle: s.styles?.titleItalic ? 'italic' : 'normal',
                        lineHeight: 1.0,
                        outline: 'none',
-                       overflow: 'visible',
+                      overflow: 'hidden',
                        wordBreak: 'break-word',
                        pointerEvents: isEditing ? 'auto' : 'none'
                      }}
@@ -4524,18 +4580,36 @@ export default function EditPreview() {
                const isSelected = selectedTextBox?.slideId === s.id && selectedTextBox?.type === 'body';
                const isEditing = s.editingContent;
                
-               const bulletLines = getBulletLines(s);
-               const lineCount = Math.max(1, bulletLines.length);
+              const bulletLines = getBulletLines(s);
+              const lineCount = Math.max(1, bulletLines.length);
                const containerRect = containerRefs.current[s.id]?.getBoundingClientRect();
 
-               // Font size auto-shrink logic to prevent overflow
-               const bodyBoxHeightPx = containerRect ? containerRect.height * bodyBox.height : 300;
-               const baseFontSize = (typeof s.styles?.textSize === 'number' && s.styles.textSize > 0) ? s.styles.textSize : ((s.layout || 'content') === 'title' ? 24 : 18);
-               const lineHeightPx = 1.2 * baseFontSize * 1.33; // 1.2em, 1pt = 1.33px
-               let autoFontSize = baseFontSize;
-               if (lineCount * lineHeightPx > bodyBoxHeightPx) {
-                 autoFontSize = Math.max(Math.floor(bodyBoxHeightPx / (lineCount * 1.33)), 10); // Minimum 10pt
-               }
+              // Font size auto-shrink logic to prevent overflow
+              const bodyBoxHeightPx = containerRect ? containerRect.height * bodyBox.height : 300;
+              const requestedFontSize =
+                typeof s.styles?.textSize === 'number' && s.styles.textSize > 0
+                  ? s.styles.textSize
+                  : (s.layout || 'content') === 'title'
+                    ? 24
+                    : 18;
+
+              // Work only from available height & number of lines:
+              // maxFontPerLine = boxHeight / (lines * lineHeight * pxPerPt)
+              const lineHeightEm = 1.2;
+              const pxPerPoint = 1.33;
+              const safeMinPt = 8; // allow smaller text when content is very long
+
+              // If we don't know the container yet, fall back to requested size
+              let autoFontSize = requestedFontSize;
+              if (containerRect && lineCount > 0) {
+                const maxPtThatFits = Math.floor(
+                  bodyBoxHeightPx / (lineCount * lineHeightEm * pxPerPoint)
+                );
+                autoFontSize = Math.max(
+                  Math.min(requestedFontSize, maxPtThatFits),
+                  safeMinPt
+                );
+              }
 
                const autoBodyBox = bodyBox;
 

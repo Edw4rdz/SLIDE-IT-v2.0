@@ -13,6 +13,7 @@ import userAuthRoutes from "./routes/userAuthRoutes.js"; // Your new login route
 import historyRoutes from "./routes/historyRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js"; // <-- ADDED
 import otpRoutes from "./routes/otpRoutes.js"; // OTP verification routes
+import excelRoutes from "./routes/excelRoutes.js";
 
 // --- SETUP ---
 dotenv.config();
@@ -20,33 +21,15 @@ const app = express();
 const __dirname = path.resolve(); // For serving static files
 
 // --- MIDDLEWARE ---
-const allowedOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:3000'];
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000'
+];
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin matches allowed origins or Vercel preview pattern
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (allowed === '*') return true;
-      if (allowed === origin) return true;
-      // Allow localhost on any port
-      if (origin && /^https?:\/\/localhost:\d+$/i.test(origin)) return true;
-      if (origin && /^https?:\/\/127\.0\.0\.1:\d+$/i.test(origin)) return true;
-      // Allow any Vercel preview URL
-      if (origin && origin.includes('.vercel.app')) return true;
-      return false;
-    });
-    
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins for local development
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -89,6 +72,7 @@ app.use("/api", userAuthRoutes);
 app.use("/api", historyRoutes);
 app.use("/api/admin", adminRoutes); // <-- ADDED
 app.use("/api/otp", otpRoutes); // OTP verification endpoints
+app.use("/api/excel", excelRoutes);
 
 // --- EXPORT APP ---
 // We export 'app' so server.js can import it and start the server
