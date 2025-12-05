@@ -10,6 +10,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  fetchSignInMethodsForEmail,
 } from "firebase/auth";
 import { auth, db } from "../firebase";
 import {
@@ -22,6 +23,7 @@ import {
   getDocs,
   updateDoc,
   serverTimestamp, 
+  runTransaction,
 } from "firebase/firestore";
 
 export default function Login() {
@@ -80,6 +82,48 @@ export default function Login() {
       navigate("/admin");
     } else {
       navigate("/dashboard");
+    }
+  };
+
+  // Simplified function to check if user is Google-only
+  const checkGoogleUserLogin = async (email, originalError) => {
+    try {
+      console.log("[Login Check] Checking user for:", email);
+      
+      // Check if user exists in database
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+      
+      // User doesn't exist in database at all
+      if (querySnapshot.empty) {
+        console.log("[Login Check] User not found in database");
+        return "Account does not exist. Please sign up first.";
+      }
+      
+      const userDoc = querySnapshot.docs[0].data();
+      console.log("[Login Check] User found. Has firstName?", !!userDoc.firstName);
+      
+      // If user has firstName, they signed up normally (not Google-only)
+      if (userDoc.firstName) {
+        console.log("[Login Check] Regular user - wrong password");
+        return "Incorrect password. Please try again or use 'Forgot password?' to reset it.";
+      }
+      
+      // User is a Google signup (no firstName field)
+      // But if they're getting auth/invalid-credential OR auth/wrong-password,
+      // they likely HAVE set a password (just typed it wrong)
+      // Only show "use Google" message for completely new Google users
+      
+      console.log("[Login Check] Google user - showing wrong password message");
+      return "Incorrect password. Please try again or use 'Forgot password?' to reset it.";
+    } catch (checkErr) {
+      console.error("[Login Check] Error checking user:", checkErr);
+      // Fallback to original error handling
+      if (originalError.code === "auth/wrong-password") {
+        return "Incorrect password. Please try again or use 'Forgot password?' to reset it.";
+      }
+      return "Invalid credentials. Please check your email and password and try again.";
     }
   };
 
@@ -167,23 +211,22 @@ export default function Login() {
       console.error("Firebase login error:", err);
       let errorMessage = "Error logging in. Please try again.";
 
-      // More specific error messages
+      // Handle authentication errors
       if (err.code === "auth/invalid-email") {
         errorMessage = "Invalid email format. Please enter a valid email address.";
       } else if (err.code === "auth/user-not-found") {
         errorMessage = "No account found with this email. Please check your email or sign up for a new account.";
-      } else if (err.code === "auth/wrong-password") {
-        errorMessage = "Incorrect password. Please try again or use 'Forgot password?' to reset it.";
       } else if (err.code === "auth/too-many-requests") {
         errorMessage = "Too many failed login attempts. Your account has been temporarily locked. Please try again later or reset your password.";
       } else if (err.code === "auth/user-disabled") {
         errorMessage = "This account has been disabled. Please contact support for assistance.";
-      } else if (err.code === "auth/invalid-credential") {
-        errorMessage = "Invalid credentials. Please check your email and password and try again.";
       } else if (err.code === "auth/network-request-failed") {
         errorMessage = "Network error. Please check your internet connection and try again.";
       } else if (err.code === "auth/operation-not-allowed") {
         errorMessage = "Email/password login is currently disabled. Please contact support.";
+      } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+        // Check if this is a Google-only user trying to login with password
+        errorMessage = await checkGoogleUserLogin(email.toLowerCase(), err);
       } else {
         errorMessage = `Login failed: ${err.message || "Unknown error"}. Please try again.`;
       }
@@ -221,14 +264,34 @@ export default function Login() {
         if (docSnap.exists()) {
           userDataFromDb = docSnap.data();
         } else {
+          // Use a transaction to safely increment the counter and create the user
+          const counterRef = doc(db, "metadata", "userCounter");
+          
+          const newNumericId = await runTransaction(db, async (transaction) => {
+            const counterDoc = await transaction.get(counterRef);
+            if (!counterDoc.exists()) {
+              // Initialize the counter if it doesn't exist
+              transaction.set(counterRef, { count: 100 }); // Start from 100
+              return 100;
+            }
+            
+            const newId = counterDoc.data().count + 1;
+            transaction.update(counterRef, { count: newId });
+            return newId;
+          });
+
+          userDocId = String(newNumericId);
+          const newUserDocRef = doc(db, "users", userDocId);
+
           userDataFromDb = {
             name: user.displayName,
             email: user.email,
             createdAt: new Date().toISOString(),
             authUID: user.uid,
-            isAdmin: false
+            isAdmin: false,
+            numericId: newNumericId, // Add the numeric ID to the document
           };
-          await setDoc(uidRef, userDataFromDb);
+          await setDoc(newUserDocRef, userDataFromDb);
         }
       }
       

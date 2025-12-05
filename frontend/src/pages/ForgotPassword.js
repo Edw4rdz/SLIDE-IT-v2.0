@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { checkEmailExists } from "../api";
-import { auth } from "../firebase";
+import axios from "axios";
 import "../styles/login.css";
 
 export default function ForgotPassword() {
@@ -22,27 +20,30 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      // Server-side verification using Firebase Admin to decide message explicitly
-      const { data } = await checkEmailExists(email);
-      if (!data || data.exists !== true) {
-        setError("No account exists with that email address.");
-        return;
+      const API_BASE = process.env.REACT_APP_BACKEND_URL 
+        ? `${process.env.REACT_APP_BACKEND_URL.replace(/\/$/, '')}/api`
+        : "http://localhost:5000/api";
+
+      const response = await axios.post(`${API_BASE}/password-reset/send`, {
+        email: email.toLowerCase()
+      });
+
+      if (response.data.success) {
+        setMessage("Password reset email sent successfully! Check your inbox and spam folder.");
+      } else {
+        setError(response.data.error || "Failed to send reset email.");
       }
-      await sendPasswordResetEmail(auth, email);
-      setMessage("A password reset link has been sent. Check your inbox.");
     } catch (err) {
       console.error("Error sending password reset email:", err);
-      // Granular error handling based on Firebase Auth error codes
-      if (err.code === 'auth/user-not-found') {
+      
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else if (err.response?.status === 404) {
         setError("No account exists with that email address.");
-      } else if (err.code === 'auth/invalid-email') {
-        setError("That email address is not valid. Please check the format.");
-      } else if (err.code === 'auth/missing-email') {
-        setError("Please provide an email address.");
-      } else if (err.code === 'auth/too-many-requests') {
-        setError("Too many attempts. Please wait a moment and try again.");
+      } else if (err.message.includes("Network Error")) {
+        setError("Network error. Please check your connection and try again.");
       } else {
-        setError("Unable to send reset email at this time. Please try again later.");
+        setError("Unable to send reset email. Please try again later.");
       }
     } finally {
       setLoading(false);

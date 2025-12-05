@@ -195,7 +195,7 @@ export default function Signup() {
       let errorMessage = "An error occurred. Please try again.";
 
       if (err.code === "auth/email-already-in-use") {
-        errorMessage = "This email is already registered. Please log in.";
+        errorMessage = "This email is already registered. Try another email";
       } else if (err.code === "auth/invalid-email") {
         errorMessage = "Invalid email address.";
       } else if (err.code === "auth/weak-password") {

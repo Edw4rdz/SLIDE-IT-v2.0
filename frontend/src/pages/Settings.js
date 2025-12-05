@@ -7,9 +7,10 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
+  signOut,
 } from "firebase/auth";
 import { db } from "../firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc, doc } from "firebase/firestore";
 import { getHistory } from "../api";
 import "../styles/settings.css";
 import Sidebar from "../components/Sidebar";
@@ -23,9 +24,13 @@ export default function Settings() {
   const [conversionCount, setConversionCount] = useState(0);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [userDocId, setUserDocId] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalProfile, setOriginalProfile] = useState(null);
+  const [isGoogleOnlyUser, setIsGoogleOnlyUser] = useState(false);
 
   // Profile info
   const [profile, setProfile] = useState({
+    username: "",
     firstName: "",
     lastName: "",
     email: "",
@@ -46,6 +51,63 @@ export default function Settings() {
   const [fbSubmitting, setFbSubmitting] = useState(false);
   const [fbStatus, setFbStatus] = useState({ type: "", text: "" });
 
+  // Password policy validators (same as signup)
+  const evaluatePassword = (pwd) => ({
+    length: typeof pwd === "string" && pwd.length >= 8,
+    upper: /[A-Z]/.test(pwd || ""),
+    lower: /[a-z]/.test(pwd || ""),
+    digit: /\d/.test(pwd || ""),
+    noSpace: !/\s/.test(pwd || ""),
+  });
+
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setProfile((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditClick = () => {
+    setOriginalProfile(profile);
+    setIsEditing(true);
+  };
+
+  const handleCancelClick = () => {
+    setProfile(originalProfile);
+    setIsEditing(false);
+    setOriginalProfile(null);
+  };
+
+  const handleProfileUpdate = async () => {
+    if (!userDocId) {
+      notify("Could not find user profile to update.", "error");
+      return;
+    }
+
+    try {
+      const userRef = doc(db, "users", userDocId);
+      const dataToUpdate = {
+        username: profile.username,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        birthday: profile.birthday ? new Date(profile.birthday) : null,
+      };
+      await updateDoc(userRef, dataToUpdate);
+      notify("Profile updated successfully!", "success");
+
+      // Update local storage to reflect the new username
+      const localUser = JSON.parse(localStorage.getItem("user"));
+      if (localUser) {
+        localUser.username = profile.username;
+        localStorage.setItem("user", JSON.stringify(localUser));
+      }
+
+      setIsEditing(false);
+      setOriginalProfile(null);
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      notify("Failed to update profile.", "error");
+    }
+  };
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       const user = auth.currentUser;
@@ -64,6 +126,11 @@ export default function Settings() {
           const data = docSnapshot.data();
           setUserDocId(docSnapshot.id);
 
+          // Check if user is Google-only (has 'name' but no 'firstName' AND no password set)
+          const hasPasswordProvider = user.providerData?.some(p => p?.providerId === "password");
+          // User is Google-only if they signed up with Google AND haven't set a password yet
+          setIsGoogleOnlyUser(data.name && !data.firstName && !hasPasswordProvider);
+
           let birthday = "";
           try {
             if (data.birthday) {
@@ -77,6 +144,7 @@ export default function Settings() {
           }
 
           setProfile({
+            username: data.username || "",
             firstName: data.firstName || "",
             lastName: data.lastName || "",
             email: data.email || user.email || "",
@@ -89,6 +157,7 @@ export default function Settings() {
           const [firstName = "", lastName = ""] = displayName.split(" ");
           
           setProfile({
+            username: displayName,
             firstName,
             lastName,
             email: user.email || "",
@@ -132,33 +201,59 @@ export default function Settings() {
 
   // Update password
   const handlePasswordChange = async () => {
-    if (!newPassword || newPassword.length < 6) {
-      notify("New password must be at least 6 characters.", "error");
+    if (!newPassword) {
+      notify("New password is required.", "error");
       return;
     }
 
-    if (!currentPassword) {
-      notify("Please enter your current password.", "error");
-      return;
-    }
+    const info = evaluatePassword(newPassword);
+    if (!info.length) { notify("Password must be at least 8 characters.", "error"); return; }
+    if (!info.upper) { notify("Password must include at least one uppercase letter.", "error"); return; }
+    if (!info.lower) { notify("Password must include at least one lowercase letter.", "error"); return; }
+    if (!info.digit) { notify("Password must include at least one number.", "error"); return; }
+    if (!info.noSpace) { notify("Password must not contain spaces.", "error"); return; }
 
     try {
       const user = auth.currentUser;
       if (!user) return navigate("/login");
 
-      // Reauthenticate first
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
-      await reauthenticateWithCredential(user, credential);
+      // Determine if user already has email/password provider linked
+      const hasPasswordProvider = Array.isArray(user.providerData)
+        && user.providerData.some(p => (p?.providerId || "").toLowerCase() === "password");
+
+      // If user has password provider, require current password
+      if (hasPasswordProvider && (!currentPassword || currentPassword.length === 0)) {
+        notify("Please enter your current password to change it.", "error");
+        return;
+      }
+
+      // Reauthenticate: if currentPassword provided, use EmailAuthProvider; otherwise try Google popup
+      if (currentPassword && currentPassword.length > 0) {
+        const credential = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, credential);
+      } else {
+        // For Google-only accounts without a password, reauth with Google to allow setting a password
+        const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+      }
 
       // Update password
       await updatePassword(user, newPassword);
 
-      notify("Password updated successfully!", "success");
-      setNewPassword("");
-      setCurrentPassword("");
+      // Clear local storage and sign out
+      localStorage.removeItem("user");
+      await signOut(auth);
+
+      notify("Password updated successfully! Please login again with your new password.", "success");
+      
+      // Redirect to login page
+      setTimeout(() => {
+        navigate("/login");
+      }, 1500);
     } catch (err) {
       console.error("Error updating password:", err);
-      notify("Failed to update password. Please check your current password and try again.", "error");
+      notify("Failed to update password. Please reauthenticate and try again.", "error");
     }
   };
   const handleFeedbackSubmit = async (e) => {
@@ -274,15 +369,50 @@ export default function Settings() {
             <div className="settings-card">
               <h2>USER INFORMATION</h2>
 
+              {/* Google-only user notification */}
+              {isGoogleOnlyUser && (
+                <div className="password-warning-banner">
+                  <span className="warning-icon">⚠️</span>
+                  <p>
+                    You signed up with Google. Please <strong>set a password below</strong> to secure your account and enable password login.
+                  </p>
+                </div>
+              )}
+
               {/* Profile Info */}
               <div className="form-group">
+                <label>Username</label>
+                <input
+                  type="text"
+                  name="username"
+                  value={profile.username}
+                  onChange={handleProfileChange}
+                  readOnly={!isEditing}
+                  placeholder="Enter your username"
+                />
+              </div>
+              <div className="form-group">
                 <label>First Name</label>
-                <input type="text" value={profile.firstName} readOnly />
+                <input
+                  type="text"
+                  name="firstName"
+                  value={profile.firstName}
+                  onChange={handleProfileChange}
+                  readOnly={!isEditing}
+                  placeholder="Enter your first name"
+                />
               </div>
 
               <div className="form-group">
                 <label>Last Name</label>
-                <input type="text" value={profile.lastName} readOnly />
+                <input
+                  type="text"
+                  name="lastName"
+                  value={profile.lastName}
+                  onChange={handleProfileChange}
+                  readOnly={!isEditing}
+                  placeholder="Enter your last name"
+                />
               </div>
 
               <div className="form-group">
@@ -292,7 +422,13 @@ export default function Settings() {
 
               <div className="form-group">
                 <label>Birthday</label>
-                <input type="date" value={profile.birthday} readOnly />
+                <input
+                  type="date"
+                  name="birthday"
+                  value={profile.birthday}
+                  onChange={handleProfileChange}
+                  readOnly={!isEditing}
+                />
               </div>
 
               {/* User Role */}
@@ -310,6 +446,33 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Conversion history */}
+              <div className="form-group readonly">
+                <label>Conversion History</label>
+                <div className="readonly-box">
+                  <FaHistory className="icon" />
+                  <span>{conversionCount} total conversions</span>
+                </div>
+              </div>
+
+              {/* Save Buttons */}
+              <div className="settings-actions">
+                {isEditing ? (
+                  <>
+                    <button className="save-btn" onClick={handleProfileUpdate}>
+                      Save Changes
+                    </button>
+                    <button className="cancel-btn" onClick={handleCancelClick}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button className="save-btn" onClick={handleEditClick}>
+                    Update Information
+                  </button>
+                )}
+              </div>
+
               {/* ✅ Added current password field above new password */}
               <div className="form-group">
                 <label>Current Password</label>
@@ -319,6 +482,9 @@ export default function Settings() {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                 />
+                <small style={{ color: "#6d4fc2" }}>
+                  Tip: Leave blank if you signed in with Google — we’ll reauthenticate with Google to set a password.
+                </small>
               </div>
 
               <div className="form-group">
@@ -330,17 +496,6 @@ export default function Settings() {
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
               </div>
-
-              {/* Conversion history */}
-              <div className="form-group readonly">
-                <label>Conversion History</label>
-                <div className="readonly-box">
-                  <FaHistory className="icon" />
-                  <span>{conversionCount} total conversions</span>
-                </div>
-              </div>
-
-              {/* Save Button */}
               <button className="save-btn" onClick={handlePasswordChange}>
                 Update Password
               </button>
