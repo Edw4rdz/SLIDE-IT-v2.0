@@ -2,7 +2,33 @@
 import { db } from "../config/firebaseAdmin.js";
 import { Timestamp } from "firebase-admin/firestore";
 
-const conversionsCollection = db.collection('conversions');
+/**
+ * Helper function to get authUID from numeric userId
+ * @param {string} numericUserId - Numeric user ID
+ * @returns {Promise<string>} - Firebase authUID
+ */
+const getAuthUIDFromNumericId = async (numericUserId) => {
+  try {
+    const usersRef = db.collection('users');
+    const snapshot = await usersRef.where('numericId', '==', String(numericUserId)).limit(1).get();
+    
+    if (snapshot.empty) {
+      // Fallback: check if the userId itself is an authUID
+      const directDoc = await usersRef.doc(String(numericUserId)).get();
+      if (directDoc.exists) {
+        return String(numericUserId);
+      }
+      throw new Error(`User not found with numericId: ${numericUserId}`);
+    }
+    
+    const userDoc = snapshot.docs[0];
+    return userDoc.data().authUID || userDoc.id;
+  } catch (err) {
+    console.error('[Helper] Error getting authUID:', err);
+    // Fallback to using the provided ID
+    return String(numericUserId);
+  }
+};
 
 /**
  * Save a conversion record to Firestore with S3 file information
@@ -21,24 +47,35 @@ const conversionsCollection = db.collection('conversions');
  */
 export const saveConversion = async (conversionData) => {
   try {
+    const numericUserId = String(conversionData.userId || '');
+    
+    // Get authUID from numeric userId
+    const authUID = conversionData.authUID || await getAuthUIDFromNumericId(numericUserId);
+    
     const dataWithTimestamp = {
       ...conversionData,
-      userId: String(conversionData.userId || ''),
-      userIdNumeric: String(conversionData.userId || ''), // Added for easier identification
+      userId: numericUserId,
+      authUID: authUID,
       status: "Completed",
       createdAt: Timestamp.now(),
       uploadedAt: Timestamp.now()
     };
 
     console.log(`[Conversions] Saving conversion to Firestore:`, {
+      authUID: dataWithTimestamp.authUID,
       userId: dataWithTimestamp.userId,
-      userIdNumeric: dataWithTimestamp.userIdNumeric,
       fileName: dataWithTimestamp.fileName,
       conversionType: dataWithTimestamp.conversionType,
       s3Key: dataWithTimestamp.s3Key
     });
 
-    const docRef = await conversionsCollection.add(dataWithTimestamp);
+    // Use nested structure: conversions/{authUID}/userconversions
+    const userConversionsRef = db
+      .collection('conversions')
+      .doc(authUID)
+      .collection('userconversions');
+    
+    const docRef = await userConversionsRef.add(dataWithTimestamp);
 
     console.log(`[Conversions] Successfully saved with ID: ${docRef.id}`);
 
@@ -54,15 +91,22 @@ export const saveConversion = async (conversionData) => {
  * @param {string} userId - User ID
  * @returns {Promise<Array>} - List of conversions
  */
-export const getConversions = async (userId) => {
+export const getConversions = async (userId, authUID = null) => {
   try {
-    if (!userId) {
-      throw new Error("User ID is required");
+    if (!userId && !authUID) {
+      throw new Error("User ID or authUID is required");
     }
 
-    const uid = String(userId);
-    const snapshot = await conversionsCollection
-      .where('userId', '==', uid)
+    // Get authUID if not provided
+    const uid = authUID || await getAuthUIDFromNumericId(String(userId));
+    
+    // Query user-specific subcollection: conversions/{authUID}/userconversions
+    const userConversionsRef = db
+      .collection('conversions')
+      .doc(uid)
+      .collection('userconversions');
+    
+    const snapshot = await userConversionsRef
       .orderBy('uploadedAt', 'desc')
       .get();
 
@@ -89,13 +133,22 @@ export const getConversions = async (userId) => {
  * @param {string} userId - User ID for authorization
  * @returns {Promise<Object>}
  */
-export const deleteConversion = async (id, userId) => {
+export const deleteConversion = async (id, userId, authUID = null) => {
   try {
-    if (!id || !userId) {
-      throw new Error("ID and User ID are required");
+    if (!id || (!userId && !authUID)) {
+      throw new Error("ID and User ID/authUID are required");
     }
 
-    const docRef = conversionsCollection.doc(id);
+    // Get authUID if not provided
+    const uid = authUID || await getAuthUIDFromNumericId(String(userId));
+
+    // Access document in user-specific subcollection
+    const docRef = db
+      .collection('conversions')
+      .doc(uid)
+      .collection('userconversions')
+      .doc(id);
+    
     const doc = await docRef.get();
 
     if (!doc.exists) {
@@ -130,9 +183,22 @@ export const deleteConversion = async (id, userId) => {
  * @param {string} userId - User ID for authorization (optional)
  * @returns {Promise<Object>}
  */
-export const getConversionById = async (id, userId = null) => {
+export const getConversionById = async (id, userId = null, authUID = null) => {
   try {
-    const docRef = conversionsCollection.doc(id);
+    if (!userId && !authUID) {
+      throw new Error("User ID or authUID is required for nested structure");
+    }
+    
+    // Get authUID if not provided
+    const uid = authUID || await getAuthUIDFromNumericId(String(userId));
+    
+    // Access document in user-specific subcollection
+    const docRef = db
+      .collection('conversions')
+      .doc(uid)
+      .collection('userconversions')
+      .doc(id);
+    
     const doc = await docRef.get();
 
     if (!doc.exists) {
@@ -152,3 +218,134 @@ export const getConversionById = async (id, userId = null) => {
     throw new Error("Failed to retrieve conversion.");
   }
 };
+
+/**
+ * Save AI-generated conversion to separate subcollection
+ * Structure: conversions/{userId}/AI-generated/{docId}
+ * @param {Object} conversionData - Conversion details
+ * @returns {Promise<Object>} - The created document with ID
+ */
+export const saveAIGeneratedConversion = async (conversionData) => {
+  try {
+    const numericUserId = String(conversionData.userId || '');
+    
+    // Get authUID from numeric userId
+    const authUID = conversionData.authUID || await getAuthUIDFromNumericId(numericUserId);
+    
+    const dataWithTimestamp = {
+      ...conversionData,
+      userId: numericUserId,
+      authUID: authUID,
+      status: "Completed",
+      createdAt: Timestamp.now(),
+      uploadedAt: Timestamp.now(),
+      isAIGenerated: true
+    };
+
+    console.log(`[AI-Generated] Saving AI conversion to Firestore:`, {
+      authUID: dataWithTimestamp.authUID,
+      userId: dataWithTimestamp.userId,
+      fileName: dataWithTimestamp.fileName,
+      conversionType: dataWithTimestamp.conversionType
+    });
+
+    // Use nested structure: conversions/{authUID}/AI-generated
+    const aiGeneratedRef = db
+      .collection('conversions')
+      .doc(authUID)
+      .collection('AI-generated');
+    
+    const docRef = await aiGeneratedRef.add(dataWithTimestamp);
+
+    console.log(`[AI-Generated] Successfully saved with ID: ${docRef.id}`);
+
+    return { id: docRef.id, ...dataWithTimestamp };
+  } catch (err) {
+    console.error("[AI-Generated] Error saving conversion:", err);
+    throw new Error("Failed to save AI-generated conversion.");
+  }
+};
+
+/**
+ * Get all AI-generated conversions for a specific user
+ * @param {string} userId - User ID
+ * @returns {Promise<Array>} - List of AI-generated conversions
+ */
+export const getAIGeneratedConversions = async (userId, authUID = null) => {
+  try {
+    if (!userId && !authUID) {
+      throw new Error("User ID or authUID is required");
+    }
+
+    // Get authUID if not provided
+    const uid = authUID || await getAuthUIDFromNumericId(String(userId));
+    
+    // Query AI-generated subcollection
+    const aiGeneratedRef = db
+      .collection('conversions')
+      .doc(uid)
+      .collection('AI-generated');
+    
+    const snapshot = await aiGeneratedRef
+      .orderBy('uploadedAt', 'desc')
+      .get();
+
+    if (snapshot.empty) {
+      return [];
+    }
+
+    const conversions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    return conversions;
+  } catch (err) {
+    console.error("[AI-Generated] Error getting conversions:", err);
+    throw new Error("Failed to retrieve AI-generated conversions.");
+  }
+};
+
+/**
+ * Delete an AI-generated conversion
+ * @param {string} id - Document ID
+ * @param {string} userId - User ID for authorization
+ * @returns {Promise<Object>}
+ */
+export const deleteAIGeneratedConversion = async (id, userId, authUID = null) => {
+  try {
+    if (!id || (!userId && !authUID)) {
+      throw new Error("ID and User ID/authUID are required");
+    }
+
+    // Get authUID if not provided
+    const uid = authUID || await getAuthUIDFromNumericId(String(userId));
+
+    const docRef = db
+      .collection('conversions')
+      .doc(uid)
+      .collection('AI-generated')
+      .doc(id);
+    
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw new Error("AI-generated conversion not found");
+    }
+
+    const conversionData = doc.data();
+    await docRef.delete();
+
+    console.log(`[AI-Generated] Deleted conversion ${id}`);
+
+    return { 
+      id: id, 
+      message: "Successfully deleted",
+      s3Key: conversionData.s3Key 
+    };
+  } catch (err) {
+    console.error("[AI-Generated] Error deleting conversion:", err);
+    throw new Error("Failed to delete AI-generated conversion.");
+  }
+};
+

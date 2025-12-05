@@ -113,7 +113,7 @@ import fs from "fs";
 import { saveHistory } from "../services/historyService.js";
 import { generatePptxFromData } from "../services/pptxService.js";
 import { uploadToS3 } from "../services/s3Service.js";
-import { saveConversion } from "../services/conversionService.js";
+import { saveConversion, saveAIGeneratedConversion } from "../services/conversionService.js";
 
 const getFileBuffer = (file) => {
   if (file.buffer) return file.buffer;
@@ -240,10 +240,18 @@ const handlePptxUploadAndSave = async (slides, params) => {
 
     console.log(`✅ [Step 3/4] S3 upload successful: ${s3Result.url}`);
 
-    // 3. Save to 'conversions' collection
+    // 3. Save to appropriate conversions collection
     if (userId) {
       console.log('[Step 4/4] Saving to conversions collection...');
-      const conversionRecord = await saveConversion({
+      
+      // Determine if this is AI-generated content
+      const isAIGenerated = conversionType === 'AI-Generated PPTs';
+      
+      // Use appropriate save function based on conversion type
+      const saveFn = isAIGenerated ? saveAIGeneratedConversion : saveConversion;
+      const collectionName = isAIGenerated ? 'AI-generated' : 'userconversions';
+      
+      const conversionRecord = await saveFn({
         userId,
         fileName: pptxFileName,
         originalFileName: fileName,
@@ -259,7 +267,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
         imageProviderFinal: imageProviderFinal || null
       });
 
-      console.log(`✅ [Step 4/4] Conversions saved with ID: ${conversionRecord.id}`);
+      console.log(`✅ [Step 4/4] Saved to ${collectionName} with ID: ${conversionRecord.id}`);
 
       // 4. Update history record with S3 info
       if (historyId) {
