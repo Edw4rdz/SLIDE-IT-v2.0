@@ -252,6 +252,78 @@ const fetchImageAsBase64 = async (url) => {
 };
 
 /**
+ * Generate a chart image using QuickChart.io (server-side rendering of Chart.js config)
+ * Returns data:image/png;base64,... or null on failure
+ */
+async function generateChartImage(chartData, chartType = 'bar', width = 800, height = 450) {
+  if (!chartData || !Array.isArray(chartData) || chartData.length === 0) return null;
+  try {
+    // Build a Chart.js config
+    const keys = Object.keys(chartData[0]);
+    // Determine label key (first non-numeric-like key) and value keys
+    const labelKey = keys[0];
+    const valueKeys = keys.slice(1);
+    const labels = chartData.map(r => String(r[labelKey]));
+
+    const colors = [
+      'rgba(75, 192, 192, 0.6)',
+      'rgba(255, 159, 64, 0.6)',
+      'rgba(54, 162, 235, 0.6)',
+      'rgba(153, 102, 255, 0.6)',
+      'rgba(255, 205, 86, 0.6)'
+    ];
+
+    let datasets = valueKeys.map((vk, i) => ({
+      label: vk,
+      data: chartData.map(r => Number(r[vk]) || 0),
+      backgroundColor: colors[i % colors.length],
+      borderColor: colors[i % colors.length].replace('0.6', '1'),
+      borderWidth: 1,
+    }));
+    // For pie charts, Chart.js expects a single dataset; use first numeric column
+    if (chartType === 'pie' && datasets.length > 1) {
+      datasets = [
+        {
+          label: datasets[0].label,
+          data: datasets[0].data,
+          backgroundColor: datasets[0].backgroundColor,
+          borderColor: datasets[0].borderColor,
+          borderWidth: 1,
+        }
+      ];
+    }
+
+    const chartConfig = {
+      type: chartType === 'pie' ? 'pie' : (chartType === 'line' ? 'line' : 'bar'),
+      data: { labels, datasets },
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: datasets.length > 1 || chartType === 'pie' } },
+      }
+    };
+
+    const body = {
+      chart: JSON.stringify(chartConfig),
+      width,
+      height,
+      format: 'png',
+      backgroundColor: 'white'
+    };
+
+    const response = await axios.post('https://quickchart.io/chart', body, { responseType: 'arraybuffer', timeout: 20000 });
+    if (response && response.data) {
+      const base64 = Buffer.from(response.data, 'binary').toString('base64');
+      return `data:image/png;base64,${base64}`;
+    }
+    return null;
+  } catch (err) {
+    console.warn('[Chart Image] QuickChart generation failed:', err.message);
+    return null;
+  }
+}
+
+/**
  * Helper to calculate text box height based on text content
  * 
  * @param {string} text - The text content
@@ -457,7 +529,8 @@ export const generatePptxFromData = async (requestBody) => {
 
   // --- NEW: Always add chart slide as first slide if chartData/chartType/chartSummary are provided ---
   let slideOffset = 0;
-  if (chartData && chartType && chartSummary) {
+  // Create chart slide if at least chartData and chartType exist. chartSummary is optional.
+  if (chartData && chartType) {
     const chartSlide = pptx.addSlide();
     // Default design for chart slide
     chartSlide.background = { color: colorToPptx(design.globalBackground, '#ffffff') };
@@ -471,35 +544,51 @@ export const generatePptxFromData = async (requestBody) => {
       align: 'center',
       valign: 'top',
     });
-    // Chart rendering (bar/line/pie)
-    let chartTypePptx = 'bar';
-    if (chartType === 'line') chartTypePptx = 'line';
-    if (chartType === 'pie') chartTypePptx = 'pie';
-    // Prepare chart data for pptxgenjs
-    let chartLabels = [];
-    let chartValues = [];
+    // Chart rendering: prefer server-side image rendering (QuickChart) to support multi-series and ensure consistent visuals.
+    let chartRendered = false;
     if (Array.isArray(chartData) && chartData.length > 0) {
-      const keys = Object.keys(chartData[0]);
-      if (keys.length >= 2) {
-        chartLabels = chartData.map(row => row[keys[0]]);
-        chartValues = chartData.map(row => Number(row[keys[1]]) || 0);
+      try {
+        const chartImage = await generateChartImage(Array.isArray(chartData) ? chartData : [], (chartType || 'bar'), 800, 450);
+        if (chartImage) {
+          // Use image to fill large left side
+          chartSlide.addImage({ data: chartImage, x: 1.0, y: 1.1, w: 5.0, h: 3.4 });
+          chartRendered = true;
+        }
+      } catch (err) {
+        console.warn('[PPTX] Chart image generation failed, falling back to native chart', err.message);
       }
     }
-    if (chartLabels.length && chartValues.length) {
-      chartSlide.addChart(chartTypePptx, [
-        {
-          name: 'Series',
-          labels: chartLabels,
-          values: chartValues,
+    // Fallback to native PPTX chart if image rendering failed and we have at least single series
+    if (!chartRendered) {
+      let chartTypePptx = 'bar';
+      if (chartType === 'line') chartTypePptx = 'line';
+      if (chartType === 'pie') chartTypePptx = 'pie';
+      // Prepare chart data for pptxgenjs (single series only)
+      let chartLabels = [];
+      let chartValues = [];
+      if (Array.isArray(chartData) && chartData.length > 0) {
+        const keys = Object.keys(chartData[0]);
+        if (keys.length >= 2) {
+          chartLabels = chartData.map(row => row[keys[0]]);
+          chartValues = chartData.map(row => Number(row[keys[1]]) || 0);
         }
-      ], {
-        x: 1.0, y: 1.2, w: 4.5, h: 3.0,
-        barDir: 'col',
-        showLegend: false,
-        showValue: true,
-      });
+      }
+      if (chartLabels.length && chartValues.length) {
+        chartSlide.addChart(chartTypePptx, [
+          {
+            name: 'Series',
+            labels: chartLabels,
+            values: chartValues,
+          }
+        ], {
+          x: 1.0, y: 1.2, w: 4.5, h: 3.0,
+          barDir: 'col',
+          showLegend: false,
+          showValue: true,
+        });
+      }
     }
-    // Summary text box
+    // Summary text box (optional)
     if (chartSummary) {
       chartSlide.addText(chartSummary, {
         x: 5.7, y: 1.2, w: 3.3, h: 3.0,
@@ -769,16 +858,16 @@ export const generatePptxFromData = async (requestBody) => {
         finalBodyH = Math.max(0.8, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
       } else {
         // For left/right layouts, body is beside image
-        // Start below title with a small gap (0.15")
-        finalBodyY = finalTitleY + actualTitleHeight + 0.15;
+        // Start below title with a small gap (0.05")
+        finalBodyY = finalTitleY + actualTitleHeight + 0.05;
         finalBodyH = Math.max(1.0, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
       }
     } else {
       // No image: body below title
       finalBodyX = 0.5;
       finalBodyW = 9.0;
-      // Start below title with a small gap (0.15")
-      finalBodyY = finalTitleY + actualTitleHeight + 0.15;
+      // Start below title with a small gap (0.05")
+      finalBodyY = finalTitleY + actualTitleHeight + 0.05;
       finalBodyH = Math.max(1.0, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
     }
 

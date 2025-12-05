@@ -11,7 +11,7 @@ import { useEffect } from "react";
 import { Chart as ChartJS } from "chart.js/auto";
 
 // Simple, isolated chart preview using a <canvas> to avoid React child issues
-function ChartPreview({ type, labels, values, title }) {
+function ChartPreview({ type, labels, values, datasets, title }) {
   const canvasId = React.useMemo(
     () => `excel-chart-preview-${Math.random().toString(36).slice(2)}`,
     []
@@ -19,47 +19,54 @@ function ChartPreview({ type, labels, values, title }) {
 
   useEffect(() => {
     const ctx = document.getElementById(canvasId);
-    if (!ctx || !Array.isArray(labels) || !Array.isArray(values)) return;
+    if (!ctx || !Array.isArray(labels) || (!Array.isArray(values) && !(Array.isArray(datasets) && datasets.length > 0))) return;
 
-    const numericValues = values.map((v) =>
-      typeof v === "number" ? v : Number(v) || 0
-    );
+    const numericValues = Array.isArray(values)
+      ? values.map((v) => (typeof v === "number" ? v : Number(v) || 0))
+      : null;
 
-    if (!numericValues.some((v) => v && !Number.isNaN(v))) return;
+    const anyNumeric = (numericValues && numericValues.some((v) => v && !Number.isNaN(v))) || (Array.isArray(datasets) && datasets.some(ds => Array.isArray(ds.data) && ds.data.some(v => !Number.isNaN(Number(v))))) ;
+    if (!anyNumeric) return;
+
+    const finalDatasets = Array.isArray(datasets) && datasets.length
+      ? datasets.map((d, i) => ({
+          ...d,
+          data: d.data.map(v => (typeof v === 'number' ? v : Number(v) || 0)),
+          backgroundColor: d.backgroundColor || (type === 'pie' ? [
+              'rgba(75, 192, 192, 0.6)',
+              'rgba(255, 159, 64, 0.6)',
+              'rgba(54, 162, 235, 0.6)',
+              'rgba(153, 102, 255, 0.6)',
+              'rgba(255, 205, 86, 0.6)',
+            ] : 'rgba(75, 192, 192, 0.5)'),
+          borderColor: d.borderColor || (type === 'pie' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(75, 192, 192, 1)'),
+          borderWidth: d.borderWidth || 1,
+        }))
+      : [{
+          label: title || 'Series',
+          data: numericValues || [],
+          backgroundColor: type === 'pie'
+            ? [
+              'rgba(75, 192, 192, 0.6)',
+              'rgba(255, 159, 64, 0.6)',
+              'rgba(54, 162, 235, 0.6)',
+              'rgba(153, 102, 255, 0.6)',
+              'rgba(255, 205, 86, 0.6)',
+            ] : 'rgba(75, 192, 192, 0.5)',
+          borderColor: type === 'pie' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(75, 192, 192, 1)',
+          borderWidth: 1,
+        }];
 
     const chart = new ChartJS(ctx, {
-      type: type === "pie" ? "pie" : type === "line" ? "line" : "bar",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: title || "Series",
-            data: numericValues,
-            backgroundColor:
-              type === "pie"
-                ? [
-                    "rgba(75, 192, 192, 0.6)",
-                    "rgba(255, 159, 64, 0.6)",
-                    "rgba(54, 162, 235, 0.6)",
-                    "rgba(153, 102, 255, 0.6)",
-                    "rgba(255, 205, 86, 0.6)",
-                  ]
-                : "rgba(75, 192, 192, 0.5)",
-            borderColor:
-              type === "pie"
-                ? "rgba(255, 255, 255, 0.9)"
-                : "rgba(75, 192, 192, 1)",
-            borderWidth: 1,
-          },
-        ],
-      },
+      type: type === 'pie' ? 'pie' : type === 'line' ? 'line' : 'bar',
+      data: { labels, datasets: finalDatasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            display: type === "pie",
-          },
+              legend: {
+                display: type === 'pie' || (finalDatasets && finalDatasets.length > 1),
+              },
         },
       },
     });
@@ -72,16 +79,18 @@ function ChartPreview({ type, labels, values, title }) {
   return (
     <div
       style={{
-        maxWidth: 480,
-        height: 260,
-        margin: "10px 0 16px",
-        padding: 12,
+        maxWidth: 900,
+        width: '100%',
+        height: 0,
+        paddingBottom: '56.25%', // 16:9 aspect ratio
+        position: 'relative',
+        margin: "18px 0 24px",
         background: "#fff",
-        borderRadius: 8,
-        boxShadow: "0 1px 3px rgba(15, 23, 42, 0.08)",
+        borderRadius: 14,
+        boxShadow: "0 2px 8px rgba(15, 23, 42, 0.12)",
       }}
     >
-      <canvas id={canvasId} />
+      <canvas id={canvasId} width={880} height={495} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
     </div>
   );
 }
@@ -92,6 +101,13 @@ export default function ExcelToPPT() {
   const [autoChartSummary, setAutoChartSummary] = useState("");
   const [file, setFile] = useState(null);
   const [excelSuggestions, setExcelSuggestions] = useState([]);
+  const [selectedChartSheetIndex, setSelectedChartSheetIndex] = useState(0);
+  const [showChartTypeModal, setShowChartTypeModal] = useState(false);
+  const [chartTypeToGenerate, setChartTypeToGenerate] = useState('bar');
+  const [columnPickerOpen, setColumnPickerOpen] = useState(false);
+  const [pickerSheetIndex, setPickerSheetIndex] = useState(null);
+  const [pickerLabelKey, setPickerLabelKey] = useState('');
+  const [pickerValueKeys, setPickerValueKeys] = useState([]);
   const [slidesCount, setSlidesCount] = useState(15);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
@@ -125,33 +141,115 @@ export default function ExcelToPPT() {
     }
   };
 
-  // Upload Excel and get chart suggestions
-  const handleSuggestCharts = async () => {
+  // Show chart type modal before generating chart
+  const handleSuggestCharts = () => {
     if (!file) return notify("Please select an Excel file first", "error");
-    const formData = new FormData();
-    formData.append("file", file);
+    setShowChartTypeModal(true);
+  };
+
+  // Generate chart slide after chart type is selected
+  const handleGenerateChartSlide = async () => {
+    setShowChartTypeModal(false);
+    setIsLoading(true);
+    setLoadingText("Generating chart slide...");
     try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("chartType", chartTypeToGenerate);
+      // Backend should return chart image and summary for first sheet
       const res = await axios.post("/api/excel/upload-excel", formData);
-      setExcelSuggestions(res.data.sheets || []);
-      // Auto-generate a summary for the first chart
-      if (res.data.sheets && res.data.sheets.length > 0) {
-        const sheet = res.data.sheets[0];
-        // Simple auto-summary: e.g., "Sales increased from Jan to May."
-        if (sheet.data && sheet.data.length > 1) {
-          const keys = Object.keys(sheet.data[0]);
-          const labelKey = keys[0];
-          const valueKey = keys[1];
-          const firstLabel = sheet.data[0][labelKey];
-          const lastLabel = sheet.data[sheet.data.length - 1][labelKey];
-          const firstValue = sheet.data[0][valueKey];
-          const lastValue = sheet.data[sheet.data.length - 1][valueKey];
-          setAutoChartSummary(`From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`);
-          setChartSummary(`From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`);
-        }
+      const sheets = res.data.sheets || [];
+      if (sheets.length === 0) throw new Error("No chart suggestions found");
+      const sheet = sheets[0];
+      // Generate summary
+      let summary = "";
+      if (sheet.data && sheet.data.length > 1) {
+        const keys = Object.keys(sheet.data[0]);
+        const labelKey = sheet.suggestedLabelKey || keys[0];
+        const valueKey = sheet.suggestedValueKey || keys[1] || keys[0];
+        const firstLabel = sheet.data[0][labelKey];
+        const lastLabel = sheet.data[sheet.data.length - 1][labelKey];
+        const firstValue = sheet.data[0][valueKey];
+        const lastValue = sheet.data[sheet.data.length - 1][valueKey];
+        summary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
       }
+      // Chart image URL (assume backend returns chartImageUrl)
+      const chartImageUrl = sheet.chartImageUrl || sheet.uploadedImage || "";
+      // Create slide object
+      const slide = {
+        id: 0,
+        title: sheet.sheetName || "Chart Slide",
+        uploadedImage: chartImageUrl,
+        summary,
+        chartType: chartTypeToGenerate,
+        chartData: sheet.data,
+      };
+      // Go to edit-preview with this slide
+      navigate("/edit-preview", {
+        state: {
+          slides: [slide],
+          topic: file.name.replace(/\.(xlsx|xls)$/i, ""),
+          includeImages: true,
+          imageProvider: null,
+        },
+      });
     } catch (err) {
-      notify("Failed to get chart suggestions", "error");
+      notify("Failed to generate chart slide", "error");
+    } finally {
+      setIsLoading(false);
+      setLoadingText("");
     }
+  };
+
+  const openColumnPicker = (sheet, idx) => {
+    if (!sheet || !Array.isArray(sheet.data) || sheet.data.length === 0) return;
+    const keys = Object.keys(sheet.data[0] || {});
+    setPickerSheetIndex(idx);
+    setPickerLabelKey(sheet.suggestedLabelKey || keys[0] || '');
+    setPickerValueKeys(sheet.suggestedValueKeys || (sheet.suggestedValueKey ? [sheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]])));
+    setColumnPickerOpen(true);
+  };
+
+  const applyColumnPicker = () => {
+    if (pickerSheetIndex === null) return;
+    const copy = [...excelSuggestions];
+    copy[pickerSheetIndex] = {
+      ...copy[pickerSheetIndex],
+      suggestedLabelKey: pickerLabelKey,
+      suggestedValueKeys: pickerValueKeys,
+    };
+    setExcelSuggestions(copy);
+    // If we just updated the first suggestion (used for conversion preview), refresh the auto summary
+    if (pickerSheetIndex === 0) {
+      const sheet = copy[0];
+      if (sheet && sheet.data && sheet.data.length > 1) {
+        const labelKey = sheet.suggestedLabelKey || Object.keys(sheet.data[0])[0];
+        const valueKey = sheet.suggestedValueKey || Object.keys(sheet.data[0])[1] || Object.keys(sheet.data[0])[0];
+        const firstLabel = sheet.data[0][labelKey];
+        const lastLabel = sheet.data[sheet.data.length - 1][labelKey];
+        const firstValue = sheet.data[0][valueKey];
+        const lastValue = sheet.data[sheet.data.length - 1][valueKey];
+        const summary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
+        setAutoChartSummary(summary);
+        // Only set the editable chartSummary if user hasn't entered a custom summary; keep manual edits
+        if (!chartSummary || chartSummary.trim() === '') setChartSummary(summary);
+      }
+    }
+    setColumnPickerOpen(false);
+  };
+
+  const isColumnNumeric = (sheet, key) => {
+    if (!sheet || !Array.isArray(sheet.data) || !key) return false;
+    const data = sheet.data;
+    // require at least one numeric
+    let numericCount = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i][key];
+      if (v === null || v === undefined || String(v).trim() === '') continue;
+      const n = Number(String(v).replace(/,/g, ''));
+      if (!Number.isNaN(n)) numericCount++;
+    }
+    return numericCount >= Math.max(1, Math.ceil(data.length * 0.5));
   };
 
   // *** NEW - Same behavior as PDFToPPT ***
@@ -201,9 +299,18 @@ export default function ExcelToPPT() {
       }
       // Send chart info and summary for first slide
       if (excelSuggestions.length > 0) {
-        const chartSheet = excelSuggestions[0];
+      const chartSheet = excelSuggestions[selectedChartSheetIndex] || excelSuggestions[0];
         formData.append("chartType", chartSheet.chartType);
-        formData.append("chartData", JSON.stringify(chartSheet.data));
+        // send a reduced chartData object containing only label/value columns where possible
+        const keys = Object.keys(chartSheet.data?.[0] || {});
+        const labelKey = chartSheet.suggestedLabelKey || keys[0];
+        const valueKeys = chartSheet.suggestedValueKeys || (chartSheet.suggestedValueKey ? [chartSheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]]));
+        const reduced = (chartSheet.data || []).map(row => {
+          const r = { [labelKey]: row[labelKey] };
+          for (const k of valueKeys) r[k] = row[k];
+          return r;
+        });
+        formData.append("chartData", JSON.stringify(reduced));
         formData.append("chartSummary", chartSummary);
       }
 
@@ -322,6 +429,25 @@ export default function ExcelToPPT() {
                     Suggest Charts from Excel
                   </button>
 
+                  {/* Chart Type Selection Modal */}
+                  {showChartTypeModal && (
+                    <div className="modal" style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                      <div className="modal-content" style={{ width: 340, background: '#fff', padding: 24, borderRadius: 8 }}>
+                        <h3>Select Chart Type</h3>
+                        <select value={chartTypeToGenerate} onChange={e => setChartTypeToGenerate(e.target.value)} style={{ width: '100%', padding: 10, fontSize: 16, marginBottom: 18 }}>
+                          <option value="bar">Bar</option>
+                          <option value="line">Line</option>
+                          <option value="pie">Pie</option>
+                          <option value="table">Table</option>
+                        </select>
+                        <div style={{ textAlign: 'right' }}>
+                          <button onClick={() => setShowChartTypeModal(false)} style={{ marginRight: 8, padding: '8px 14px' }}>Cancel</button>
+                          <button onClick={handleGenerateChartSlide} style={{ padding: '8px 14px', background: '#0ea5a5', color: 'white', borderRadius: 6 }}>Generate</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Display chart suggestions */}
                   {excelSuggestions.length > 0 && (
                     <div className="ai-card" style={{ marginTop: 20 }}>
@@ -329,69 +455,105 @@ export default function ExcelToPPT() {
                       {excelSuggestions.map((sheet, idx) => {
                         let labels = [];
                         let values = [];
+                        let datasets = null;
                         if (sheet.data && sheet.data.length > 0) {
                           const keys = Object.keys(sheet.data[0]);
-                          if (keys.length >= 2) {
-                            labels = sheet.data.map((row) => row[keys[0]]);
-                            values = sheet.data.map((row) => row[keys[1]]);
+                          const labelKey = sheet.suggestedLabelKey || keys[0];
+                          const valueKeys = sheet.suggestedValueKeys || (sheet.suggestedValueKey ? [sheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]]));
+                          if (labelKey && valueKeys && valueKeys.length) {
+                            labels = sheet.data.map((row) => row[labelKey]);
+                            datasets = valueKeys.map((vk, i) => ({ label: vk, data: sheet.data.map(row => row[vk]) }));
+                            // if only one dataset, keep legacy `values` prop for ChartPreview compatibility
+                            if (datasets.length === 1) values = datasets[0].data;
                           }
                         }
                         return (
                           <div key={sheet.sheetName} style={{ marginBottom: 24 }}>
                             <strong>Sheet:</strong> {sheet.sheetName}{" "}
-                            <strong>Suggested chart:</strong> {sheet.chartType}
-                            <ChartPreview
-                              type={sheet.chartType}
-                              labels={labels}
-                              values={values}
-                              title={sheet.sheetName}
-                            />
-                            <pre
-                              style={{
-                                fontSize: 12,
-                                background: "#f6f6f6",
-                                padding: 8,
-                                borderRadius: 4,
-                                overflowX: "auto",
+                            <strong>Chart type:</strong>
+                            <select
+                              value={sheet._userChartType || ((sheet.chartType === 'table' || sheet.suggestedLabelKey === '__EMPTY' || !pickerValueKeys.some(k => isColumnNumeric(sheet, k))) ? 'table' : sheet.chartType)}
+                              onChange={e => {
+                                const copy = [...excelSuggestions];
+                                copy[idx]._userChartType = e.target.value;
+                                setExcelSuggestions(copy);
                               }}
+                              style={{ marginLeft: 8, padding: '4px 8px', fontSize: 15, borderRadius: 6, border: '1px solid #ddd' }}
                             >
-                              {JSON.stringify(
-                                sheet.data.slice(0, 3),
-                                null,
-                                2
-                              )}
-                              {sheet.data.length > 3 ? "\n...and more" : ""}
-                            </pre>
-                            {/* Only show summary field for first chart */}
-                            {idx === 0 && (
-                              <div style={{ marginTop: 16 }}>
-                                <label htmlFor="chart-summary">
-                                  <strong>Chart Summary (edit or use auto):</strong>
-                                </label>
-                                <textarea
-                                  id="chart-summary"
-                                  value={chartSummary}
-                                  onChange={(e) => setChartSummary(e.target.value)}
-                                  rows={2}
-                                  style={{
-                                    width: "100%",
-                                    marginTop: 8,
-                                    padding: 8,
-                                    borderRadius: 4,
-                                    border: "1px solid #ccc",
-                                  }}
+                              <option value="bar">Bar</option>
+                              <option value="line">Line</option>
+                              <option value="pie">Pie</option>
+                              <option value="table">Table</option>
+                            </select>
+                            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                              <em>Using:</em> {sheet.suggestedLabelKey || 'label'} (label) and {sheet.suggestedValueKey || 'value'} (value)
+                            </div>
+                            {((sheet._userChartType || sheet.chartType) === 'table' || sheet.suggestedLabelKey === '__EMPTY' || !pickerValueKeys.some(k => isColumnNumeric(sheet, k))) ? (
+                              <div style={{ width: '100%', minHeight: 180, background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(15,23,42,0.12)', padding: 18, overflowX: 'auto', marginBottom: 18 }}>
+                                <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 8 }}>
+                                  No valid chart preview: please check your Excel headers and ensure you have a label column and at least one numeric value column.
+                                </div>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 18, tableLayout: 'auto' }}>
+                                  <thead>
+                                    <tr>
+                                      {Object.keys(sheet.data[0] || {}).map((col) => (
+                                        <th key={col} style={{ borderBottom: '2px solid #eee', padding: '8px 12px', textAlign: 'left', background: '#f3f4f6', wordBreak: 'break-word', verticalAlign: 'top', fontWeight: 600 }}>{col}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {sheet.data.slice(0, 10).map((row, i) => (
+                                      <tr key={i}>
+                                        {Object.keys(row).map((col) => (
+                                            <td key={col} style={{ borderBottom: '1px solid #f3f4f6', padding: '8px 12px', wordBreak: 'break-word', verticalAlign: 'top' }}>{row[col]}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                {sheet.data.length > 10 && <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>(showing first 10 rows)</div>}
+                                <div style={{ display: 'flex', gap: 8, flexDirection: 'row', marginTop: 12 }}>
+                                  <button
+                                    style={{ padding: '6px 10px', borderRadius: 6, background: '#efefef', border: '1px solid #ddd' }}
+                                    onClick={() => openColumnPicker(sheet, idx)}
+                                  >
+                                    Edit columns
+                                  </button>
+                                  <button
+                                    style={{ padding: '6px 10px', borderRadius: 6, background: selectedChartSheetIndex === idx ? '#6ee7b7' : '#eef1f3', border: '1px solid #ddd' }}
+                                    onClick={() => setSelectedChartSheetIndex(idx)}
+                                  >
+                                    {selectedChartSheetIndex === idx ? 'Using as chart' : 'Use as chart'}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <ChartPreview
+                                  type={sheet._userChartType || sheet.chartType}
+                                  labels={labels}
+                                  values={values}
+                                  datasets={datasets}
+                                  title={sheet.sheetName}
                                 />
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#888",
-                                    marginTop: 4,
-                                  }}
-                                >
-                                  Auto-generated: {autoChartSummary}
+                                <div style={{ marginLeft: 12, display: 'flex', gap: 8, flexDirection: 'column' }}>
+                                  <button
+                                    style={{ padding: '6px 10px', borderRadius: 6, background: '#efefef', border: '1px solid #ddd' }}
+                                    onClick={() => openColumnPicker(sheet, idx)}
+                                  >
+                                    Edit columns
+                                  </button>
+                                  <button
+                                    style={{ padding: '6px 10px', borderRadius: 6, background: selectedChartSheetIndex === idx ? '#6ee7b7' : '#eef1f3', border: '1px solid #ddd' }}
+                                    onClick={() => setSelectedChartSheetIndex(idx)}
+                                  >
+                                    {selectedChartSheetIndex === idx ? 'Using as chart' : 'Use as chart'}
+                                  </button>
                                 </div>
                               </div>
                             )}
+                            {/* JSON preview removed. Chart/table preview enlarged below. */}
+                            {/* Chart summary section removed as requested */}
                           </div>
                         );
                       })}
@@ -509,6 +671,63 @@ export default function ExcelToPPT() {
         onSelect={handleImageProviderSelect}
         onCancel={() => setShowImageProviderModal(false)}
       />
+
+      {/* Column Picker Modal */}
+      {columnPickerOpen && pickerSheetIndex !== null && (
+        <div className="modal" style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="modal-content" style={{ width: 560, background: '#fff', padding: 20, borderRadius: 8 }}>
+            <h3>Select Label and Value Columns</h3>
+            <p style={{ marginBottom: 12, color: '#555' }}>Pick which columns should be used for chart labels and numeric values.</p>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label>Label column</label>
+                <select value={pickerLabelKey} onChange={(e) => setPickerLabelKey(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 6 }}>
+                  {Object.keys(excelSuggestions[pickerSheetIndex]?.data?.[0] || {}).map(k => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>Value column</label>
+                <div style={{ border: '1px solid #ddd', borderRadius: 6, padding: 8, maxHeight: 200, overflowY: 'auto' }}>
+                  {Object.keys(excelSuggestions[pickerSheetIndex]?.data?.[0] || {}).map(k => (
+                    <div key={k} style={{ marginBottom: 6 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={pickerValueKeys.includes(k)}
+                          onChange={(e) => {
+                            if (e.target.checked) setPickerValueKeys(prev => [...prev, k]);
+                            else setPickerValueKeys(prev => prev.filter(x => x !== k));
+                          }}
+                        />
+                        <span>{k}</span>
+                        <span style={{ fontSize: 12, color: '#888', marginLeft: 10 }}>
+                          {isColumnNumeric(excelSuggestions[pickerSheetIndex], k) ? 'numeric' : 'text'}
+                        </span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, marginTop: 6 }}>
+                  {pickerValueKeys.length > 0 ? (
+                    <span style={{ color: '#059669' }}>{pickerValueKeys.length} column(s) selected</span>
+                  ) : (
+                    <span style={{ color: '#b91c1c' }}>No numeric columns selected</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: '#444', marginBottom: 12 }}>
+              <strong>Preview:</strong> {pickerLabelKey || '(none)'} vs {(pickerValueKeys || []).length ? (pickerValueKeys.join(', ')) : '(none)'}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <button onClick={() => setColumnPickerOpen(false)} style={{ marginRight: 8, padding: '8px 14px' }}>Cancel</button>
+              <button onClick={applyColumnPicker} style={{ padding: '8px 14px', background: '#0ea5a5', color: 'white', borderRadius: 6 }}>Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image choice modal */}
       {isModalOpen && (

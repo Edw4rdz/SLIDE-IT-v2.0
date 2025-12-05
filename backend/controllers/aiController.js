@@ -109,6 +109,7 @@ import {
   generateTopicsToSlides,
   parseAIResponse
 } from "../services/aiService.js";
+import { parseExcelAndSuggestCharts } from '../services/excelChartSuggestService.js';
 import fs from "fs";
 import { saveHistory } from "../services/historyService.js";
 import { generatePptxFromData } from "../services/pptxService.js";
@@ -482,9 +483,9 @@ export const generateFromExcel = async (req, res) => {
     const provider = req.body.provider || 'grockai';
     const imageProvider = req.body.imageProvider || 'pollinations';
 
-    // Optional chart data coming from frontend (for first slide)
-    const chartType = req.body.chartType || null;
-    const chartSummary = req.body.chartSummary || null;
+    // Optional chart data coming from frontend (for first slide) - allow reassignment
+    let chartType = req.body.chartType || null;
+    let chartSummary = req.body.chartSummary || null;
     let chartData = null;
     if (req.body.chartData) {
       try {
@@ -534,6 +535,42 @@ export const generateFromExcel = async (req, res) => {
     }
 
     let uploadResult = null;
+    // If chartData not provided, try to auto-suggest a chart (first sheet) using the Excel suggestion helper
+    try {
+      if (!chartData) {
+        const suggestions = parseExcelAndSuggestCharts(buffer || req.file.path);
+        if (Array.isArray(suggestions) && suggestions.length > 0) {
+          const first = suggestions.find(s => Array.isArray(s.data) && s.data.length >= 2) || suggestions[0];
+          if (first && first.data && first.data.length > 0) {
+            // Infer chartType/data (reduced to label/value keys)
+            const labelKey = first.suggestedLabelKey || Object.keys(first.data[0] || {})[0];
+            const valueKeys = first.suggestedValueKeys && first.suggestedValueKeys.length ? first.suggestedValueKeys : (first.suggestedValueKey ? [first.suggestedValueKey] : (Object.keys(first.data[0] || {}).slice(1) || []));
+            chartData = first.data.map(row => {
+              const r = { [labelKey]: row[labelKey] };
+              for (const vk of valueKeys) r[vk] = row[vk];
+              return r;
+            });
+            chartType = chartType || first.chartType;
+            // Auto-summary if missing
+            if (!chartSummary) {
+              const keys = Object.keys(first.data[0] || {});
+              const labelKey = keys[0];
+              const valueKey = (valueKeys && valueKeys.length ? valueKeys[0] : keys[1] || keys[0]);
+              if (keys.length >= 2 && valueKey) {
+                const firstLabel = first.data[0][labelKey];
+                const lastLabel = first.data[first.data.length - 1][labelKey];
+                const firstValue = first.data[0][valueKey];
+                const lastValue = first.data[first.data.length - 1][valueKey];
+                chartSummary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
+              }
+            }
+          }
+        }
+      }
+    } catch (suggestErr) {
+      console.warn('Failed to auto-suggest chart from Excel:', suggestErr?.message || suggestErr);
+    }
+
     if (userId && slides.length > 0) {
       const includeImages = req.body.includeImages === 'true' || req.body.includeImages === true;
       uploadResult = await handlePptxUploadAndSave(slides, {

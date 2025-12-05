@@ -5219,12 +5219,7 @@ export default function EditPreview() {
 
                         <div style={{ width: 1, height: 24, background: 'rgba(148,163,184,0.3)' }} />
 
-                        <div style={{ display: 'flex', gap: 2 }}>
-                          <button onClick={() => handleLayering(s.id, 'table', tIdx, 'front')} title="Bring to Front" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4 }}><FaAngleDoubleUp size={12} /></button>
-                          <button onClick={() => handleLayering(s.id, 'table', tIdx, 'forward')} title="Bring Forward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4 }}><FaAngleUp size={12} /></button>
-                          <button onClick={() => handleLayering(s.id, 'table', tIdx, 'backward')} title="Send Backward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4 }}><FaAngleDown size={12} /></button>
-                          <button onClick={() => handleLayering(s.id, 'table', tIdx, 'back')} title="Send to Back" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4 }}><FaAngleDoubleDown size={12} /></button>
-                        </div>
+                        {/* Layering buttons removed as requested */}
 
                       </div>
 
@@ -5474,30 +5469,7 @@ export default function EditPreview() {
 
                         </div>
 
-                    {/* Layering Toolbar for Stickers */}
-                    <div
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        position: 'absolute',
-                        bottom: -40,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        display: 'flex',
-                        gap: 4,
-                        background: 'rgba(15, 23, 42, 0.9)',
-                        padding: '4px 8px',
-                        borderRadius: 8,
-                        zIndex: 40,
-                        pointerEvents: 'auto',
-                        border: '1px solid rgba(255,255,255,0.1)'
-                      }}
-                    >
-                      <button onClick={() => handleLayering(s.id, 'sticker', idx, 'front')} title="Bring to Front" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 2 }}><FaAngleDoubleUp size={12} /></button>
-                      <button onClick={() => handleLayering(s.id, 'sticker', idx, 'forward')} title="Bring Forward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 2 }}><FaAngleUp size={12} /></button>
-                      <button onClick={() => handleLayering(s.id, 'sticker', idx, 'backward')} title="Send Backward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 2 }}><FaAngleDown size={12} /></button>
-                      <button onClick={() => handleLayering(s.id, 'sticker', idx, 'back')} title="Send to Back" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 2 }}><FaAngleDoubleDown size={12} /></button>
-                    </div>
+                    {/* Layering buttons removed as requested */}
 
                     {g.type === 'shape' && (
 
@@ -5867,13 +5839,7 @@ export default function EditPreview() {
 
                     <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
 
-                    {/* Layering Buttons */}
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button onClick={() => handleLayering(s.id, 'image', -1, 'front')} title="Bring to Front" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 6 }}><FaAngleDoubleUp size={16} /></button>
-                      <button onClick={() => handleLayering(s.id, 'image', -1, 'forward')} title="Bring Forward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 6 }}><FaAngleUp size={16} /></button>
-                      <button onClick={() => handleLayering(s.id, 'image', -1, 'backward')} title="Send Backward" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 6 }}><FaAngleDown size={16} /></button>
-                      <button onClick={() => handleLayering(s.id, 'image', -1, 'back')} title="Send to Back" style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 6 }}><FaAngleDoubleDown size={16} /></button>
-                    </div>
+                    {/* Layering buttons removed as requested */}
 
                     <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
 
