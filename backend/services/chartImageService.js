@@ -44,7 +44,7 @@ export async function generateChartImage(chartType, labels, datasets, title = ''
         text: title,
       },
       legend: {
-        display: chartType === 'pie' || (normalizedDatasets && normalizedDatasets.length > 1),
+        display: true,
       },
     },
   };

@@ -17,16 +17,24 @@ function ChartPreview({ type, labels, values, datasets, title }) {
     []
   );
 
+  const [noNumericWarning, setNoNumericWarning] = useState(false);
   useEffect(() => {
     const ctx = document.getElementById(canvasId);
-    if (!ctx || !Array.isArray(labels) || (!Array.isArray(values) && !(Array.isArray(datasets) && datasets.length > 0))) return;
+    if (!ctx || !Array.isArray(labels) || (!Array.isArray(values) && !(Array.isArray(datasets) && datasets.length > 0))) {
+      setNoNumericWarning(true);
+      return;
+    }
 
     const numericValues = Array.isArray(values)
       ? values.map((v) => (typeof v === "number" ? v : Number(v) || 0))
       : null;
 
-    const anyNumeric = (numericValues && numericValues.some((v) => v && !Number.isNaN(v))) || (Array.isArray(datasets) && datasets.some(ds => Array.isArray(ds.data) && ds.data.some(v => !Number.isNaN(Number(v))))) ;
-    if (!anyNumeric) return;
+    const anyNumeric = (numericValues && numericValues.some((v) => v && !Number.isNaN(v))) || (Array.isArray(datasets) && datasets.some(ds => Array.isArray(ds.data) && ds.data.some(v => !Number.isNaN(Number(v)))));
+    if (!anyNumeric) {
+      setNoNumericWarning(true);
+      return;
+    }
+    setNoNumericWarning(false);
 
     const finalDatasets = Array.isArray(datasets) && datasets.length
       ? datasets.map((d, i) => ({
@@ -65,7 +73,7 @@ function ChartPreview({ type, labels, values, datasets, title }) {
         maintainAspectRatio: false,
         plugins: {
               legend: {
-                display: type === 'pie' || (finalDatasets && finalDatasets.length > 1),
+                display: true,
               },
         },
       },
@@ -90,6 +98,11 @@ function ChartPreview({ type, labels, values, datasets, title }) {
         boxShadow: "0 2px 8px rgba(15, 23, 42, 0.12)",
       }}
     >
+      {noNumericWarning && (
+        <div style={{ position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: '#b91c1c', fontWeight: 600, fontSize: 18, zIndex: 10 }}>
+          No numeric data available for chart. Please select a value column with numbers.
+        </div>
+      )}
       <canvas id={canvasId} width={880} height={495} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
     </div>
   );
@@ -108,6 +121,8 @@ export default function ExcelToPPT() {
   const [pickerSheetIndex, setPickerSheetIndex] = useState(null);
   const [pickerLabelKey, setPickerLabelKey] = useState('');
   const [pickerValueKeys, setPickerValueKeys] = useState([]);
+  const [autoOpenedPickerFor, setAutoOpenedPickerFor] = useState(null);
+  const [highlightedSheets, setHighlightedSheets] = useState([]);
   const [slidesCount, setSlidesCount] = useState(15);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
@@ -210,6 +225,45 @@ export default function ExcelToPPT() {
     setColumnPickerOpen(true);
   };
 
+  const isChartMeaningful = (sheet) => {
+    if (!sheet || !Array.isArray(sheet.data) || sheet.data.length <= 1) return false;
+    const keys = Object.keys(sheet.data[0] || {});
+    const valueKeys = sheet.suggestedValueKeys || (sheet.suggestedValueKey ? [sheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]]));
+    for (const k of valueKeys) {
+      const vals = (sheet.data || []).map(r => {
+        const v = r[k];
+        if (v === null || v === undefined || String(v).trim() === '') return null;
+        const n = Number(String(v).replace(/,/g, ''));
+        return Number.isNaN(n) ? null : n;
+      }).filter(x => x !== null);
+      if (vals.length < 2) continue;
+      const uniq = Array.from(new Set(vals.map(String)));
+      if (uniq.length > 1) return true;
+    }
+    return false;
+  };
+
+  // Auto-open column picker when the suggested chart preview is invalid
+  useEffect(() => {
+    if (!Array.isArray(excelSuggestions) || excelSuggestions.length === 0) return;
+    // Check each sheet and auto-open picker for the first one that isn't meaningful
+    for (let idx = 0; idx < excelSuggestions.length; idx++) {
+      const sheet = excelSuggestions[idx];
+      const labelEmpty = sheet?.suggestedLabelKey === '__EMPTY' || !sheet?.suggestedLabelKey;
+      const meaningful = isChartMeaningful(sheet);
+      if (labelEmpty || !meaningful) {
+        // mark highlight
+        setHighlightedSheets(prev => (prev.includes(idx) ? prev : [...prev, idx]));
+        // auto-open for first encountered sheet only once
+        if (autoOpenedPickerFor === null) {
+          setAutoOpenedPickerFor(idx);
+          // open picker with the sheet's defaults
+          openColumnPicker(sheet, idx);
+        }
+      }
+    }
+  }, [excelSuggestions]);
+
   const applyColumnPicker = () => {
     if (pickerSheetIndex === null) return;
     const copy = [...excelSuggestions];
@@ -236,6 +290,10 @@ export default function ExcelToPPT() {
       }
     }
     setColumnPickerOpen(false);
+    // Remove highlighting for this sheet since user updated columns
+    setHighlightedSheets(prev => prev.filter(i => i !== pickerSheetIndex));
+    // Clear auto-open guard if we just fixed the one that was auto-opened
+    if (autoOpenedPickerFor === pickerSheetIndex) setAutoOpenedPickerFor(null);
   };
 
   const isColumnNumeric = (sheet, key) => {
@@ -456,23 +514,25 @@ export default function ExcelToPPT() {
                         let labels = [];
                         let values = [];
                         let datasets = null;
+                        let valueKeys = [];
                         if (sheet.data && sheet.data.length > 0) {
                           const keys = Object.keys(sheet.data[0]);
                           const labelKey = sheet.suggestedLabelKey || keys[0];
-                          const valueKeys = sheet.suggestedValueKeys || (sheet.suggestedValueKey ? [sheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]]));
+                          valueKeys = sheet.suggestedValueKeys || (sheet.suggestedValueKey ? [sheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]]));
                           if (labelKey && valueKeys && valueKeys.length) {
                             labels = sheet.data.map((row) => row[labelKey]);
                             datasets = valueKeys.map((vk, i) => ({ label: vk, data: sheet.data.map(row => row[vk]) }));
-                            // if only one dataset, keep legacy `values` prop for ChartPreview compatibility
                             if (datasets.length === 1) values = datasets[0].data;
                           }
                         }
+                        // Always show chart preview area, but if not valid, show guidance and allow column selection
+                        const canShowChart = (sheet._userChartType || sheet.chartType) !== 'table' && sheet.suggestedLabelKey !== '__EMPTY' && (valueKeys && valueKeys.length && valueKeys.some(k => isColumnNumeric(sheet, k)));
                         return (
                           <div key={sheet.sheetName} style={{ marginBottom: 24 }}>
                             <strong>Sheet:</strong> {sheet.sheetName}{" "}
                             <strong>Chart type:</strong>
                             <select
-                              value={sheet._userChartType || ((sheet.chartType === 'table' || sheet.suggestedLabelKey === '__EMPTY' || !pickerValueKeys.some(k => isColumnNumeric(sheet, k))) ? 'table' : sheet.chartType)}
+                              value={sheet._userChartType || ((sheet.chartType === 'table' || sheet.suggestedLabelKey === '__EMPTY' || !valueKeys.some(k => isColumnNumeric(sheet, k))) ? 'table' : sheet.chartType)}
                               onChange={e => {
                                 const copy = [...excelSuggestions];
                                 copy[idx]._userChartType = e.target.value;
@@ -488,47 +548,18 @@ export default function ExcelToPPT() {
                             <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
                               <em>Using:</em> {sheet.suggestedLabelKey || 'label'} (label) and {sheet.suggestedValueKey || 'value'} (value)
                             </div>
-                            {((sheet._userChartType || sheet.chartType) === 'table' || sheet.suggestedLabelKey === '__EMPTY' || !pickerValueKeys.some(k => isColumnNumeric(sheet, k))) ? (
-                              <div style={{ width: '100%', minHeight: 180, background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(15,23,42,0.12)', padding: 18, overflowX: 'auto', marginBottom: 18 }}>
+                            <div style={{ width: '100%', minHeight: 180, background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(15,23,42,0.12)', padding: 18, overflowX: 'auto', marginBottom: 18 }}>
+                              {!canShowChart ? (
                                 <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 8 }}>
-                                  No valid chart preview: please check your Excel headers and ensure you have a label column and at least one numeric value column.
-                                </div>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 18, tableLayout: 'auto' }}>
-                                  <thead>
-                                    <tr>
-                                      {Object.keys(sheet.data[0] || {}).map((col) => (
-                                        <th key={col} style={{ borderBottom: '2px solid #eee', padding: '8px 12px', textAlign: 'left', background: '#f3f4f6', wordBreak: 'break-word', verticalAlign: 'top', fontWeight: 600 }}>{col}</th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {sheet.data.slice(0, 10).map((row, i) => (
-                                      <tr key={i}>
-                                        {Object.keys(row).map((col) => (
-                                            <td key={col} style={{ borderBottom: '1px solid #f3f4f6', padding: '8px 12px', wordBreak: 'break-word', verticalAlign: 'top' }}>{row[col]}</td>
-                                        ))}
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                                {sheet.data.length > 10 && <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>(showing first 10 rows)</div>}
-                                <div style={{ display: 'flex', gap: 8, flexDirection: 'row', marginTop: 12 }}>
+                                  No valid chart preview. Please select the label and value columns for your chart.<br />
                                   <button
-                                    style={{ padding: '6px 10px', borderRadius: 6, background: '#efefef', border: '1px solid #ddd' }}
+                                    style={{ marginTop: 8, padding: '6px 10px', borderRadius: 6, background: highlightedSheets.includes(idx) ? '#fff7ed' : '#efefef', border: highlightedSheets.includes(idx) ? '1px solid #fb923c' : '1px solid #ddd', transition: 'box-shadow 220ms' }}
                                     onClick={() => openColumnPicker(sheet, idx)}
                                   >
-                                    Edit columns
-                                  </button>
-                                  <button
-                                    style={{ padding: '6px 10px', borderRadius: 6, background: selectedChartSheetIndex === idx ? '#6ee7b7' : '#eef1f3', border: '1px solid #ddd' }}
-                                    onClick={() => setSelectedChartSheetIndex(idx)}
-                                  >
-                                    {selectedChartSheetIndex === idx ? 'Using as chart' : 'Use as chart'}
+                                    Edit columns to enable chart
                                   </button>
                                 </div>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              ) : (
                                 <ChartPreview
                                   type={sheet._userChartType || sheet.chartType}
                                   labels={labels}
@@ -536,22 +567,42 @@ export default function ExcelToPPT() {
                                   datasets={datasets}
                                   title={sheet.sheetName}
                                 />
-                                <div style={{ marginLeft: 12, display: 'flex', gap: 8, flexDirection: 'column' }}>
-                                  <button
-                                    style={{ padding: '6px 10px', borderRadius: 6, background: '#efefef', border: '1px solid #ddd' }}
-                                    onClick={() => openColumnPicker(sheet, idx)}
-                                  >
-                                    Edit columns
-                                  </button>
-                                  <button
-                                    style={{ padding: '6px 10px', borderRadius: 6, background: selectedChartSheetIndex === idx ? '#6ee7b7' : '#eef1f3', border: '1px solid #ddd' }}
-                                    onClick={() => setSelectedChartSheetIndex(idx)}
-                                  >
-                                    {selectedChartSheetIndex === idx ? 'Using as chart' : 'Use as chart'}
-                                  </button>
-                                </div>
+                              )}
+                              {/* Table preview always available below chart preview */}
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 18, tableLayout: 'auto', marginTop: 18 }}>
+                                <thead>
+                                  <tr>
+                                    {Object.keys(sheet.data[0] || {}).map((col) => (
+                                      <th key={col} style={{ borderBottom: '2px solid #eee', padding: '8px 12px', textAlign: 'left', background: '#f3f4f6', wordBreak: 'break-word', verticalAlign: 'top', fontWeight: 600 }}>{col}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sheet.data.slice(0, 10).map((row, i) => (
+                                    <tr key={i}>
+                                      {Object.keys(row).map((col) => (
+                                          <td key={col} style={{ borderBottom: '1px solid #f3f4f6', padding: '8px 12px', wordBreak: 'break-word', verticalAlign: 'top' }}>{row[col]}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              {sheet.data.length > 10 && <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>(showing first 10 rows)</div>}
+                              <div style={{ display: 'flex', gap: 8, flexDirection: 'row', marginTop: 12 }}>
+                                <button
+                                  style={{ padding: '6px 10px', borderRadius: 6, background: highlightedSheets.includes(idx) ? '#fff7ed' : '#efefef', border: highlightedSheets.includes(idx) ? '1px solid #fb923c' : '1px solid #ddd' }}
+                                  onClick={() => openColumnPicker(sheet, idx)}
+                                >
+                                  Edit columns
+                                </button>
+                                <button
+                                  style={{ padding: '6px 10px', borderRadius: 6, background: selectedChartSheetIndex === idx ? '#6ee7b7' : '#eef1f3', border: '1px solid #ddd' }}
+                                  onClick={() => setSelectedChartSheetIndex(idx)}
+                                >
+                                  {selectedChartSheetIndex === idx ? 'Using as chart' : 'Use as chart'}
+                                </button>
                               </div>
-                            )}
+                            </div>
                             {/* JSON preview removed. Chart/table preview enlarged below. */}
                             {/* Chart summary section removed as requested */}
                           </div>
@@ -677,7 +728,7 @@ export default function ExcelToPPT() {
         <div className="modal" style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="modal-content" style={{ width: 560, background: '#fff', padding: 20, borderRadius: 8 }}>
             <h3>Select Label and Value Columns</h3>
-            <p style={{ marginBottom: 12, color: '#555' }}>Pick which columns should be used for chart labels and numeric values.</p>
+            <p style={{ marginBottom: 12, color: '#555' }}>Please select the label and value columns for your chart.</p>
             <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
               <div style={{ flex: 1 }}>
                 <label>Label column</label>
