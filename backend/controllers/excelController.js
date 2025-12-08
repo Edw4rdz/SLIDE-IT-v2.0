@@ -22,8 +22,22 @@ export const uploadExcelAndSuggest = async (req, res) => {
         const keys = Object.keys(sheet.data[0]);
         const labelKey = sheet.suggestedLabelKey || keys[0];
         const valueKeys = sheet.suggestedValueKeys || (sheet.suggestedValueKey ? [sheet.suggestedValueKey] : (keys.length > 1 ? [keys[1]] : [keys[0]]));
-        labels = sheet.data.map(row => row[labelKey]);
-        datasets = valueKeys.map(vk => ({ label: vk, data: sheet.data.map(row => row[vk]) }));
+        // Coerce labels to strings and replace null/undefined with empty string so Chart.js doesn't render 'null'
+        labels = sheet.data.map(row => {
+          const v = row[labelKey];
+          return v === null || v === undefined ? '' : String(v);
+        });
+        // Ensure dataset values are numbers or null (already sanitized in service), keep as-is but coerce numeric-like strings
+        datasets = valueKeys.map(vk => ({
+          label: vk,
+          data: sheet.data.map(row => {
+            const val = row[vk];
+            if (val === null || val === undefined || val === '') return null;
+            if (typeof val === 'number') return val;
+            const n = Number(String(val).replace(/[,\s]+/g, ''));
+            return Number.isFinite(n) ? n : null;
+          })
+        }));
       }
       // Generate chart image
       sheet.uploadedImage = await generateChartImage(chartType, labels, datasets, sheet.sheetName);

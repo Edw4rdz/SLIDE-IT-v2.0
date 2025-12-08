@@ -10,6 +10,24 @@ import ImageProviderModal from "../components/ImageProviderModal";
 import { useEffect } from "react";
 import { Chart as ChartJS } from "chart.js/auto";
 
+// Robust number sanitizer to handle currency, commas, parentheses, percent signs
+const sanitizeNumber = (raw) => {
+  if (raw === null || raw === undefined) return null;
+  let s = String(raw).trim();
+  if (s === '') return null;
+  // Remove thousands separators and spaces
+  s = s.replace(/[,\s]+/g, '');
+  // Handle parentheses for negative numbers e.g. (123)
+  if (/^\(.+\)$/.test(s)) s = '-' + s.replace(/^\(|\)$/g, '');
+  // Remove currency symbols and other non-numeric trailing characters (keep e/E for scientific)
+  s = s.replace(/[$£€¥₩₹%]/g, '');
+  // Remove any remaining non-numeric chars except . + - and exponent markers
+  s = s.replace(/[^0-9eE+\-\.]/g, '');
+  if (s === '' || s === '+' || s === '-') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+
 // Simple, isolated chart preview using a <canvas> to avoid React child issues
 function ChartPreview({ type, labels, values, datasets, title }) {
   const canvasId = React.useMemo(
@@ -24,12 +42,12 @@ function ChartPreview({ type, labels, values, datasets, title }) {
       setNoNumericWarning(true);
       return;
     }
-
+    // Convert values/dataset values using sanitizeNumber (preserve null for gaps)
     const numericValues = Array.isArray(values)
-      ? values.map((v) => (typeof v === "number" ? v : Number(v) || 0))
+      ? values.map((v) => (typeof v === "number" ? v : sanitizeNumber(v)))
       : null;
 
-    const anyNumeric = (numericValues && numericValues.some((v) => v && !Number.isNaN(v))) || (Array.isArray(datasets) && datasets.some(ds => Array.isArray(ds.data) && ds.data.some(v => !Number.isNaN(Number(v)))));
+    const anyNumeric = (numericValues && numericValues.some((v) => v !== null)) || (Array.isArray(datasets) && datasets.some(ds => Array.isArray(ds.data) && ds.data.some(v => sanitizeNumber(v) !== null)));
     if (!anyNumeric) {
       setNoNumericWarning(true);
       return;
@@ -39,7 +57,7 @@ function ChartPreview({ type, labels, values, datasets, title }) {
     const finalDatasets = Array.isArray(datasets) && datasets.length
       ? datasets.map((d, i) => ({
           ...d,
-          data: d.data.map(v => (typeof v === 'number' ? v : Number(v) || 0)),
+          data: d.data.map(v => (typeof v === 'number' ? v : sanitizeNumber(v))),
           backgroundColor: d.backgroundColor || (type === 'pie' ? [
               'rgba(75, 192, 192, 0.6)',
               'rgba(255, 159, 64, 0.6)',
@@ -75,6 +93,20 @@ function ChartPreview({ type, labels, values, datasets, title }) {
               legend: {
                 display: true,
               },
+        },
+        parsing: false,
+        scales: {
+          x: {
+            type: 'category',
+            ticks: {
+              autoSkip: true,
+              maxRotation: 45,
+              minRotation: 20,
+            },
+          },
+          y: {
+            beginAtZero: true,
+          },
         },
       },
     });
@@ -298,16 +330,15 @@ export default function ExcelToPPT() {
 
   const isColumnNumeric = (sheet, key) => {
     if (!sheet || !Array.isArray(sheet.data) || !key) return false;
-    const data = sheet.data;
-    // require at least one numeric
+    const data = sheet.data || [];
+    const sample = data.slice(0, Math.min(30, data.length));
     let numericCount = 0;
-    for (let i = 0; i < data.length; i++) {
-      const v = data[i][key];
-      if (v === null || v === undefined || String(v).trim() === '') continue;
-      const n = Number(String(v).replace(/,/g, ''));
-      if (!Number.isNaN(n)) numericCount++;
+    for (let i = 0; i < sample.length; i++) {
+      const v = sample[i][key];
+      const n = sanitizeNumber(v);
+      if (n !== null) numericCount++;
     }
-    return numericCount >= Math.max(1, Math.ceil(data.length * 0.5));
+    return numericCount >= Math.max(1, Math.ceil(sample.length * 0.5));
   };
 
   // *** NEW - Same behavior as PDFToPPT ***
@@ -515,13 +546,50 @@ export default function ExcelToPPT() {
                         let values = [];
                         let datasets = null;
                         let valueKeys = [];
+                        // Build a display name map so headers like "__EMPTY" show a friendlier name
+                        const displayNameByKey = {};
                         if (sheet.data && sheet.data.length > 0) {
                           const keys = Object.keys(sheet.data[0]);
+                          keys.forEach((k, i) => {
+                            const clean = k && String(k).trim();
+                            if (!clean || clean.toUpperCase().startsWith('__EMPTY')) {
+                              displayNameByKey[k] = `Column ${i + 1}`;
+                            } else {
+                              displayNameByKey[k] = k;
+                            }
+                          });
+
                           const labelKey = sheet.suggestedLabelKey || keys[0];
                           valueKeys = sheet.suggestedValueKeys || (sheet.suggestedValueKey ? [sheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]]));
+
+                          // Only keep numeric value keys (helps avoid broken charts and stray legends)
+                          valueKeys = (valueKeys || []).filter(k => isColumnNumeric(sheet, k));
+
                           if (labelKey && valueKeys && valueKeys.length) {
-                            labels = sheet.data.map((row) => row[labelKey]);
-                            datasets = valueKeys.map((vk, i) => ({ label: vk, data: sheet.data.map(row => row[vk]) }));
+                            labels = sheet.data.map((row) => String(row[labelKey] ?? ''));
+
+                            const palette = [
+                              'rgba(54, 162, 235, 0.8)',
+                              'rgba(255, 159, 64, 0.85)',
+                              'rgba(75, 192, 192, 0.8)',
+                              'rgba(153, 102, 255, 0.8)',
+                              'rgba(255, 205, 86, 0.85)',
+                              'rgba(201, 203, 207, 0.8)',
+                              'rgba(255, 99, 132, 0.8)',
+                            ];
+
+                            datasets = valueKeys.map((vk, i) => ({
+                              label: displayNameByKey[vk] || vk,
+                              data: sheet.data.map(row => {
+                                const raw = row[vk];
+                                if (raw === null || raw === undefined || String(raw).trim() === '') return null;
+                                const n = Number(String(raw).replace(/,/g, ''));
+                                return Number.isNaN(n) ? null : n;
+                              }),
+                              backgroundColor: palette[i % palette.length],
+                              borderColor: palette[i % palette.length],
+                            }));
+
                             if (datasets.length === 1) values = datasets[0].data;
                           }
                         }
@@ -572,8 +640,8 @@ export default function ExcelToPPT() {
                               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 18, tableLayout: 'auto', marginTop: 18 }}>
                                 <thead>
                                   <tr>
-                                    {Object.keys(sheet.data[0] || {}).map((col) => (
-                                      <th key={col} style={{ borderBottom: '2px solid #eee', padding: '8px 12px', textAlign: 'left', background: '#f3f4f6', wordBreak: 'break-word', verticalAlign: 'top', fontWeight: 600 }}>{col}</th>
+                                    {Object.keys(sheet.data[0] || {}).map((col, ci) => (
+                                      <th key={col} style={{ borderBottom: '2px solid #eee', padding: '8px 12px', textAlign: 'left', background: '#f3f4f6', wordBreak: 'break-word', verticalAlign: 'top', fontWeight: 600 }}>{(sheet.data && sheet.data.length>0 && (sheet.data[0] && Object.prototype.hasOwnProperty.call(sheet.data[0], col))) ? ( (col && String(col).trim() && !String(col).toUpperCase().startsWith('__EMPTY')) ? col : `Column ${ci+1}`) : col}</th>
                                     ))}
                                   </tr>
                                 </thead>
