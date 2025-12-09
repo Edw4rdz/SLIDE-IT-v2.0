@@ -342,14 +342,67 @@ export default function ExcelToPPT() {
   };
 
   // *** NEW - Same behavior as PDFToPPT ***
-  // Show provider modal first
+
+  // Unified Convert to PowerPoint flow
+  const [pendingConvert, setPendingConvert] = useState(false);
   const handleConvert = () => {
     if (!file) return notify("Please select an Excel file first", "error");
     if (!loggedInUser?.user_id)
       return notify("You must be logged in to convert and save history.", "error");
-    setShowProviderModal(true);
+    // Step 1: Show chart type modal first
+    setShowChartTypeModal(true);
+    setPendingConvert(true); // Mark that this is a convert flow
   };
 
+  // When chart type is selected in modal, proceed to provider modal
+  const handleChartTypeModalGenerate = async () => {
+    setShowChartTypeModal(false);
+    // If this is from the convert flow, fetch chart suggestion and then show provider modal
+    if (pendingConvert) {
+      setIsLoading(true);
+      setLoadingText("Generating chart suggestion...");
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("chartType", chartTypeToGenerate);
+        // Backend should return chart image and summary for first sheet
+        const res = await axios.post("/api/excel/upload-excel", formData);
+        const sheets = res.data.sheets || [];
+        if (sheets.length === 0) throw new Error("No chart suggestions found");
+        setExcelSuggestions(sheets);
+        setSelectedChartSheetIndex(0);
+        // Optionally, set chart summary for first sheet
+        let summary = "";
+        const sheet = sheets[0];
+        if (sheet.data && sheet.data.length > 1) {
+          const keys = Object.keys(sheet.data[0]);
+          const labelKey = sheet.suggestedLabelKey || keys[0];
+          const valueKey = sheet.suggestedValueKey || keys[1] || keys[0];
+          const firstLabel = sheet.data[0][labelKey];
+          const lastLabel = sheet.data[sheet.data.length - 1][labelKey];
+          const firstValue = sheet.data[0][valueKey];
+          const lastValue = sheet.data[sheet.data.length - 1][valueKey];
+          summary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
+        }
+        setChartSummary(summary);
+        setAutoChartSummary(summary);
+        // Now show provider modal
+        setIsLoading(false);
+        setLoadingText("");
+        setShowProviderModal(true);
+      } catch (err) {
+        setIsLoading(false);
+        setLoadingText("");
+        notify("Failed to generate chart slide", "error");
+        setPendingConvert(false);
+      }
+    } else {
+      // If not from convert flow, just do the old chart suggestion behavior
+      handleGenerateChartSlide();
+    }
+  };
+
+  // Provider modal selection
   const handleProviderSelect = (provider) => {
     setSelectedProvider(provider);
     setShowProviderModal(false);
@@ -372,6 +425,7 @@ export default function ExcelToPPT() {
     handleConversionStart(true, provider);
   };
 
+  // Final conversion: always use first chart as first slide, rest AI-generated
   const handleConversionStart = async (includeImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Uploading Excel file...");
@@ -386,11 +440,13 @@ export default function ExcelToPPT() {
       if (imgProvider) {
         formData.append("imageProvider", imgProvider);
       }
-      // Send chart info and summary for first slide
+      // Always send chart info and summary for first slide
+      let chartSheet = null;
       if (excelSuggestions.length > 0) {
-      const chartSheet = excelSuggestions[selectedChartSheetIndex] || excelSuggestions[0];
-        formData.append("chartType", chartSheet.chartType);
-        // send a reduced chartData object containing only label/value columns where possible
+        chartSheet = excelSuggestions[selectedChartSheetIndex] || excelSuggestions[0];
+      }
+      if (chartSheet) {
+        formData.append("chartType", chartSheet.chartType || chartTypeToGenerate);
         const keys = Object.keys(chartSheet.data?.[0] || {});
         const labelKey = chartSheet.suggestedLabelKey || keys[0];
         const valueKeys = chartSheet.suggestedValueKeys || (chartSheet.suggestedValueKey ? [chartSheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]]));
@@ -406,13 +462,51 @@ export default function ExcelToPPT() {
       setLoadingText("Converting Excel to slides...");
       const response = await convertExcel(formData);
       const payload = response?.data;
-      const slideArray = Array.isArray(payload)
+      let slideArray = Array.isArray(payload)
         ? payload
         : Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload?.slides)
         ? payload.slides
         : [];
+
+      // Ensure first slide is the chart, rest are AI-generated
+      let chartSlide = null;
+      if (chartSheet) {
+        // Build chart slide object
+        let summary = chartSummary;
+        if (!summary && chartSheet.data && chartSheet.data.length > 1) {
+          const keys = Object.keys(chartSheet.data[0]);
+          const labelKey = chartSheet.suggestedLabelKey || keys[0];
+          const valueKey = chartSheet.suggestedValueKey || keys[1] || keys[0];
+          const firstLabel = chartSheet.data[0][labelKey];
+          const lastLabel = chartSheet.data[chartSheet.data.length - 1][labelKey];
+          const firstValue = chartSheet.data[0][valueKey];
+          const lastValue = chartSheet.data[chartSheet.data.length - 1][valueKey];
+          summary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
+        }
+        chartSlide = {
+          id: 0,
+          title: chartSheet.sheetName || "Chart Slide",
+          uploadedImage: chartSheet.chartImageUrl || chartSheet.uploadedImage || "",
+          summary,
+          chartType: chartSheet.chartType || chartTypeToGenerate,
+          chartData: chartSheet.data,
+        };
+      }
+
+      // Remove any chart slide from AI-generated slides if present
+      if (slideArray.length && chartSlide) {
+        // Remove first slide if it matches chart slide (by title or uploadedImage)
+        if (
+          slideArray[0]?.title === chartSlide.title ||
+          (slideArray[0]?.uploadedImage && chartSlide.uploadedImage && slideArray[0].uploadedImage === chartSlide.uploadedImage)
+        ) {
+          slideArray = slideArray.slice(1);
+        }
+        // Prepend chart slide
+        slideArray = [chartSlide, ...slideArray];
+      }
 
       if (slideArray.length) {
         const slidesWithId = slideArray.map((s, idx) => ({
@@ -447,6 +541,7 @@ export default function ExcelToPPT() {
     } finally {
       setIsLoading(false);
       setLoadingText("");
+      setPendingConvert(false);
     }
   };
 
@@ -491,6 +586,7 @@ export default function ExcelToPPT() {
                   {file && <p className="file-name">📄 {file.name}</p>}
                 </div>
 
+
                 <button
                   onClick={handleConvert}
                   className="uploadp-btn"
@@ -508,16 +604,6 @@ export default function ExcelToPPT() {
                   )}
                 </button>
 
-                  {/* Button to get chart suggestions */}
-                  <button
-                    onClick={handleSuggestCharts}
-                    className="uploadp-btn"
-                    disabled={!file}
-                    style={{ marginTop: 10 }}
-                  >
-                    Suggest Charts from Excel
-                  </button>
-
                   {/* Chart Type Selection Modal */}
                   {showChartTypeModal && (
                     <div className="modal" style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
@@ -530,154 +616,14 @@ export default function ExcelToPPT() {
                           <option value="table">Table</option>
                         </select>
                         <div style={{ textAlign: 'right' }}>
-                          <button onClick={() => setShowChartTypeModal(false)} style={{ marginRight: 8, padding: '8px 14px' }}>Cancel</button>
-                          <button onClick={handleGenerateChartSlide} style={{ padding: '8px 14px', background: '#0ea5a5', color: 'white', borderRadius: 6 }}>Generate</button>
+                          <button onClick={() => { setShowChartTypeModal(false); setPendingConvert(false); }} style={{ marginRight: 8, padding: '8px 14px' }}>Cancel</button>
+                          <button onClick={handleChartTypeModalGenerate} style={{ padding: '8px 14px', background: '#0ea5a5', color: 'white', borderRadius: 6 }}>Generate</button>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Display chart suggestions */}
-                  {excelSuggestions.length > 0 && (
-                    <div className="ai-card" style={{ marginTop: 20 }}>
-                      <h3>Chart Suggestions</h3>
-                      {excelSuggestions.map((sheet, idx) => {
-                        let labels = [];
-                        let values = [];
-                        let datasets = null;
-                        let valueKeys = [];
-                        // Build a display name map so headers like "__EMPTY" show a friendlier name
-                        const displayNameByKey = {};
-                        if (sheet.data && sheet.data.length > 0) {
-                          const keys = Object.keys(sheet.data[0]);
-                          keys.forEach((k, i) => {
-                            const clean = k && String(k).trim();
-                            if (!clean || clean.toUpperCase().startsWith('__EMPTY')) {
-                              displayNameByKey[k] = `Column ${i + 1}`;
-                            } else {
-                              displayNameByKey[k] = k;
-                            }
-                          });
-
-                          const labelKey = sheet.suggestedLabelKey || keys[0];
-                          valueKeys = sheet.suggestedValueKeys || (sheet.suggestedValueKey ? [sheet.suggestedValueKey] : (keys.length>1 ? [keys[1]] : [keys[0]]));
-
-                          // Only keep numeric value keys (helps avoid broken charts and stray legends)
-                          valueKeys = (valueKeys || []).filter(k => isColumnNumeric(sheet, k));
-
-                          if (labelKey && valueKeys && valueKeys.length) {
-                            labels = sheet.data.map((row) => String(row[labelKey] ?? ''));
-
-                            const palette = [
-                              'rgba(54, 162, 235, 0.8)',
-                              'rgba(255, 159, 64, 0.85)',
-                              'rgba(75, 192, 192, 0.8)',
-                              'rgba(153, 102, 255, 0.8)',
-                              'rgba(255, 205, 86, 0.85)',
-                              'rgba(201, 203, 207, 0.8)',
-                              'rgba(255, 99, 132, 0.8)',
-                            ];
-
-                            datasets = valueKeys.map((vk, i) => ({
-                              label: displayNameByKey[vk] || vk,
-                              data: sheet.data.map(row => {
-                                const raw = row[vk];
-                                if (raw === null || raw === undefined || String(raw).trim() === '') return null;
-                                const n = Number(String(raw).replace(/,/g, ''));
-                                return Number.isNaN(n) ? null : n;
-                              }),
-                              backgroundColor: palette[i % palette.length],
-                              borderColor: palette[i % palette.length],
-                            }));
-
-                            if (datasets.length === 1) values = datasets[0].data;
-                          }
-                        }
-                        // Always show chart preview area, but if not valid, show guidance and allow column selection
-                        const canShowChart = (sheet._userChartType || sheet.chartType) !== 'table' && sheet.suggestedLabelKey !== '__EMPTY' && (valueKeys && valueKeys.length && valueKeys.some(k => isColumnNumeric(sheet, k)));
-                        return (
-                          <div key={sheet.sheetName} style={{ marginBottom: 24 }}>
-                            <strong>Sheet:</strong> {sheet.sheetName}{" "}
-                            <strong>Chart type:</strong>
-                            <select
-                              value={sheet._userChartType || ((sheet.chartType === 'table' || sheet.suggestedLabelKey === '__EMPTY' || !valueKeys.some(k => isColumnNumeric(sheet, k))) ? 'table' : sheet.chartType)}
-                              onChange={e => {
-                                const copy = [...excelSuggestions];
-                                copy[idx]._userChartType = e.target.value;
-                                setExcelSuggestions(copy);
-                              }}
-                              style={{ marginLeft: 8, padding: '4px 8px', fontSize: 15, borderRadius: 6, border: '1px solid #ddd' }}
-                            >
-                              <option value="bar">Bar</option>
-                              <option value="line">Line</option>
-                              <option value="pie">Pie</option>
-                              <option value="table">Table</option>
-                            </select>
-                            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                              <em>Using:</em> {sheet.suggestedLabelKey || 'label'} (label) and {sheet.suggestedValueKey || 'value'} (value)
-                            </div>
-                            <div style={{ width: '100%', minHeight: 180, background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(15,23,42,0.12)', padding: 18, overflowX: 'auto', marginBottom: 18 }}>
-                              {!canShowChart ? (
-                                <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 8 }}>
-                                  No valid chart preview. Please select the label and value columns for your chart.<br />
-                                  <button
-                                    style={{ marginTop: 8, padding: '6px 10px', borderRadius: 6, background: highlightedSheets.includes(idx) ? '#fff7ed' : '#efefef', border: highlightedSheets.includes(idx) ? '1px solid #fb923c' : '1px solid #ddd', transition: 'box-shadow 220ms' }}
-                                    onClick={() => openColumnPicker(sheet, idx)}
-                                  >
-                                    Edit columns to enable chart
-                                  </button>
-                                </div>
-                              ) : (
-                                <ChartPreview
-                                  type={sheet._userChartType || sheet.chartType}
-                                  labels={labels}
-                                  values={values}
-                                  datasets={datasets}
-                                  title={sheet.sheetName}
-                                />
-                              )}
-                              {/* Table preview always available below chart preview */}
-                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 18, tableLayout: 'auto', marginTop: 18 }}>
-                                <thead>
-                                  <tr>
-                                    {Object.keys(sheet.data[0] || {}).map((col, ci) => (
-                                      <th key={col} style={{ borderBottom: '2px solid #eee', padding: '8px 12px', textAlign: 'left', background: '#f3f4f6', wordBreak: 'break-word', verticalAlign: 'top', fontWeight: 600 }}>{(sheet.data && sheet.data.length>0 && (sheet.data[0] && Object.prototype.hasOwnProperty.call(sheet.data[0], col))) ? ( (col && String(col).trim() && !String(col).toUpperCase().startsWith('__EMPTY')) ? col : `Column ${ci+1}`) : col}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {sheet.data.slice(0, 10).map((row, i) => (
-                                    <tr key={i}>
-                                      {Object.keys(row).map((col) => (
-                                          <td key={col} style={{ borderBottom: '1px solid #f3f4f6', padding: '8px 12px', wordBreak: 'break-word', verticalAlign: 'top' }}>{row[col]}</td>
-                                      ))}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                              {sheet.data.length > 10 && <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>(showing first 10 rows)</div>}
-                              <div style={{ display: 'flex', gap: 8, flexDirection: 'row', marginTop: 12 }}>
-                                <button
-                                  style={{ padding: '6px 10px', borderRadius: 6, background: highlightedSheets.includes(idx) ? '#fff7ed' : '#efefef', border: highlightedSheets.includes(idx) ? '1px solid #fb923c' : '1px solid #ddd' }}
-                                  onClick={() => openColumnPicker(sheet, idx)}
-                                >
-                                  Edit columns
-                                </button>
-                                <button
-                                  style={{ padding: '6px 10px', borderRadius: 6, background: selectedChartSheetIndex === idx ? '#6ee7b7' : '#eef1f3', border: '1px solid #ddd' }}
-                                  onClick={() => setSelectedChartSheetIndex(idx)}
-                                >
-                                  {selectedChartSheetIndex === idx ? 'Using as chart' : 'Use as chart'}
-                                </button>
-                              </div>
-                            </div>
-                            {/* JSON preview removed. Chart/table preview enlarged below. */}
-                            {/* Chart summary section removed as requested */}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {/* Chart suggestions UI removed as requested */}
 
                 {convertedSlides && (
                   <div className="success-card">
