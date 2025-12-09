@@ -2,13 +2,13 @@ import React, { useState, useRef } from "react";
 import axios from "axios";
 import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
-import { convertExcel, cache } from "../api";
 import "../styles/exceltoppt.css";
 import Sidebar from "../components/Sidebar";
 import AIProviderModal from "../components/AIProviderModal";
 import ImageProviderModal from "../components/ImageProviderModal";
 import { useEffect } from "react";
 import { Chart as ChartJS } from "chart.js/auto";
+import { convertExcel, cache, getHistory } from "../api"; // Added getHistory
 
 // Robust number sanitizer to handle currency, commas, parentheses, percent signs
 const sanitizeNumber = (raw) => {
@@ -141,7 +141,8 @@ function ChartPreview({ type, labels, values, datasets, title }) {
 }
 
 export default function ExcelToPPT() {
-  // ...existing state...
+  // Add this near the top with your other states
+const [currentConversionId, setCurrentConversionId] = useState(null);
   const [chartSummary, setChartSummary] = useState("");
   const [autoChartSummary, setAutoChartSummary] = useState("");
   const [file, setFile] = useState(null);
@@ -426,6 +427,7 @@ export default function ExcelToPPT() {
   };
 
   // Final conversion: always use first chart as first slide, rest AI-generated
+  // Final conversion: always use first chart as first slide, rest AI-generated
   const handleConversionStart = async (includeImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Uploading Excel file...");
@@ -440,6 +442,7 @@ export default function ExcelToPPT() {
       if (imgProvider) {
         formData.append("imageProvider", imgProvider);
       }
+      
       // Always send chart info and summary for first slide
       let chartSheet = null;
       if (excelSuggestions.length > 0) {
@@ -462,6 +465,12 @@ export default function ExcelToPPT() {
       setLoadingText("Converting Excel to slides...");
       const response = await convertExcel(formData);
       const payload = response?.data;
+      // Capture the database ID for this conversion
+      const conversionId = payload?.id;
+
+      // ✅ PUT IT HERE:
+      if (conversionId) setCurrentConversionId(conversionId);
+      
       let slideArray = Array.isArray(payload)
         ? payload
         : Array.isArray(payload?.data)
@@ -495,9 +504,8 @@ export default function ExcelToPPT() {
         };
       }
 
-      // Remove any chart slide from AI-generated slides if present
+      // Remove any chart slide from AI-generated slides if present (deduplication)
       if (slideArray.length && chartSlide) {
-        // Remove first slide if it matches chart slide (by title or uploadedImage)
         if (
           slideArray[0]?.title === chartSlide.title ||
           (slideArray[0]?.uploadedImage && chartSlide.uploadedImage && slideArray[0].uploadedImage === chartSlide.uploadedImage)
@@ -515,12 +523,59 @@ export default function ExcelToPPT() {
         }));
 
         setConvertedSlides(slidesWithId);
-        setTopic(file.name.replace(/\.(xlsx|xls)$/i, ""));
+        const newTopic = file.name.replace(/\.(xlsx|xls)$/i, "");
+        setTopic(newTopic);
         setLoadingText("Conversion completed!");
 
+        // --- FIX START: ROBUST DRAFT SAVING ---
         if (loggedInUser?.user_id) {
           cache.invalidate(`history-${loggedInUser.user_id}`);
         }
+
+        // 1. Try to get ID from payload
+        let validConversionId = payload?.id;
+
+        // 2. If missing, fetch fresh history to find the ID of the item we just created
+        if (!validConversionId && loggedInUser?.user_id) {
+            try {
+               const historyRes = await getHistory(loggedInUser.user_id);
+               const historyList = historyRes.data || [];
+               // The API sorts by date desc, so the first item is the newest.
+               // Verify filename matches to be safe.
+               if (historyList.length > 0 && historyList[0].fileName === file.name) {
+                   validConversionId = historyList[0].id;
+               }
+            } catch (e) {
+               console.warn("Could not retrieve history ID for draft saving", e);
+            }
+        }
+        
+        // 3. Update state so "Edit" button uses the correct ID
+        if (validConversionId) setCurrentConversionId(validConversionId);
+
+        // 4. Save to LocalStorage with error handling
+        if (validConversionId) {
+          const draftKey = `slideit_draft_${validConversionId}`;
+          const draftData = { 
+            slides: slidesWithId, 
+            topic: newTopic, 
+            design: null, 
+            imageProvider: imgProvider || 'pollinations' 
+          };
+          try {
+             localStorage.setItem(draftKey, JSON.stringify(draftData));
+          } catch (err) {
+             console.error("Failed to save draft to storage:", err);
+             // Fallback: If quota exceeded (likely due to chart image size), 
+             // save the draft WITHOUT the image so at least the slide exists in the list.
+             if (err.name === 'QuotaExceededError') {
+                 notify("Chart image too large for draft cache. Slide text saved.", "warning");
+                 const reducedSlides = slidesWithId.map(s => s.id === 0 ? { ...s, uploadedImage: null } : s);
+                 localStorage.setItem(draftKey, JSON.stringify({ ...draftData, slides: reducedSlides }));
+             }
+          }
+        }
+        // --- FIX END ---
 
         notify("Conversion successful! You can now preview or edit it.", "success");
       } else {

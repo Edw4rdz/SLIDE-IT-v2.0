@@ -1042,51 +1042,43 @@ export default function EditPreview() {
   const handleTemplateChange = useCallback((templateId, availableTemplates) => {
 
     if (selectedTemplateId === templateId) {
-
       setSelectedTemplateId('');
-
       setCurrentDesign({
-
         font: "Arial",
-
         globalBackground: "#ffffff",
-
         globalTitleColor: "#000000",
-
         globalTextColor: "#333333",
-
         layouts: {
-
           title: { background: "#ffffff", titleColor: "#000000", textColor: "#333333" },
-
           content: { background: "#ffffff", titleColor: "#000000", textColor: "#333333" }
-
         }
-
       });
-
       localStorage.removeItem('selectedTemplate');
+      
+      // Also clear slide-specific styles when deselecting
+      setEditedSlides(prevSlides => prevSlides.map(slide => ({
+        ...slide,
+        background: undefined,
+        titleColor: undefined,
+        textColor: undefined
+      })));
 
       return;
-
     }
 
     const selected = availableTemplates.find((t) => t.id === templateId);
 
     if (selected && selected.design) {
-
       setSelectedTemplateId(templateId);
-
       const newDesign = { ...selected.design, id: selected.id };
-
       setCurrentDesign(newDesign);
-
       localStorage.setItem('selectedTemplate', JSON.stringify(newDesign));
 
       // Apply per-slide backgrounds from template to user's slides
-      if (newDesign.slides && Array.isArray(newDesign.slides) && newDesign.slides.length > 0) {
-        setEditedSlides(prevSlides => {
-          return prevSlides.map((slide, index) => {
+      setEditedSlides(prevSlides => {
+        return prevSlides.map((slide, index) => {
+          // Check if the new design has specific slide definitions
+          if (newDesign.slides && Array.isArray(newDesign.slides) && newDesign.slides.length > 0) {
             // Get background from corresponding template slide, or cycle through if needed
             const templateSlideIndex = index % newDesign.slides.length;
             const templateSlide = newDesign.slides[templateSlideIndex];
@@ -1099,15 +1091,21 @@ export default function EditPreview() {
                 textColor: templateSlide.textColor
               };
             }
-            return slide;
-          });
+          }
+          
+          // If no specific slide design matches (or template relies on global styles),
+          // we must explicitly REMOVE the old per-slide overrides so global styles take over.
+          return {
+            ...slide,
+            background: undefined,
+            titleColor: undefined,
+            textColor: undefined
+          };
         });
-      }
+      });
 
     } else {
-
       console.warn("Selected template is missing 'design' object:", selected);
-
     }
 
   }, [selectedTemplateId]);
