@@ -75,6 +75,16 @@ export default function Settings() {
     setIsEditing(false);
     setOriginalProfile(null);
   };
+  const Settings = () => {
+  return (
+    // Make sure this className matches what you edited in the CSS
+    <div className="settings-container"> 
+      <h2>Settings</h2>
+      {/* Your settings content... */}
+    </div>
+  );
+};
+
 
   const handleProfileUpdate = async () => {
     if (!userDocId) {

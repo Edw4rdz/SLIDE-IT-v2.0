@@ -15,6 +15,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import passwordResetRoutes from "./routes/passwordResetRoutes.js";
 import excelRoutes from "./routes/excelRoutes.js";
+import supportRoutes from "./routes/supportRoutes.js";
 
 // --- SETUP ---
 dotenv.config();
@@ -75,6 +76,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
 app.use("/api/excel", excelRoutes);
+app.use("/api/support", supportRoutes);
 
 // --- EXPORT APP ---
 // We export 'app' so server.js can import it and start the server

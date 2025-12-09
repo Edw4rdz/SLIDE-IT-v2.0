@@ -21,14 +21,31 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminRoute from "./components/AdminRoute";
 import Generator from './pages/Generator';
 import VerifyOTP from "./pages/VerifyOTP"; // OTP verification page
+import Footer from "./components/Footer";
+import About from "./pages/About";
+import Privacy from "./pages/Privacy";
+import Support from "./pages/Support";
+import { useLocation } from 'react-router-dom';
+
 export default function App() {
   return (
     <Router>
       <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      <AppContent />
+    </Router>
+  );
+}
+
+function AppContent() {
+  const location = useLocation();
+  const hideFooterPaths = ['/login', '/signup', '/forgot-password', '/verify-otp'];
+
+  return (
+    <>
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
-  <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />
         <Route path="/dashboard" element={<Dashboard />} />
@@ -53,9 +70,15 @@ export default function App() {
             </AdminRoute>
           } 
         />
-        
+        <Route path="/about" element={<About />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/support" element={<Support />} />
+
         <Route path="*" element={<h1>404 - Page Not Found</h1>} />
       </Routes>
-    </Router>
+
+      {/* Render footer except on login/signup pages */}
+      {!hideFooterPaths.includes(location.pathname) && <Footer />}
+    </>
   );
 }

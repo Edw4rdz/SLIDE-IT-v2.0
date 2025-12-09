@@ -1,0 +1,35 @@
+/* Privacy page styles */
+.privacy-hero {
+  margin-bottom: 18px;
+}
+.privacy-hero-inner h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.privacy-hero-inner .lead {
+  color: #666;
+}
+
+.privacy-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 22px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  margin-bottom: 18px;
+}
+.privacy-section h2 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: #111827;
+}
+.privacy-section p, .privacy-section ul {
+  color: #444;
+  line-height: 1.6;
+}
+.privacy-section ul { padding-left: 18px; }
+.privacy-section.small { background: transparent; box-shadow: none; padding: 0; }
+
+@media (max-width: 1000px) {
+  .privacy-hero-inner h1 { font-size: 22px; }
+  .privacy-section { padding: 16px; }
+}

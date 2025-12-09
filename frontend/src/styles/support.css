@@ -1,0 +1,23 @@
+/* Support page styles */
+.support-hero { margin-bottom: 18px; }
+.support-hero-inner h1 { font-size: 28px; margin-bottom: 8px; }
+.support-hero-inner .lead { color: #666; }
+
+.support-grid { display: grid; grid-template-columns: 1fr 320px; gap: 28px; align-items: start; }
+
+.support-card { background: #fff; padding: 22px; border-radius: 12px; box-shadow: 0 6px 18px rgba(17,24,39,0.06); }
+.support-card h2 { margin-top: 0; margin-bottom: 12px; color: #111827; }
+
+.support-form .form-group { margin-bottom: 12px; display:flex; flex-direction:column; }
+.support-form label { font-weight:600; margin-bottom:6px; color:#444; }
+.support-form input, .support-form textarea { padding:10px 12px; border:1px solid #e6e6ee; border-radius:8px; font-size:14px; }
+.support-form textarea { min-height:120px; resize:vertical; }
+.submit-btn { margin-top:8px; background:#6d4fc2; color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+.submit-btn:hover { background:#5537a6; }
+
+.support-info .info-card { background:#fff; padding:18px; border-radius:12px; box-shadow:0 6px 18px rgba(17,24,39,0.04); }
+.support-info h3 { margin-top:0; }
+
+@media (max-width: 1000px) {
+  .support-grid { grid-template-columns: 1fr; }
+}
