@@ -11,13 +11,13 @@ export default function About() {
         <div className="content about-page">
           <section className="about-hero">
             <div className="about-hero-inner">
-              <h1>About Slide-IT</h1>
-              <p className="lead">Slide-IT helps teams and individuals create professional presentations faster — convert files, edit slides, and generate content with AI-assisted tools.</p>
+              <h1>About SLIDE-IT</h1>
+              <p className="lead">SLIDE-IT is a capstone project of students from PUP Biñan. Our goal is to help students, educators, and professionals to create presentations faster — convert files, edit slides, and generate content with AI-assisted tools.</p>
             </div>
           </section>
 
           <section className="about-features">
-            <h2>What we offer</h2>
+            <h2>What We Offer</h2>
             <div className="feature-grid">
               <div className="feature-card">
                 <h3>Convert Effortlessly</h3>
@@ -36,7 +36,7 @@ export default function About() {
 
           <section className="about-team">
             <h2>Our Mission</h2>
-            <p>We want to make slide creation joyful and productive. By combining smart automation with familiar editing workflows, Slide-IT saves time and improves presentation quality.</p>
+            <p>We want to make slide creation joyful and productive. By combining smart automation with familiar editing workflows, SLIDE-IT saves time and improves presentation quality.</p>
             <div className="team-section">
               <h3>Researchers & Developers</h3>
               <div className="team-media">

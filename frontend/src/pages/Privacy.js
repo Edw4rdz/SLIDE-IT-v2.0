@@ -32,7 +32,7 @@ export default function Privacy() {
 
           <section className="privacy-section">
             <h2>Third Parties</h2>
-            <p>We may share data with trusted third-party services (Firebase, AWS, Google Gemini, Grok by X) under contractual obligations to protect your privacy.</p>
+            <p> We share necessary data with trusted third-party services to operate our platform, including <strong>Firebase</strong> (authentication & database), <strong>AWS</strong> (secure file storage), <strong>Google Gemini and Grok by xAI</strong> (AI content generation), <strong>Pollinations.ai</strong> (AI image generation), and <strong>Google Mail</strong> (email notifications).</p>
           </section>
 
           <section className="privacy-section">
