@@ -54,7 +54,7 @@ export default function Support() {
       <Sidebar activePage="settings" />
 
       <main className="main">
-        <div className="content">
+        <div className="content about-page">
           <section className="support-hero">
             <div className="support-hero-inner">
               <h1>Contact Support</h1>

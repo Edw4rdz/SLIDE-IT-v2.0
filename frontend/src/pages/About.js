@@ -8,7 +8,7 @@ export default function About() {
       <Sidebar activePage="dashboard" />
 
       <main className="main">
-        <div className="content">
+        <div className="content about-page">
           <section className="about-hero">
             <div className="about-hero-inner">
               <h1>About Slide-IT</h1>
@@ -25,7 +25,7 @@ export default function About() {
               </div>
               <div className="feature-card">
                 <h3>AI-Assisted Content</h3>
-                <p>Generate slide copy, speaker notes, and layouts using built-in AI tools.</p>
+                <p>Generate slide copy, AI images, and layouts using built-in AI tools.</p>
               </div>
               <div className="feature-card">
                 <h3>Templates & Collaboration</h3>
@@ -37,11 +37,19 @@ export default function About() {
           <section className="about-team">
             <h2>Our Mission</h2>
             <p>We want to make slide creation joyful and productive. By combining smart automation with familiar editing workflows, Slide-IT saves time and improves presentation quality.</p>
+            <div className="team-section">
+              <h3>Researchers & Developers</h3>
+              <div className="team-media">
+                <img
+                  className="team-photo"
+                  src={process.env.PUBLIC_URL + '/images/team.jpg'}
+                  alt="Slide-IT researchers and developers"
+                />
+              </div>
+            </div>
           </section>
 
-          <section className="about-cta">
-            <p>If you'd like to collaborate, suggest features, or report issues, reach out at <a href="mailto:support@slideit.example">support@slideit.example</a>.</p>
-          </section>
+        
         </div>
       </main>
     </div>

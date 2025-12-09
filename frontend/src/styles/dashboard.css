@@ -158,6 +158,45 @@ body {
   color: #945adb;
 }
 
+/* Sparkle shimmer for welcome emoji */
+.welcome-text { display: inline-flex; align-items: center; gap: 8px; }
+.sparkle {
+  display: inline-block;
+  transform-origin: 50% 50%;
+  font-size: 1.05em;
+  line-height: 1;
+  will-change: transform, text-shadow, opacity;
+  animation: sparkle-shimmer 2200ms ease-in-out infinite;
+}
+
+@keyframes sparkle-shimmer {
+  0% {
+    transform: translateY(0) rotate(0) scale(1);
+    text-shadow: 0 0 0 rgba(255,230,160,0);
+    opacity: 1;
+  }
+  30% {
+    transform: translateY(-2px) rotate(-6deg) scale(1.06);
+    text-shadow: 0 0 6px rgba(255,215,80,0.9), 0 0 12px rgba(255,180,40,0.55);
+    opacity: 1;
+  }
+  55% {
+    transform: translateY(0) rotate(8deg) scale(1.02);
+    text-shadow: 0 0 10px rgba(255,230,120,0.95), 0 0 18px rgba(255,200,60,0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) rotate(0) scale(1);
+    text-shadow: 0 0 0 rgba(255,230,160,0);
+    opacity: 1;
+  }
+}
+
+/* Respect user's reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .sparkle { animation: none !important; }
+}
+
 .dashboard .header p {
   color: #666;
   font-size: 1.1rem;
@@ -270,6 +309,30 @@ body {
   filter: brightness(1.1);
 }
 
+/* Subtle movement for the inner icon when the card is hovered. Respects prefers-reduced-motion. */
+.dashboard .tool-icon i {
+  display: inline-block;
+  transform-origin: 50% 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard .tool-card:hover .tool-icon i {
+    animation: icon-hover 1200ms ease-in-out infinite;
+  }
+
+  @keyframes icon-hover {
+    0% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-6px) rotate(-8deg); }
+    50% { transform: translateY(0) rotate(4deg); }
+    75% { transform: translateY(-4px) rotate(-4deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard .tool-icon i { animation: none !important; }
+}
+
 /* Individual circle background colors */
 .dashboard .tool-icon.plus { background: #8b5cf6; }   /* Purple for AI */
 .dashboard .tool-icon.pdf { background: #ef4444; }    /* Red for PDF */
@@ -293,6 +356,33 @@ body {
   margin-top: auto;
   font-size: 14px;
   color: #666;
+}
+
+/* Arrow movement animation to draw attention to the "start"/action */
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard .tool-arrow i {
+    display: inline-block;
+    animation: arrow-slide 1.6s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .dashboard .tool-card:hover .tool-arrow i {
+    animation: arrow-hover 0.9s ease-in-out infinite;
+  }
+
+  @keyframes arrow-slide {
+    0% { transform: translateX(0); }
+    45% { transform: translateX(6px); }
+    55% { transform: translateX(6px); }
+    100% { transform: translateX(0); }
+  }
+
+  @keyframes arrow-hover {
+    0% { transform: translateX(0); }
+    30% { transform: translateX(10px); }
+    60% { transform: translateX(6px); }
+    100% { transform: translateX(0); }
+  }
 }
 .sidebar-links .admin-link {
   display: block;

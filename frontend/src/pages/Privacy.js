@@ -8,7 +8,7 @@ export default function Privacy() {
       <Sidebar activePage="settings" />
 
       <main className="main">
-        <div className="content">
+        <div className="content about-page">
           <section className="privacy-hero">
             <div className="privacy-hero-inner">
               <h1>Privacy Policy</h1>
@@ -20,7 +20,7 @@ export default function Privacy() {
             <h2>Information We Collect</h2>
             <ul>
               <li>Account information (name, email) when you sign up.</li>
-              <li>Files you upload (PPT, PDF, DOCX, images) to provide conversion services.</li>
+              <li>Files you upload (PPT, PDF, DOCX, TXT, EXCEL) to provide conversion services.</li>
               <li>Usage data and analytics to improve the service.</li>
             </ul>
           </section>
@@ -32,7 +32,7 @@ export default function Privacy() {
 
           <section className="privacy-section">
             <h2>Third Parties</h2>
-            <p>We may share data with trusted third-party services (storage, analytics) under contractual obligations to protect your privacy.</p>
+            <p>We may share data with trusted third-party services (Firebase, AWS, Google Gemini, Grok by X) under contractual obligations to protect your privacy.</p>
           </section>
 
           <section className="privacy-section">

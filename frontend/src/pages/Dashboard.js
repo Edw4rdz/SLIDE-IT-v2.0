@@ -217,7 +217,7 @@ export default function Dashboard() {
         <div className="content">
           <div className="header">
             <h1>
-              <span>✨ Welcome</span> {userName}
+              <span className="welcome-text"><span className="sparkle">✨</span> Welcome</span> {userName}
             </h1>
             <p>Choose a tool below to get started</p>
           </div>
