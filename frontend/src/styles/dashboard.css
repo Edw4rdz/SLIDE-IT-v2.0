@@ -158,6 +158,40 @@ body {
   color: #945adb;
 }
 
+/* Welcome word per-letter animation */
+.welcome-word { display: inline-block; margin-left: 8px; }
+.welcome-word .char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(10px) rotateX(8deg) scale(0.98);
+  will-change: transform, opacity;
+}
+.welcome-word.animate .char {
+  animation: char-pop 520ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+@keyframes char-pop {
+  0% { opacity: 0; transform: translateY(10px) rotateX(8deg) scale(0.98); }
+  60% { opacity: 1; transform: translateY(-6px) rotateX(0deg) scale(1.06); }
+  100% { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1); }
+}
+
+/* Keep username visually separated and aligned */
+.username { margin-left: 10px; font-weight: 700; color: #000; display: inline-block; }
+
+/* Ensure username color overrides broader header span color rules */
+.dashboard .header h1 .welcome-word .username {
+  color: #000 !important;
+}
+
+/* Username per-character style (participates in same animation) */
+.welcome-word .username-char { color: #000 !important; font-weight: 700; display: inline-block; }
+.welcome-word .spacer { display: inline-block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-word .char { animation: none !important; transition: none !important; transform: none !important; opacity: 1 !important; }
+}
+
 /* Sparkle shimmer for welcome emoji */
 .welcome-text { display: inline-flex; align-items: center; gap: 8px; }
 .sparkle {
@@ -236,7 +270,20 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease, border-color 220ms ease, background-color 220ms ease;
+  cursor: default;
 }
+.feedback-card-mini:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(6,10,15,0.08);
+  background-color: #ffffff;
+  border-left: 4px solid rgba(139,92,246,0.12);
+  cursor: pointer;
+}
+.feedback-card-mini:hover .meta .who { color: #0b1220; }
+.feedback-card-mini:hover .f-title { color: #111827; }
+.feedback-card-mini .meta { transition: color 180ms ease; }
+.feedback-card-mini .f-title { transition: color 180ms ease; }
 .feedback-card-mini .meta {
   display: flex;
   gap: 8px;
@@ -281,11 +328,30 @@ body {
   height: 100%;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
+
+  /* start hidden for entrance animation */
+  opacity: 0;
+  transform: translateY(10px) scale(0.995);
 }
 
 .dashboard .tool-card:hover {
   transform: translateY(-6px);
   box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+}
+
+/* Tools entrance animation when grid has .animate */
+.tools-grid.animate .tool-card {
+  animation: card-pop 420ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+@keyframes card-pop {
+  0% { opacity: 0; transform: translateY(12px) scale(0.995); }
+  60% { opacity: 1; transform: translateY(-6px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tools-grid.animate .tool-card { animation: none !important; opacity: 1 !important; transform: none !important; }
 }
 
 /* Tool Icon Circle */

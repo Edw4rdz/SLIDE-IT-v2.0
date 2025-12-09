@@ -27,6 +27,8 @@ const tools = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [animateWelcome, setAnimateWelcome] = useState(false);
+  const [animateTools, setAnimateTools] = useState(false);
   const [userName, setUserName] = useState("Loading...");
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -192,6 +194,18 @@ export default function Dashboard() {
     return visible + "***";
   };
 
+  // Trigger the welcome letters animation once the user name is known
+  useEffect(() => {
+    if (userName && userName !== "Loading...") {
+      // small delay so header renders first
+      const t = setTimeout(() => setAnimateWelcome(true), 220);
+      // trigger tools animation after welcome letters finish (~1.1s)
+      const t2 = setTimeout(() => setAnimateTools(true), 1300);
+      return () => { clearTimeout(t); clearTimeout(t2); };
+    }
+    setAnimateWelcome(false);
+  }, [userName]);
+
   const formatTime = (ts) => {
     try {
       if (!ts) return "";
@@ -217,17 +231,35 @@ export default function Dashboard() {
         <div className="content">
           <div className="header">
             <h1>
-              <span className="welcome-text"><span className="sparkle">✨</span> Welcome</span> {userName}
+              <span className="welcome-text">
+                <span className="sparkle">✨</span>
+                <span className={`welcome-word ${animateWelcome ? 'animate' : ''}`} aria-hidden={false}>
+                  {Array.from('Welcome').map((ch, i) => (
+                    <span key={i} className="char" style={{ animationDelay: `${i * 80}ms` }}>{ch}</span>
+                  ))}
+                  {/* username rendered per-character so it animates letter-by-letter after Welcome */}
+                  <span className="char spacer" style={{ animationDelay: `${Array.from('Welcome').length * 80}ms` }}>&nbsp;</span>
+                  {Array.from(userName || '').map((c, j) => (
+                    <span
+                      key={`u-${j}`}
+                      className={`char username-char`}
+                      style={{ animationDelay: `${(Array.from('Welcome').length + 1 + j) * 80}ms` }}
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </span>
+              </span>
             </h1>
             <p>Choose a tool below to get started</p>
           </div>
 
           
 
-          <div className="tools-grid">
+          <div className={`tools-grid ${animateTools ? 'animate' : ''}`}>
             {tools.map((tool, index) => (
               <Link key={index} to={tool.path} className="tool-card-link">
-                <div className="tool-card">
+                <div className="tool-card" style={{ animationDelay: `${index * 90}ms` }}>
                   <div className={`tool-icon ${tool.colorClass}`}>
                     <i className={`fa ${tool.icon}`} />
                   </div>
