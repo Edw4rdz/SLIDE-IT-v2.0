@@ -2,14 +2,17 @@
 .settings-main {
   margin-left: 230px;
   padding: 30px 40px;
+  padding-bottom: 200px; /* Extra space for fixed footer */
   width: calc(100% - 230px);
   background: #f7f8fa;
   min-height: 100vh;
 }
 
+/* Ensure content container has extra bottom margin */
 .settings-container {
   max-width: 1400px;
   margin: 0 auto;
+  margin-bottom: 120px; /* Extra space above footer */
   width: 100%; /* allow full width usage inside the main area */
 }
 
@@ -40,7 +43,8 @@
   grid-template-columns: 1fr 420px;
   gap: 28px;
   align-items: start; /* top-align cards so they line up */
-  grid-auto-rows: 1fr; /* make both grid columns equal height */
+  margin-bottom: 80px; /* Add more space before footer */
+  padding-bottom: 20px;
 }
 
 /* When the grid is used for a single column page, let it fill the available width */
@@ -86,9 +90,8 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  /* ensure both cards visually align in height when content differs */
   min-height: 200px;
-  height: 100%; /* stretch to the grid row height */
+  height: auto; /* Allow natural height instead of forcing grid row height */
 }
 
 .settings-card:hover {

@@ -41,44 +41,46 @@ function AppContent() {
   const hideFooterPaths = ['/login', '/signup', '/forgot-password', '/verify-otp'];
 
   return (
-    <>
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/verify-otp" element={<VerifyOTP />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/ai-generator" element={<AIGenerator />} />
-        <Route path="/pdftoppt" element={<PDFToPPT />} />
-        <Route path="/texttoppt" element={<TextToPPT />} />
-        <Route path="/wordtoppt" element={<WordToPPT />} />
-        <Route path="/exceltoppt" element={<ExcelToPPT />} />
-        <Route path="/conversion" element={<Conversions />} />
-        <Route path="/logout" element={<Logout />} />
-        <Route path="/ai-generator" element={<AIGenerator />} />
-        <Route path="/edit-preview" element={<EditPreview />} />
-        <Route path="/uploadTemplate" element={<UploadTemplate />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/customize-template" element={<CustomizeTemplate />} />
-        <Route path="/generator" element={<Generator />} />
-        <Route 
-          path="/admin" 
-          element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          } 
-        />
-        <Route path="/about" element={<About />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/support" element={<Support />} />
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <div style={{ flex: '1 0 auto' }}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-otp" element={<VerifyOTP />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/ai-generator" element={<AIGenerator />} />
+          <Route path="/pdftoppt" element={<PDFToPPT />} />
+          <Route path="/texttoppt" element={<TextToPPT />} />
+          <Route path="/wordtoppt" element={<WordToPPT />} />
+          <Route path="/exceltoppt" element={<ExcelToPPT />} />
+          <Route path="/conversion" element={<Conversions />} />
+          <Route path="/logout" element={<Logout />} />
+          <Route path="/ai-generator" element={<AIGenerator />} />
+          <Route path="/edit-preview" element={<EditPreview />} />
+          <Route path="/uploadTemplate" element={<UploadTemplate />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/customize-template" element={<CustomizeTemplate />} />
+          <Route path="/generator" element={<Generator />} />
+          <Route 
+            path="/admin" 
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } 
+          />
+          <Route path="/about" element={<About />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/support" element={<Support />} />
 
-        <Route path="*" element={<h1>404 - Page Not Found</h1>} />
-      </Routes>
+          <Route path="*" element={<h1>404 - Page Not Found</h1>} />
+        </Routes>
+      </div>
 
       {/* Render footer except on login/signup pages */}
       {!hideFooterPaths.includes(location.pathname) && <Footer />}
-    </>
+    </div>
   );
 }
