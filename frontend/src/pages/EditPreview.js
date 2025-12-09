@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from "../utils/notify";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable, FaAngleDoubleUp, FaAngleUp, FaAngleDown, FaAngleDoubleDown, FaTrash } from 'react-icons/fa';
+import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable, FaAngleDoubleUp, FaAngleUp, FaAngleDown, FaAngleDoubleDown, FaTrash, FaQuestionCircle } from 'react-icons/fa';
 import { getTemplates, downloadPPTX } from '../api';
 import '../styles/edit-preview.css';
 import ConfirmDialog from "../components/ConfirmDialog";
+import GuideModal from "../components/GuideModal";
 
 
 function fileOrUrlToDataUrl(uploadedImage) {
@@ -759,6 +760,9 @@ export default function EditPreview() {
 
   const [imageRetryCounts, setImageRetryCounts] = useState({});
 
+  // Guide modal state
+  const [showGuide, setShowGuide] = useState(false);
+
 
 
   // Helper for image error fallback and retry (must be defined before any JSX usage)
@@ -797,6 +801,15 @@ export default function EditPreview() {
 
 
   const [stickerCategories, setStickerCategories] = useState([]);
+
+  // Show guide on first visit
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem('slideit_edit_guide_seen');
+    if (!hasSeenGuide) {
+      setShowGuide(true);
+      localStorage.setItem('slideit_edit_guide_seen', 'true');
+    }
+  }, []);
 
   // Load draft on mount if available
   useEffect(() => {
@@ -3358,6 +3371,19 @@ export default function EditPreview() {
     });
   };
 
+  const handleAddImageBack = (slideId) => {
+    setEditedSlides(currentSlides => {
+      const updatedSlides = currentSlides.map(s =>
+        s.id === slideId ? { ...s, removedImage: false } : s
+      );
+      // Save draft immediately after adding image back
+      saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
+      return updatedSlides;
+    });
+    // Auto-select the image so user can see the controls
+    setSelectedImage(slideId);
+  };
+
   const handleLayering = (slideId, type, index, action) => {
     setEditedSlides(prev => prev.map(s => {
       if (s.id !== slideId) return s;
@@ -4075,6 +4101,18 @@ export default function EditPreview() {
 
             <div style={{ display:'flex', flexDirection:'column', gap:6, position:'relative' }}>
 
+              {/* Add Image Button - Shows when image is removed */}
+              {s.removedImage && (
+                <button
+                  className="toolbar-button"
+                  title="Add image to slide"
+                  onClick={() => handleAddImageBack(s.id)}
+                  style={{ display:'flex', alignItems:'center', gap:6, background: 'transparent', borderColor: undefined }}
+                >
+                  <FaUpload /> Add Image
+                </button>
+              )}
+
               <button
 
                 className="toolbar-button"
@@ -4680,7 +4718,7 @@ export default function EditPreview() {
                        pointerEvents: isEditing ? 'auto' : 'none'
                      }}
                    >
-                     {bulletLines.map(line => `• ${line}`).join('\n')}
+                     {bulletLines.length > 0 ? bulletLines.map(line => `• ${line}`).join('\n') : 'Click to add text'}
                    </div>
                    {isSelected && !isEditing && (
                      <>
@@ -6110,6 +6148,39 @@ export default function EditPreview() {
 
             />
 
+            <button 
+              className="btn-guide" 
+              onClick={() => setShowGuide(true)} 
+              title="Open Guide"
+              style={{
+                padding: '10px 16px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+              }}
+            >
+
+              <FaQuestionCircle /> Guide
+
+            </button>
+
             <button className="btn-back" onClick={() => {
 
               // Try to get convId from location.state if present
@@ -6576,6 +6647,9 @@ export default function EditPreview() {
         onConfirm={confirmDeleteSlide}
         onCancel={() => setDeleteConfirm({ open: false, slideId: null })}
       />
+
+      {/* Guide Modal */}
+      <GuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />
 
     </div>
 
