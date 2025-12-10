@@ -10,12 +10,12 @@ const PROVIDERS = [
     badgeClass: "free"
   },
   { 
-    value: "openai", 
+    value: "grok", 
     label: "Grok AI", 
-    desc: "Premium AI (currently unavailable due to rate limits)",
+    desc: "Premium AI",
     badge: "Premium",
     badgeClass: "premium",
-    disabled: true
+    disabled: false
   }
 ];
 
