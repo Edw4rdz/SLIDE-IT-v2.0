@@ -14,6 +14,7 @@ export default function WordToPPT() {
   const [slides, setSlides] = useState(15);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
   const [conversionId, setConversionId] = useState(null);
@@ -27,6 +28,42 @@ export default function WordToPPT() {
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState("grockai");
   const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
+
+  // Drag and drop handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files[0];
+    if (
+      droppedFile &&
+      (droppedFile.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        droppedFile.type === "application/msword")
+    ) {
+      setFile(droppedFile);
+    } else {
+      notify("Please upload a valid Word file (.docx or .doc)", "error");
+    }
+  };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -143,7 +180,13 @@ export default function WordToPPT() {
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Word Document</h2>
 
-                <div className="uploadw-area">
+                <div 
+                  className={`uploadw-area ${isDragging ? 'dragging' : ''}`}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
                   <div className="uploadw-icon">⬆</div>
                   <h3>
                     Drop your Word document here, or{" "}

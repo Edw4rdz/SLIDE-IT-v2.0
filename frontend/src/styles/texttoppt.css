@@ -529,6 +529,13 @@ textarea {
   background: #fef3c7 !important;
 }
 
+.texttoppt .uploadp-area.dragging {
+  background: #fef08a !important;
+  border-color: #eab308 !important;
+  transform: scale(1.02);
+  box-shadow: 0 8px 16px rgba(250, 204, 21, 0.3);
+}
+
 .texttoppt .uploadp-icon {
   color: #facc15 !important;
 }

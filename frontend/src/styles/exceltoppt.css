@@ -103,6 +103,13 @@ body {
   background: #f0fdf4; /* Light green hover */
 }
 
+.uploadp-area.dragging {
+  background: #dcfce7 !important;
+  border-color: #16a34a !important;
+  transform: scale(1.02);
+  box-shadow: 0 8px 16px rgba(22, 163, 74, 0.3);
+}
+
 .uploadp-icon {
   font-size: 32px;
   color: #16a34a; /* Green */

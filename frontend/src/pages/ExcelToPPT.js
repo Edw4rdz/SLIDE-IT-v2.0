@@ -146,6 +146,7 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
   const [chartSummary, setChartSummary] = useState("");
   const [autoChartSummary, setAutoChartSummary] = useState("");
   const [file, setFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [excelSuggestions, setExcelSuggestions] = useState([]);
   const [selectedChartSheetIndex, setSelectedChartSheetIndex] = useState(0);
   const [showChartTypeModal, setShowChartTypeModal] = useState(false);
@@ -170,6 +171,43 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
+
+  // Drag and drop handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files[0];
+    if (!droppedFile) return;
+
+    if (
+      droppedFile.type ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      droppedFile.type === "application/vnd.ms-excel"
+    ) {
+      setFile(droppedFile);
+    } else {
+      notify("Please upload a valid Excel file (.xlsx or .xls)", "error");
+    }
+  };
 
   // File selection
   const handleFileChange = (e) => {
@@ -620,7 +658,13 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
             <div className="ai-left">
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Excel File</h2>
-                <div className="uploadp-area">
+                <div 
+                  className={`uploadp-area ${isDragging ? 'dragging' : ''}`}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
                   <div className="uploadp-icon">⬆</div>
                   <h3>
                     Drop your Excel file here, or{" "}

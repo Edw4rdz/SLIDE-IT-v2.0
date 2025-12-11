@@ -14,6 +14,7 @@ export default function PDFToPPT() {
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const [convertedSlides, setConvertedSlides] = useState(null);
@@ -28,7 +29,40 @@ export default function PDFToPPT() {
   const [selectedProvider, setSelectedProvider] = useState("grockai");
   const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
 
+  // Drag and drop handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
 
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files[0];
+    if (!droppedFile || droppedFile.type !== "application/pdf") {
+      notify("Please upload a valid PDF file", "error");
+      return;
+    }
+    if (droppedFile.size > 25 * 1024 * 1024) {
+      notify("File too large (max 25MB)", "error");
+      return;
+    }
+    setFile(droppedFile);
+  };
 
   // Handle file upload
   const handleFileChange = (e) => {
@@ -151,10 +185,16 @@ export default function PDFToPPT() {
              <div className="ai-left">
                <div className="ai-card ai-card-top">
                  <h2>Upload Your PDF</h2>
-                 <div className="uploadp-area">
+                 <div 
+                   className={`uploadp-area ${isDragging ? 'dragging' : ''}`}
+                   onDragEnter={handleDragEnter}
+                   onDragLeave={handleDragLeave}
+                   onDragOver={handleDragOver}
+                   onDrop={handleDrop}
+                 >
                    <div className="uploadp-icon">⬆</div>
                    <h3>
-                     Drop your PDF here, or{" "}
+                     Drop your PDF file here, or{" "}
                      <span
                        className="browsep"
                        onClick={() => fileInputRef.current.click()}

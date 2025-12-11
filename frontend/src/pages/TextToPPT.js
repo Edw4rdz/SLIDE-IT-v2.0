@@ -13,6 +13,7 @@ export default function TextToPPT() {
   const [fileContent, setFileContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
   const [conversionId, setConversionId] = useState(null);
@@ -25,6 +26,49 @@ export default function TextToPPT() {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
+
+  // Drag and drop handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files[0];
+    if (!droppedFile || droppedFile.type !== "text/plain") {
+      notify("Please upload a valid .txt file", "error");
+      return;
+    }
+    if (droppedFile.size > 25 * 1024 * 1024) {
+      notify("File too large (max 25MB)", "error");
+      return;
+    }
+    setFile(droppedFile);
+    const reader = new FileReader();
+    reader.onload = () => setFileContent(reader.result);
+    reader.onerror = () => {
+      notify("Error reading file.", "error");
+      setFile(null);
+      setFileContent("");
+    };
+    reader.readAsText(droppedFile);
+  };
 
   // Handle file upload
   const handleFileChange = (e) => {
@@ -193,7 +237,13 @@ export default function TextToPPT() {
             <div className="ai-left">
               <div className="ai-card ai-card-top">
                 <h2>Upload Your Text File</h2>
-                <div className="uploadp-area">
+                <div 
+                  className={`uploadp-area ${isDragging ? 'dragging' : ''}`}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
                   <div className="uploadp-icon">⬆</div>
                   <h3>
                     Drop your text file here, or {" "}
