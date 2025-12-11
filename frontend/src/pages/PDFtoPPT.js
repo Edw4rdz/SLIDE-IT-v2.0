@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
 import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
-import { FaImages, FaFileAlt } from "react-icons/fa";
 import { convertPDF, cache } from "../api"; 
 import "../styles/pdftoppt.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";

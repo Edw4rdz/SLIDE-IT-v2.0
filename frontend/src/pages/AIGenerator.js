@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { notify } from "../utils/notify";
 import AIProviderModal from "../components/AIProviderModal";
 import ImageProviderModal from "../components/ImageProviderModal";
 import { useNavigate } from "react-router-dom";
-import { FaMagic, FaEdit } from "react-icons/fa";
+import { FaMagic } from "react-icons/fa";
 import { generateSlides, cache } from "../api"; // <-- Added cache import
 import "../styles/ai-generator.css";
 import Sidebar from "../components/Sidebar"; 

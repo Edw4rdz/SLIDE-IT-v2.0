@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from "../utils/notify";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable, FaAngleDoubleUp, FaAngleUp, FaAngleDown, FaAngleDoubleDown, FaTrash, FaQuestionCircle } from 'react-icons/fa';
+import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable, FaTrash, FaQuestionCircle } from 'react-icons/fa';
 import { getTemplates, downloadPPTX } from '../api';
 import '../styles/edit-preview.css';
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -72,60 +72,6 @@ async function saveDraft(slides, topic, convId, design, imageProvider) {
 
 
 
-function getContrastYIQ(hexColor) {
-
-  if (typeof hexColor !== 'string') hexColor = String(hexColor || '');
-
-  let r, g, b;
-
-  if (hexColor.startsWith('#')) {
-
-    const hex = hexColor.replace('#', '');
-
-    if (hex.length === 3) {
-
-      r = parseInt(hex[0] + hex[0], 16);
-
-      g = parseInt(hex[1] + hex[1], 16);
-
-      b = parseInt(hex[2] + hex[2], 16);
-
-    } else if (hex.length === 6) {
-
-      r = parseInt(hex.substring(0, 2), 16);
-
-      g = parseInt(hex.substring(2, 4), 16);
-
-      b = parseInt(hex.substring(4, 6), 16);
-
-    }
-
-  } else if (hexColor.startsWith('rgb')) {
-
-    const rgb = hexColor.match(/\d+/g);
-
-    r = parseInt(rgb[0], 10);
-
-    g = parseInt(rgb[1], 10);
-
-    b = parseInt(rgb[2], 10);
-
-  } else {
-
-    // fallback to white
-
-    return '#fff';
-
-  }
-
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-
-  return yiq >= 128 ? '#222' : '#fff';
-
-}
-
-
-
 
 
 
@@ -188,23 +134,7 @@ const MAX_TABLE_WIDTH = 0.94;
 
 const MAX_TABLE_HEIGHT = 0.88;
 
-// eslint-disable-next-line no-unused-vars
-
-const HANDLE_TOUCH_SIZE = 16;
-
-// eslint-disable-next-line no-unused-vars
-
-const HANDLE_LINE_WIDTH = 2;
-
-// eslint-disable-next-line no-unused-vars
-
-const HANDLE_COLOR_IDLE = 'transparent';
-
-// eslint-disable-next-line no-unused-vars
-
-const HANDLE_COLOR_ACTIVE = 'rgba(148,163,184,0.85)';
-
-
+// Default sizing proportions
 
 const autoSizeTableFrame = (table) => {
 
@@ -529,10 +459,6 @@ export default function EditPreview() {
 
   const location = useLocation();
 
-  // eslint-disable-next-line no-unused-vars
-
-  const [slides, setSlides] = useState(location.state?.slides || []);
-
   const navigate = useNavigate();
 
   
@@ -754,12 +680,6 @@ export default function EditPreview() {
 
   const [previewImageUrls, setPreviewImageUrls] = useState({});
 
-  const [fetchingImages, setFetchingImages] = useState(true);
-
-  // Track retry counts for each slide's AI image
-
-  const [imageRetryCounts, setImageRetryCounts] = useState({});
-
   // Guide modal state
   const [showGuide, setShowGuide] = useState(false);
 
@@ -767,15 +687,12 @@ export default function EditPreview() {
 
   // Helper for image error fallback and retry (must be defined before any JSX usage)
 
-  const MAX_IMAGE_RETRIES = 2;
-
   function handleImageError(e, slideId, imagePrompt) {
 
-  setImageRetryCounts(prev => {
+    const maxRetries = 3;
+    const currentRetries = parseInt(e.currentTarget?.dataset?.retries || '0', 10);
 
-    const count = (prev[slideId] || 0) + 1;
-
-    if (count <= MAX_IMAGE_RETRIES && imagePrompt) {
+    if (currentRetries < maxRetries && imagePrompt) {
 
       setPreviewImageUrls(urls => ({
 
@@ -785,6 +702,8 @@ export default function EditPreview() {
 
       }));
 
+      if (e.currentTarget) e.currentTarget.dataset.retries = String(currentRetries + 1);
+
     } else if (e.currentTarget) {
 
       e.currentTarget.src = FALLBACK_IMAGE;
@@ -793,12 +712,7 @@ export default function EditPreview() {
 
     }
 
-    return { ...prev, [slideId]: count };
-
-  });
-
-}
-
+  }
 
   const [stickerCategories, setStickerCategories] = useState([]);
 
@@ -1044,6 +958,7 @@ export default function EditPreview() {
       setExternalStickers([]);
       setLoadingExternalStickers(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stickerSearchQuery, searchExternalStickers]);
 
   
@@ -1123,8 +1038,6 @@ export default function EditPreview() {
 
   }, [selectedTemplateId]);
 
-
-
   useEffect(() => {
 
     const navigationDesign = location.state?.initialDesign;
@@ -1181,9 +1094,7 @@ export default function EditPreview() {
 
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
-  }, []); 
+  }, [location.state?.initialDesign]); 
 
   // Helper to get the current user
   const getCurrentUser = () => {
@@ -1265,8 +1176,6 @@ export default function EditPreview() {
       if (imageProvider === 'imagen' && slidesCopy[0] && (!slidesCopy[0].imagePrompt || !slidesCopy[0].imagePrompt.trim())) {
         slidesCopy[0].imagePrompt = 'A visually appealing slide background';
       }
-
-      setFetchingImages(true);
 
       const generateImageUrls = async () => {
 
@@ -1427,7 +1336,6 @@ export default function EditPreview() {
 
         setPreviewImageUrls(urls);
 
-        setFetchingImages(false);
         imageGenerationInProgress.current = false; // Reset flag
 
       };
@@ -1438,13 +1346,12 @@ export default function EditPreview() {
 
     } else {
 
-      setFetchingImages(false);
-
       setPreviewImageUrls({});
       imageGenerationInProgress.current = false; // Reset flag
 
     }
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editedSlides.length, JSON.stringify(editedSlides.map(s => s.imagePrompt)), showImageColumn, imageProvider]); 
 
   // Auto-generate sticker images for slides that have sticker prompts but no URLs
@@ -1584,15 +1491,6 @@ export default function EditPreview() {
     // Replace **text** with "text"
     return text.replace(/\*\*(.*?)\*\*/g, '"$1"');
   };
-
-  // Convert quotes back to markdown when saving (for editing)
-  const convertQuotesToMarkdown = (text) => {
-    if (typeof text !== 'string') return text;
-    // Convert "text": back to **text**: (preserving the colon)
-    return text.replace(/"([^"]+)":/g, '**$1**:');
-  };
-
-
 
   // Add sticker (image or shape)
 
@@ -1822,7 +1720,7 @@ export default function EditPreview() {
 
 
 
-  const handleRemoveTable = (slideId, index) => {
+  const handleRemoveTable = useCallback((slideId, index) => {
 
     setEditedSlides((prev) => {
       const updated = prev.map((s) => {
@@ -1849,7 +1747,7 @@ export default function EditPreview() {
 
     }
 
-  };
+  }, [topic, location.state?.convId, currentDesign, imageProvider, activeTableCell]);
 
 
 
@@ -2413,7 +2311,6 @@ export default function EditPreview() {
 
           // Handle image resizing (index === -1)
           if (index === -1) {
-            const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
             let x = origX || 0.5, y = origY || 0.15, w = origW || 0.4, h = origH || 0.6;
 
             if (mode === 'se') { w = clamp(w + dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
@@ -2892,7 +2789,6 @@ export default function EditPreview() {
 
           // Handle image resizing (index === -1)
           if (index === -1) {
-            const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
             let x = origX !== undefined ? origX : 0.5, y = origY !== undefined ? origY : 0.15, w = origW || 0.4, h = origH || 0.6;
 
             if (mode === 'se') { w = clamp(w + dx, 0.1, 1); h = clamp(h + dy, 0.1, 1); }
@@ -2955,9 +2851,8 @@ export default function EditPreview() {
 
       // Text Box resizing
       if (resizingTextBox) {
-        const { slideId, type, startX, startY, origX, origY, origW, origH, origFontSize, rect, mode } = resizingTextBox;
+        const { slideId, type, startX, origX, origY, origW, origH, origFontSize, rect, mode } = resizingTextBox;
         const dx = (ev.clientX - startX) / rect.width;
-        const dy = (ev.clientY - startY) / rect.height;
         setEditedSlides((prev) => prev.map((s) => {
           if (s.id !== slideId) return s;
           
@@ -3193,6 +3088,7 @@ export default function EditPreview() {
 
     return () => window.removeEventListener('keydown', onKeyDown);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSticker]);
 
 
@@ -3264,8 +3160,6 @@ export default function EditPreview() {
 
   }, [editedSlides, tableCreator.slideId]);
 
-
-
   useEffect(() => {
 
     if (!selectedTable) return;
@@ -3306,9 +3200,7 @@ export default function EditPreview() {
 
     };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-
-  }, [selectedTable]);
+  }, [selectedTable, handleRemoveTable]);
 
 
 
@@ -3445,65 +3337,6 @@ export default function EditPreview() {
     });
     // Auto-select the image so user can see the controls
     setSelectedImage(slideId);
-  };
-
-  const handleLayering = (slideId, type, index, action) => {
-    setEditedSlides(prev => prev.map(s => {
-      if (s.id !== slideId) return s;
-
-      // Gather all elements to determine z-index range
-      const elements = [
-        ...(s.tables || []).map(t => ({ zIndex: t.zIndex || 10 })),
-        ...(s.stickers || []).map(st => ({ zIndex: st.zIndex || 20 })),
-        ...(s.uploadedImage || previewImageUrls[s.id] || showImageColumn ? [{ zIndex: s.imageData?.zIndex !== undefined ? s.imageData.zIndex : 110 }] : []),
-        { zIndex: s.titleBox?.zIndex !== undefined ? s.titleBox.zIndex : 100 },
-        { zIndex: s.bodyBox?.zIndex !== undefined ? s.bodyBox.zIndex : 100 }
-      ];
-      
-      // Find current zIndex of target
-      let currentZ = 0;
-      if (type === 'table') currentZ = s.tables[index]?.zIndex || 10;
-      if (type === 'sticker') currentZ = s.stickers[index]?.zIndex || 20;
-      if (type === 'image') currentZ = s.imageData?.zIndex !== undefined ? s.imageData.zIndex : 110;
-      if (type === 'title') currentZ = s.titleBox?.zIndex !== undefined ? s.titleBox.zIndex : 100;
-      if (type === 'body') currentZ = s.bodyBox?.zIndex !== undefined ? s.bodyBox.zIndex : 100;
-
-      let newZ = currentZ;
-      
-      if (action === 'front') {
-        const maxZ = Math.max(...elements.map(e => e.zIndex || 0), 0);
-        newZ = maxZ + 1;
-      } else if (action === 'back') {
-        const minZ = Math.min(...elements.map(e => e.zIndex || 0), 0);
-        newZ = minZ - 1;
-      } else if (action === 'forward') {
-        newZ = currentZ + 1;
-      } else if (action === 'backward') {
-        newZ = currentZ - 1;
-      }
-
-      // Apply new Z
-      if (type === 'table') {
-        const newTables = [...(s.tables || [])];
-        newTables[index] = { ...newTables[index], zIndex: newZ };
-        return { ...s, tables: newTables };
-      }
-      if (type === 'sticker') {
-        const newStickers = [...(s.stickers || [])];
-        newStickers[index] = { ...newStickers[index], zIndex: newZ };
-        return { ...s, stickers: newStickers };
-      }
-      if (type === 'image') {
-        return { ...s, imageData: { ...(s.imageData || {}), zIndex: newZ } };
-      }
-      if (type === 'title') {
-        return { ...s, titleBox: { ...(s.titleBox || { x: 0.05, y: 0.0622, width: 0.9, height: 0.1778 }), zIndex: newZ } };
-      }
-      if (type === 'body') {
-        return { ...s, bodyBox: { ...(s.bodyBox || { x: 0.05, y: 0.2844, width: 0.9, height: 0.64 }), zIndex: newZ } };
-      }
-      return s;
-    }));
   };
 
     // ➕ Add a new blank slide
@@ -3699,7 +3532,6 @@ export default function EditPreview() {
 
     // If using Google Imagen, trigger immediate generation for preview
     if (imageProvider === 'imagen') {
-      setFetchingImages(true);
       const urls = {};
       try {
         const { generateImageFromImagen } = await import('../api');
@@ -3717,8 +3549,6 @@ export default function EditPreview() {
         setPreviewImageUrls(prev => ({ ...prev, ...urls }));
       } catch (e) {
         console.error('[Preview Imagen] Generation failed:', e);
-      } finally {
-        setFetchingImages(false);
       }
     }
 
@@ -4640,8 +4470,6 @@ export default function EditPreview() {
             {(() => {
                // IMPORTANT: This must EXACTLY match the backend PPTX generation logic in pptxService.js
                // Backend uses inches; we convert to normalized (0-1) for CSS positioning
-               const SLIDE_WIDTH = 10.0;  // inches (backend uses 10 inches for width)
-               const SLIDE_HEIGHT = 5.625; // inches (backend uses 5.625 inches for height)
                
                // Convert backend inches to normalized (0-1) for CSS positioning
                const toNormalized = (inches, slideSize) => inches / slideSize;
@@ -6455,10 +6283,12 @@ export default function EditPreview() {
 
                 // eslint-disable-next-line no-unused-vars
 
+                // eslint-disable-next-line no-unused-vars
                 const isTitle = slide.layout === 'title';
 
                 // Use same two-column layout as the editor slide card when image column is enabled
 
+                // eslint-disable-next-line no-unused-vars
                 const columns = showImageColumn ? '1fr 320px' : '1fr';
 
                 // Only treat as paragraph text if explicit slide.text provided.
@@ -6494,9 +6324,6 @@ export default function EditPreview() {
                 const hasImage = showImageColumn && !slide.removedImage && Boolean(slide.uploadedImage || (slide.imagePrompt && (slide.imageData || slide.imagePosition)));
                 let computedBodyBox = slide.bodyBox;
                 
-                // Check if this is slide 3 (index 2) with center layout
-                const isSlide3CenterLayout = previewSlideIndex === 2 && slide.imagePosition === 'center';
-
                 if (hasImage && !computedBodyBox) {
                   const SLIDE_WIDTH = 10.0;  // inches
                   const SLIDE_HEIGHT = 5.625; // inches

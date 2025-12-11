@@ -7,7 +7,6 @@ import Sidebar from "../components/Sidebar";
 import AIProviderModal from "../components/AIProviderModal";
 import ImageProviderModal from "../components/ImageProviderModal";
 import { useEffect } from "react";
-import { Chart as ChartJS } from "chart.js/auto";
 import { convertExcel, cache, getHistory } from "../api"; // Added getHistory
 
 // Robust number sanitizer to handle currency, commas, parentheses, percent signs
@@ -22,129 +21,16 @@ const sanitizeNumber = (raw) => {
   // Remove currency symbols and other non-numeric trailing characters (keep e/E for scientific)
   s = s.replace(/[$£€¥₩₹%]/g, '');
   // Remove any remaining non-numeric chars except . + - and exponent markers
-  s = s.replace(/[^0-9eE+\-\.]/g, '');
+  s = s.replace(/[^0-9eE+\-.]/g, '');
   if (s === '' || s === '+' || s === '-') return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 };
 
-// Simple, isolated chart preview using a <canvas> to avoid React child issues
-function ChartPreview({ type, labels, values, datasets, title }) {
-  const canvasId = React.useMemo(
-    () => `excel-chart-preview-${Math.random().toString(36).slice(2)}`,
-    []
-  );
-
-  const [noNumericWarning, setNoNumericWarning] = useState(false);
-  useEffect(() => {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx || !Array.isArray(labels) || (!Array.isArray(values) && !(Array.isArray(datasets) && datasets.length > 0))) {
-      setNoNumericWarning(true);
-      return;
-    }
-    // Convert values/dataset values using sanitizeNumber (preserve null for gaps)
-    const numericValues = Array.isArray(values)
-      ? values.map((v) => (typeof v === "number" ? v : sanitizeNumber(v)))
-      : null;
-
-    const anyNumeric = (numericValues && numericValues.some((v) => v !== null)) || (Array.isArray(datasets) && datasets.some(ds => Array.isArray(ds.data) && ds.data.some(v => sanitizeNumber(v) !== null)));
-    if (!anyNumeric) {
-      setNoNumericWarning(true);
-      return;
-    }
-    setNoNumericWarning(false);
-
-    const finalDatasets = Array.isArray(datasets) && datasets.length
-      ? datasets.map((d, i) => ({
-          ...d,
-          data: d.data.map(v => (typeof v === 'number' ? v : sanitizeNumber(v))),
-          backgroundColor: d.backgroundColor || (type === 'pie' ? [
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(255, 159, 64, 0.6)',
-              'rgba(54, 162, 235, 0.6)',
-              'rgba(153, 102, 255, 0.6)',
-              'rgba(255, 205, 86, 0.6)',
-            ] : 'rgba(75, 192, 192, 0.5)'),
-          borderColor: d.borderColor || (type === 'pie' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(75, 192, 192, 1)'),
-          borderWidth: d.borderWidth || 1,
-        }))
-      : [{
-          label: title || 'Series',
-          data: numericValues || [],
-          backgroundColor: type === 'pie'
-            ? [
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(255, 159, 64, 0.6)',
-              'rgba(54, 162, 235, 0.6)',
-              'rgba(153, 102, 255, 0.6)',
-              'rgba(255, 205, 86, 0.6)',
-            ] : 'rgba(75, 192, 192, 0.5)',
-          borderColor: type === 'pie' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(75, 192, 192, 1)',
-          borderWidth: 1,
-        }];
-
-    const chart = new ChartJS(ctx, {
-      type: type === 'pie' ? 'pie' : type === 'line' ? 'line' : 'bar',
-      data: { labels, datasets: finalDatasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-              legend: {
-                display: true,
-              },
-        },
-        parsing: false,
-        scales: {
-          x: {
-            type: 'category',
-            ticks: {
-              autoSkip: true,
-              maxRotation: 45,
-              minRotation: 20,
-            },
-          },
-          y: {
-            beginAtZero: true,
-          },
-        },
-      },
-    });
-
-    return () => {
-      chart.destroy();
-    };
-  }, [canvasId, labels, values, type, title]);
-
-  return (
-    <div
-      style={{
-        maxWidth: 900,
-        width: '100%',
-        height: 0,
-        paddingBottom: '56.25%', // 16:9 aspect ratio
-        position: 'relative',
-        margin: "18px 0 24px",
-        background: "#fff",
-        borderRadius: 14,
-        boxShadow: "0 2px 8px rgba(15, 23, 42, 0.12)",
-      }}
-    >
-      {noNumericWarning && (
-        <div style={{ position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: '#b91c1c', fontWeight: 600, fontSize: 18, zIndex: 10 }}>
-          No numeric data available for chart. Please select a value column with numbers.
-        </div>
-      )}
-      <canvas id={canvasId} width={880} height={495} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
-    </div>
-  );
-}
-
 export default function ExcelToPPT() {
   // Add this near the top with your other states
 const [currentConversionId, setCurrentConversionId] = useState(null);
   const [chartSummary, setChartSummary] = useState("");
-  const [autoChartSummary, setAutoChartSummary] = useState("");
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [excelSuggestions, setExcelSuggestions] = useState([]);
@@ -156,7 +42,6 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
   const [pickerLabelKey, setPickerLabelKey] = useState('');
   const [pickerValueKeys, setPickerValueKeys] = useState([]);
   const [autoOpenedPickerFor, setAutoOpenedPickerFor] = useState(null);
-  const [highlightedSheets, setHighlightedSheets] = useState([]);
   const [slidesCount, setSlidesCount] = useState(15);
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
@@ -227,67 +112,6 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
     }
   };
 
-  // Show chart type modal before generating chart
-  const handleSuggestCharts = () => {
-    if (!file) return notify("Please select an Excel file first", "error");
-    setShowChartTypeModal(true);
-  };
-
-  // Generate chart slide after chart type is selected
-  const handleGenerateChartSlide = async () => {
-    setShowChartTypeModal(false);
-    setIsLoading(true);
-    setLoadingText("Generating chart slide...");
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("chartType", chartTypeToGenerate);
-      // Backend should return chart image and summary for first sheet
-      const res = await axios.post("/api/excel/upload-excel", formData);
-      const sheets = res.data.sheets || [];
-      if (sheets.length === 0) throw new Error("No chart suggestions found");
-      const sheet = sheets[0];
-      // Generate summary
-      let summary = "";
-      if (sheet.data && sheet.data.length > 1) {
-        const keys = Object.keys(sheet.data[0]);
-        const labelKey = sheet.suggestedLabelKey || keys[0];
-        const valueKey = sheet.suggestedValueKey || keys[1] || keys[0];
-        const firstLabel = sheet.data[0][labelKey];
-        const lastLabel = sheet.data[sheet.data.length - 1][labelKey];
-        const firstValue = sheet.data[0][valueKey];
-        const lastValue = sheet.data[sheet.data.length - 1][valueKey];
-        summary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
-      }
-      // Chart image URL (assume backend returns chartImageUrl)
-      const chartImageUrl = sheet.chartImageUrl || sheet.uploadedImage || "";
-      // Create slide object
-      const slide = {
-        id: 0,
-        title: sheet.sheetName || "Chart Slide",
-        uploadedImage: chartImageUrl,
-        summary,
-        chartType: chartTypeToGenerate,
-        chartData: sheet.data,
-      };
-      // Go to edit-preview with this slide
-      navigate("/edit-preview", {
-        state: {
-          slides: [slide],
-          topic: file.name.replace(/\.(xlsx|xls)$/i, ""),
-          includeImages: true,
-          imageProvider: null,
-          convId: currentConversionId, // Pass historyId for draft saving
-        },
-      });
-    } catch (err) {
-      notify("Failed to generate chart slide", "error");
-    } finally {
-      setIsLoading(false);
-      setLoadingText("");
-    }
-  };
-
   const openColumnPicker = (sheet, idx) => {
     if (!sheet || !Array.isArray(sheet.data) || sheet.data.length === 0) return;
     const keys = Object.keys(sheet.data[0] || {});
@@ -324,8 +148,6 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
       const labelEmpty = sheet?.suggestedLabelKey === '__EMPTY' || !sheet?.suggestedLabelKey;
       const meaningful = isChartMeaningful(sheet);
       if (labelEmpty || !meaningful) {
-        // mark highlight
-        setHighlightedSheets(prev => (prev.includes(idx) ? prev : [...prev, idx]));
         // auto-open for first encountered sheet only once
         if (autoOpenedPickerFor === null) {
           setAutoOpenedPickerFor(idx);
@@ -334,6 +156,7 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [excelSuggestions]);
 
   const applyColumnPicker = () => {
@@ -356,14 +179,11 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
         const firstValue = sheet.data[0][valueKey];
         const lastValue = sheet.data[sheet.data.length - 1][valueKey];
         const summary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
-        setAutoChartSummary(summary);
         // Only set the editable chartSummary if user hasn't entered a custom summary; keep manual edits
         if (!chartSummary || chartSummary.trim() === '') setChartSummary(summary);
       }
     }
     setColumnPickerOpen(false);
-    // Remove highlighting for this sheet since user updated columns
-    setHighlightedSheets(prev => prev.filter(i => i !== pickerSheetIndex));
     // Clear auto-open guard if we just fixed the one that was auto-opened
     if (autoOpenedPickerFor === pickerSheetIndex) setAutoOpenedPickerFor(null);
   };
@@ -425,7 +245,6 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
           summary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
         }
         setChartSummary(summary);
-        setAutoChartSummary(summary);
         // Now show provider modal
         setIsLoading(false);
         setLoadingText("");
@@ -436,9 +255,6 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
         notify("Failed to generate chart slide", "error");
         setPendingConvert(false);
       }
-    } else {
-      // If not from convert flow, just do the old chart suggestion behavior
-      handleGenerateChartSlide();
     }
   };
 
