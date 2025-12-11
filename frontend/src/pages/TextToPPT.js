@@ -15,6 +15,7 @@ export default function TextToPPT() {
   const [loadingText, setLoadingText] = useState("");
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
+  const [conversionId, setConversionId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [showImageProviderModal, setShowImageProviderModal] = useState(false);
@@ -122,6 +123,12 @@ export default function TextToPPT() {
       const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
       setConvertedSlides(slidesWithId);
       setTopic(file.name.replace(/\.(txt)$/i, ""));
+      
+      // Store historyId for draft saving
+      if (payload?.historyId) {
+        setConversionId(payload.historyId);
+      }
+      
       // Invalidate cache
       if (loggedInUser?.user_id) {
         cache.invalidate(`history-${loggedInUser.user_id}`);
@@ -238,7 +245,8 @@ export default function TextToPPT() {
                             slides: convertedSlides,
                             topic,
                             includeImages: includeImagesChoice,
-                            imageProvider: selectedImageProvider, // Pass the selected image provider
+                            imageProvider: selectedImageProvider,
+                            convId: conversionId, // Pass historyId for draft saving
                           },
                         })
                       }
@@ -303,6 +311,15 @@ export default function TextToPPT() {
                   <li>AI automatically creates your presentation.</li>
                   <li>Preview and edit before download.</li>
                 </ol>
+              </div>
+              <div className="ai-info-box">
+                <h3>Features</h3>
+                <ul>
+                  <li>Supports text files up to 25MB</li>
+                  <li>Optional AI-generated images</li>
+                  <li>AI-enhanced content formatting</li>
+                  <li>Customizable slide count</li>
+                </ul>
               </div>
               <div className="ai-info-box">
                 <h3>Tips</h3>

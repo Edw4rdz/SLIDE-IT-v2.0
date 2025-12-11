@@ -256,9 +256,20 @@ export default function Conversions() {
                 const displayTitle = draft?.topic || conv.fileName || 'Untitled Conversion';
                 // Prefer first slide's uploadedImage from draft if present
                 let thumbUrl = null;
-                if (displaySlides && displaySlides.length > 0 && displaySlides[0].uploadedImage) {
-                  thumbUrl = displaySlides[0].uploadedImage;
-                } else if (thumbnails[conv.id]) {
+                if (displaySlides && displaySlides.length > 0) {
+                  const firstSlide = displaySlides[0];
+                  // Priority: 1) Draft's uploaded image, 2) Draft's image URL, 3) Original image
+                  if (firstSlide.uploadedImage) {
+                    thumbUrl = firstSlide.uploadedImage;
+                  } else if (firstSlide.imageUrl) {
+                    thumbUrl = firstSlide.imageUrl;
+                  } else if (firstSlide.imagePrompt && (conv.includeImages !== false && conv.includeImages !== 'false')) {
+                    const encoded = encodeURIComponent(firstSlide.imagePrompt.trim());
+                    thumbUrl = `https://image.pollinations.ai/prompt/${encoded}`;
+                  }
+                }
+                // Fallback to memoized thumbnail if nothing found
+                if (!thumbUrl && thumbnails[conv.id]) {
                   thumbUrl = thumbnails[conv.id];
                 }
                 return (

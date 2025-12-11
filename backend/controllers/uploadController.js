@@ -3,6 +3,7 @@ import { extractPptxDesign, extractPptxThumbnail } from "../services/pptxExtract
 import { scanFile } from "../services/virusScanService.js";
 import path from "path";
 import fs from "fs/promises";
+import { createCanvas } from "canvas";
 
 /**
  * Controller Logic: Handle the response for a successful upload.
@@ -46,6 +47,9 @@ export const handleUpload = async (req, res) => {
         thumbnail = `data:${mimeType};base64,${base64}`;
         // Optionally, delete the file after encoding
         await fs.unlink(thumbPath);
+      } else if (design && design.slides && design.slides.length > 0) {
+        // Generate thumbnail from first slide design if no embedded thumbnail
+        thumbnail = generateThumbnailFromSlide(design.slides[0], req.file.filename);
       }
     } catch (err) {
       console.error("Failed to extract PPTX design or thumbnail:", err);
@@ -80,3 +84,51 @@ export const getTemplates = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+/**
+ * Generate a thumbnail image from slide design information
+ */
+function generateThumbnailFromSlide(slideInfo, filename) {
+  try {
+    const canvas = createCanvas(360, 220);
+    const ctx = canvas.getContext('2d');
+
+    // Apply slide background
+    const background = slideInfo.background || '#ffffff';
+    if (background.startsWith('linear-gradient')) {
+      // Parse gradient (simple case: linear-gradient(135deg, #color1, #color2))
+      const match = background.match(/#[0-9a-fA-F]{6}/g);
+      if (match && match.length >= 2) {
+        const grad = ctx.createLinearGradient(0, 0, 360, 220);
+        grad.addColorStop(0, match[0]);
+        grad.addColorStop(1, match[1]);
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = '#ffffff';
+      }
+    } else {
+      ctx.fillStyle = background;
+    }
+    ctx.fillRect(0, 0, 360, 220);
+
+    // Add filename badge at top
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(14, 14, Math.min(filename.length * 8 + 20, 320), 26);
+    ctx.font = 'bold 12px Arial';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(filename.substring(0, 35), 24, 32);
+
+    // Add "Slide 1" text in center
+    const titleColor = slideInfo.titleColor || '#000000';
+    ctx.fillStyle = titleColor;
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Slide 1', 180, 120);
+
+    // Return base64 data URL
+    return canvas.toDataURL('image/jpeg', 0.8);
+  } catch (err) {
+    console.error('Error generating thumbnail:', err);
+    return null;
+  }
+}

@@ -239,6 +239,7 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
           topic: file.name.replace(/\.(xlsx|xls)$/i, ""),
           includeImages: true,
           imageProvider: null,
+          convId: currentConversionId, // Pass historyId for draft saving
         },
       });
     } catch (err) {
@@ -697,7 +698,8 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
                             slides: convertedSlides,
                             topic,
                             includeImages: includeImagesChoice,
-                            imageProvider: selectedImageProvider, // Pass the selected image provider
+                            imageProvider: selectedImageProvider,
+                            convId: currentConversionId, // Pass historyId for draft saving
                           },
                         })
                       }
@@ -766,11 +768,22 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
               </div>
 
               <div className="ai-info-box">
+                <h3>Features</h3>
+                <ul>
+                  <li>Supports .xlsx and .xls formats</li>
+                  <li>AI-powered data transformation</li>
+                  <li>Max file size: 50MB</li>
+                  <li>Customizable slide count</li>
+                </ul>
+              </div>
+
+              <div className="ai-info-box">
                 <h3>Tips</h3>
                 <ul>
                   <li>Include well-structured headers for better results.</li>
                   <li>Keep large files under 50MB.</li>
                   <li>Use 5–15 slides for balanced detail.</li>
+                  <li>Edit in the next page before downloading.</li>
                 </ul>
               </div>
             </div>

@@ -16,6 +16,7 @@ export default function WordToPPT() {
   const [loadingText, setLoadingText] = useState("");
   const [convertedSlides, setConvertedSlides] = useState(null);
   const [topic, setTopic] = useState("");
+  const [conversionId, setConversionId] = useState(null);
   const fileInputRef = useRef(null);
 
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
@@ -105,6 +106,11 @@ export default function WordToPPT() {
       setConvertedSlides(slidesWithId);
       setTopic(file.name.replace(/\.(docx|doc)$/i, ""));
 
+      // Store historyId for draft saving
+      if (payload?.historyId) {
+        setConversionId(payload.historyId);
+      }
+
       if (loggedInUser?.user_id)
         cache.invalidate(`history-${loggedInUser.user_id}`);
 
@@ -190,6 +196,8 @@ export default function WordToPPT() {
                             slides: convertedSlides,
                             topic,
                             includeImages: includeImagesChoice,
+                            imageProvider: selectedImageProvider,
+                            convId: conversionId, // Pass historyId for draft saving
                           },
                         })
                       }
@@ -252,19 +260,31 @@ export default function WordToPPT() {
             <div className="ai-right">
               <div className="ai-info-box">
                 <h3>How it Works</h3>
+                <ol>
+                  <li>Upload your Word document.</li>
+                  <li>AI extracts key points from content.</li>
+                  <li>Summarizes and generates slide layouts.</li>
+                  <li>Preview and edit before download.</li>
+                </ol>
+              </div>
+
+              <div className="ai-info-box">
+                <h3>Features</h3>
                 <ul>
-                  <li>Extracts key points from your Word document</li>
-                  <li>Summarizes and cleans content</li>
-                  <li>Generates AI-crafted slide layouts</li>
+                  <li>Supports .docx and .doc formats</li>
+                  <li>AI-powered content extraction</li>
+                  <li>Max file size: 25MB</li>
+                  <li>Customizable slide count</li>
                 </ul>
               </div>
 
               <div className="ai-info-box">
-                <h3>Supported Formats</h3>
+                <h3>Tips</h3>
                 <ul>
-                  <li>.docx (Microsoft Word)</li>
-                  <li>.doc (Word 97–2003)</li>
-                  <li>Max file size: 25MB</li>
+                  <li>Well-structured documents produce better slides.</li>
+                  <li>Use headings for better content organization.</li>
+                  <li>Try 5–15 slides for optimal results.</li>
+                  <li>Edit in the next page before downloading.</li>
                 </ul>
               </div>
             </div>

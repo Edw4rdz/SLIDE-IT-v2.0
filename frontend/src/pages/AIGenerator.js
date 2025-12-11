@@ -36,6 +36,7 @@ export default function AIGenerator() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
   const [convertedSlides, setConvertedSlides] = useState([]);
+  const [conversionId, setConversionId] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [showImageProviderModal, setShowImageProviderModal] = useState(false);
@@ -109,6 +110,12 @@ export default function AIGenerator() {
       setLoadingText("Generating slide content...");
       const slidesWithId = slideArray.map((s, idx) => ({ ...s, id: idx }));
       setConvertedSlides(slidesWithId);
+      
+      // Store historyId for draft saving
+      if (payload?.historyId) {
+        setConversionId(payload.historyId);
+      }
+      
       setLoadingText("Slides generated successfully!");
       // Invalidate history cache so next fetch gets updated data
       if (loggedInUser?.user_id) {
@@ -136,6 +143,7 @@ export default function AIGenerator() {
         includeImages: !!includeImages, // ensure EditPreview shows image column
         imageSource: includeImages ? 'ai' : 'none',
         imageProvider: selectedImageProvider, // Pass the selected image provider
+        convId: conversionId, // Pass historyId for draft saving
       },
     });
   };
@@ -302,7 +310,7 @@ export default function AIGenerator() {
             {/* Right */}
             <div className="ai-right">
               <div className="ai-info-box">
-                <h3>How it works</h3>
+                <h3>How it Works</h3>
                 <ol>
                   <li>Describe your topic.</li>
                   <li>AI generates the slides.</li>
@@ -316,6 +324,15 @@ export default function AIGenerator() {
                   <li>Preview before download</li>
                   <li>Download as PPTX</li>
                   <li>Customizable slide count</li>
+                </ul>
+              </div>
+              <div className="ai-info-box">
+                <h3>Tips</h3>
+                <ul>
+                  <li>Be specific with your topic for better results.</li>
+                  <li>Try 5–15 slides for best balance.</li>
+                  <li>Preview and refine content before downloading.</li>
+                  <li>Edit in the next page to customize slides.</li>
                 </ul>
               </div>
             </div>

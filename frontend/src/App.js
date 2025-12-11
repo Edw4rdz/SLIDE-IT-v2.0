@@ -38,7 +38,7 @@ export default function App() {
 
 function AppContent() {
   const location = useLocation();
-  const hideFooterPaths = ['/login', '/signup', '/forgot-password', '/verify-otp'];
+  const hideFooterPaths = ['/login', '/signup', '/forgot-password', '/verify-otp', '/edit-preview'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

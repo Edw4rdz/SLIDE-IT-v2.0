@@ -399,7 +399,8 @@ export const generateFromPdf = async (req, res) => {
       data: Array.isArray(slides) ? slides : [], 
       error: null,
       s3Url: uploadResult?.s3Url || null,
-      uploadError: uploadResult?.error || null
+      uploadError: uploadResult?.error || null,
+      historyId: uploadResult?.historyId || null
     });
   } catch (error) {
     console.error("Controller PDF Error:", error);
@@ -479,7 +480,8 @@ export const generateFromWord = async (req, res) => {
       success: true, 
       data: slides,
       s3Url: uploadResult?.s3Url || null,
-      uploadError: uploadResult?.error || null
+      uploadError: uploadResult?.error || null,
+      historyId: uploadResult?.historyId || null
     });
   } catch (error) {
     console.error("Controller Word Error:", error);
@@ -614,7 +616,8 @@ export const generateFromExcel = async (req, res) => {
       success: true, 
       data: slides,
       s3Url: uploadResult?.s3Url || null,
-      uploadError: uploadResult?.error || null
+      uploadError: uploadResult?.error || null,
+      historyId: uploadResult?.historyId || null
     });
   } catch (error) {
     console.error("Controller Excel Error:", error);
@@ -695,7 +698,8 @@ export const generateFromTopic = async (req, res) => {
       success: true, 
       data: slides,
       s3Url: uploadResult?.s3Url || null,
-      uploadError: uploadResult?.error || null
+      uploadError: uploadResult?.error || null,
+      historyId: uploadResult?.historyId || null
     });
   } catch (error) {
     console.error("Controller Topic Error:", error);
@@ -772,7 +776,8 @@ export const generateFromTextFile = async (req, res) => {
       success: true, 
       data: slides,
       s3Url: uploadResult?.s3Url || null,
-      uploadError: uploadResult?.error || null
+      uploadError: uploadResult?.error || null,
+      historyId: uploadResult?.historyId || null
     });
   } catch (error) {
     console.error("Controller Text File Error:", error);

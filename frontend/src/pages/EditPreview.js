@@ -1239,7 +1239,8 @@ export default function EditPreview() {
     };
   }, []); 
 
-
+  // Track if image generation is already in progress to prevent duplicates
+  const imageGenerationInProgress = useRef(false);
 
   useEffect(() => {
 
@@ -1249,6 +1250,15 @@ export default function EditPreview() {
     // was true which caused previews to be empty even though the backend would
     // include images in the PPTX generation.
     if (editedSlides && editedSlides.length > 0 && (imageProvider === 'imagen' || imageProvider === 'grok' || showImageColumn)) {
+      
+      // Prevent duplicate image generation
+      if (imageGenerationInProgress.current) {
+        console.log('[IMAGE GEN] Already in progress, skipping...');
+        return;
+      }
+      
+      imageGenerationInProgress.current = true;
+      
       // Use a copy to avoid mutating state and causing repeated requests
       const slidesCopy = editedSlides.map(s => ({ ...s }));
       // Fallback: If first slide is missing imagePrompt, set a default for Imagen
@@ -1418,6 +1428,7 @@ export default function EditPreview() {
         setPreviewImageUrls(urls);
 
         setFetchingImages(false);
+        imageGenerationInProgress.current = false; // Reset flag
 
       };
 
@@ -1430,10 +1441,11 @@ export default function EditPreview() {
       setFetchingImages(false);
 
       setPreviewImageUrls({});
+      imageGenerationInProgress.current = false; // Reset flag
 
     }
 
-  }, [editedSlides, showImageColumn, imageProvider]); 
+  }, [editedSlides.length, JSON.stringify(editedSlides.map(s => s.imagePrompt)), showImageColumn, imageProvider]); 
 
   // Auto-generate sticker images for slides that have sticker prompts but no URLs
   useEffect(() => {
