@@ -328,6 +328,7 @@ export default function TextToPPT() {
                   <li>Keep content clear and concise.</li>
                   <li>Try 5–15 slides for best results.</li>
                   <li>Edit in the next page before downloading.</li>
+                  Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>
                 </ul>
               </div>
             </div>

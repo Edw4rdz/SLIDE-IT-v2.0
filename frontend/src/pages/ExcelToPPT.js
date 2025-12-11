@@ -774,6 +774,7 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
                   <li>AI-powered data transformation</li>
                   <li>Max file size: 50MB</li>
                   <li>Customizable slide count</li>
+                  Note: <strong>The system does not yet support live chart editing!</strong>
                 </ul>
               </div>
 
@@ -784,6 +785,7 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
                   <li>Keep large files under 50MB.</li>
                   <li>Use 5–15 slides for balanced detail.</li>
                   <li>Edit in the next page before downloading.</li>
+                Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>
                 </ul>
               </div>
             </div>

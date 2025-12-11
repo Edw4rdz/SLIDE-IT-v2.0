@@ -285,6 +285,7 @@ export default function WordToPPT() {
                   <li>Use headings for better content organization.</li>
                   <li>Try 5–15 slides for optimal results.</li>
                   <li>Edit in the next page before downloading.</li>
+                  Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>
                 </ul>
               </div>
             </div>

@@ -296,6 +296,7 @@ export default function PDFToPPT() {
                     <li>Scanned images may have limited text extraction.</li>
                     <li>Try 10–20 slides for balanced detail.</li>
                     <li>Edit in the next page before downloading.</li>
+                    Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>
                   </ul>
                 </div>
              </div>

@@ -333,6 +333,7 @@ export default function AIGenerator() {
                   <li>Try 5–15 slides for best balance.</li>
                   <li>Preview and refine content before downloading.</li>
                   <li>Edit in the next page to customize slides.</li>
+                  Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>
                 </ul>
               </div>
             </div>
