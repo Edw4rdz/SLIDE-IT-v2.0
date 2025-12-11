@@ -1,13 +1,32 @@
-// In-memory cache for Imagen images: key = prompt+model, value = base64
-const imagenImageCache = new Map();
-
-export { generateImagenImage };
 // backend/services/pptxService.js
 import PptxGenJS from "pptxgenjs";
 import axios from "axios";
 import { PNG } from "pngjs";
-import { GoogleAuth } from "google-auth-library"; // --- NEW IMPORT ---
+import { GoogleAuth } from "google-auth-library";
 import { grokClient, GROK_IMAGE_MODEL } from "../config/grokConfig.js";
+
+// In-memory cache for Imagen images: key = prompt+model, value = base64
+const imagenImageCache = new Map();
+// In-memory cache for gradient backgrounds
+const gradientCache = new Map();
+
+// --- OPTIMIZATION: Singleton Auth Client ---
+let cachedAuthClient = null;
+
+/**
+ * Helper to get or initialize the Google Auth Client once.
+ */
+async function getAuthClient() {
+  if (cachedAuthClient) return cachedAuthClient;
+  const auth = new GoogleAuth({
+    scopes: ['https://www.googleapis.com/auth/cloud-platform']
+  });
+  cachedAuthClient = await auth.getClient();
+  return cachedAuthClient;
+}
+
+// --- HELPER: SLEEP (Fixes Rate Limiting 429) ---
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Normalize arbitrary color inputs (arrays, gradients, rgb/hex strings) to #RRGGBB
@@ -84,8 +103,6 @@ const hexToRgb = (hexColor) => {
 
 const lerp = (a, b, t) => Math.round(a + (b - a) * t);
 
-const gradientCache = new Map();
-
 const ensureColorArray = (value, fallback = ['#ffffff']) => {
   if (Array.isArray(value)) {
     const filtered = value.filter(Boolean);
@@ -126,7 +143,7 @@ const createCardBackgroundImage = (colors, width = 1920, height = 1080) => {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (width * y + x) << 2;
-      // Vertical gradient from top to bottom (matches preview better)
+      // Vertical gradient from top to bottom
       const t = y / height;
       const color = getGradientColor(colorStops, t);
       png.data[idx] = color.r;
@@ -191,48 +208,43 @@ const parseFontSize = (value, fallback) => {
 };
 
 /**
- * --- NEW: Generate Image using Google Vertex AI (Service Account) ---
+ * --- UPDATED: Generate Image using Google Vertex AI (Singleton Auth) ---
  */
 async function generateImagenImage(prompt) {
+  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) return null;
 
-  if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;
-
-  // Use prompt + model as cache key
+  // 1. UPDATE: Use the model ID from your snippet
   const modelId = process.env.IMAGEN_MODEL_ID || 'imagen-3.0-fast-generate-001';
+  
   const cacheKey = `${modelId}::${prompt.trim()}`;
   if (imagenImageCache.has(cacheKey)) {
     return imagenImageCache.get(cacheKey);
   }
 
   try {
-    // 1. Get Authentication Token from Service Account
-    const auth = new GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/cloud-platform']
-    });
-    
-    const client = await auth.getClient();
+    const client = await getAuthClient();
     const accessToken = await client.getAccessToken();
     const token = accessToken.token;
 
-    // 2. Configure Vertex AI Endpoint
     const projectId = process.env.GOOGLE_PROJECT_ID; 
     const location = process.env.GCP_LOCATION || 'us-central1';
     
     if (!projectId) throw new Error("GOOGLE_PROJECT_ID is missing in .env");
 
-    // Use the model ID from env (e.g., 'imagen-4.0-fast-generate-001') or fallback
-    // (already set above)
-    console.log(`[Imagen] Using Vertex AI Model: ${modelId} in ${location}`);
     const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelId}:predict`;
 
-    // 3. Make the Request
+    // 2. UPDATE: Add the new parameters from your snippet to fix safety blocks
     const response = await axios.post(url, {
       instances: [
         { prompt: prompt }
       ],
       parameters: {
         sampleCount: 1,
-        aspectRatio: "16:9" // Optimize for slides
+        aspectRatio: "16:9",
+        // --- NEW PARAMETERS FROM YOUR SNIPPET ---
+        personGeneration: "allow_all", // Allows generating people
+        safetySetting: "block_few",    // Reduces strict safety blocking
+        addWatermark: false            // Optional: set to true if you want it
       }
     }, {
       headers: {
@@ -241,13 +253,12 @@ async function generateImagenImage(prompt) {
       }
     });
 
-    // 4. Extract Image
     const b64 = response.data.predictions?.[0]?.bytesBase64Encoded;
     
     if (b64) {
       const dataUrl = `data:image/png;base64,${b64}`;
       imagenImageCache.set(cacheKey, dataUrl);
-      // Limit cache size to 200
+      
       if (imagenImageCache.size > 200) {
         const firstKey = imagenImageCache.keys().next().value;
         imagenImageCache.delete(firstKey);
@@ -257,13 +268,15 @@ async function generateImagenImage(prompt) {
     throw new Error("No image data in Vertex AI response");
 
   } catch (error) {
-    console.error("[Imagen] Generation failed:", error.response?.data?.error || error.message);
+    // Log detailed error to help debug "400 Bad Request" or "429 Quota"
+    const errMsg = error.response?.data?.error?.message || error.message;
+    console.warn(`[Imagen] Generation failed for prompt "${prompt.substring(0, 20)}...":`, errMsg);
     throw error;
   }
 }
 
 /**
- * Helper to get the AI image URL (copied from your frontend)
+ * Helper to get the AI image URL (pollinations fallback)
  */
 function getPollinationsImageUrl(prompt) {
   if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;
@@ -278,8 +291,6 @@ async function generateGrokImage(prompt) {
   if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;
   
   try {
-    console.log(`[Grok Image] Generating image for prompt: "${prompt}"`);
-    
     const response = await grokClient.images.generate({
       model: GROK_IMAGE_MODEL,
       prompt: prompt,
@@ -298,10 +309,7 @@ async function generateGrokImage(prompt) {
     
     throw new Error("No image data returned from Grok API");
   } catch (error) {
-    console.error("[Grok Image] Generation failed:", error.message);
-    if (error.response) {
-      console.error("[Grok Image] API Error Data:", error.response.data);
-    }
+    console.warn("[Grok Image] Generation failed:", error.message);
     throw error;
   }
 }
@@ -314,7 +322,6 @@ const fetchImageAsBase64 = async (url) => {
     const base64 = Buffer.from(response.data, 'binary').toString('base64');
     return `data:${response.headers['content-type']};base64,${base64}`;
   } catch (err) {
-    console.error(`Error fetching image for PPTX: ${url}`, err.message);
     return null;
   }
 };
@@ -464,48 +471,59 @@ export const generatePptxFromData = async (requestBody) => {
   const imageCache = new Map();
   
   if (includeImages) {
-    console.log(`[PPTX Generation] Pre-generating images in parallel...`);
-    const imagePromises = slides.map(async (slide, index) => {
-      if (slide.uploadedImage) {
-        imageCache.set(index, slide.uploadedImage);
-        return { index, provider: null };
-      }
+    console.log(`[PPTX Generation] Pre-generating images in batches...`);
+    
+    // --- THROTTLING FIX: Batch size 2, Delay 2000ms ---
+    const batchSize = 2; // Reduced from 5 to 2 to prevent "429 Quota Exceeded"
+    const usedProviders = new Set();
+    
+    for (let i = 0; i < slides.length; i += batchSize) {
+      const batch = slides.slice(i, i + batchSize);
+      console.log(`[PPTX] Processing image batch ${Math.floor(i/batchSize) + 1} (${batch.length} slides)...`);
       
-    if (slide.imagePrompt) {
-        try {
-          let imageBase64 = null;
-          let usedProvider = null;
+      const batchPromises = batch.map(async (slide, batchIndex) => {
+        const globalIndex = i + batchIndex;
+        
+        if (slide.uploadedImage) {
+          imageCache.set(globalIndex, slide.uploadedImage);
+          return null;
+        }
+        
+        if (slide.imagePrompt) {
+            try {
+              let imageBase64 = null;
+              let usedProvider = null;
 
-          // --- NEW: Check if we already have a saved image from a previous generation ---
-          if (slide.savedImageUrl) {
-             try {
-                console.log(`[PPTX] Fetching saved image for slide ${index}...`);
-                // Re-use the existing helper to fetch the URL
-                imageBase64 = await fetchImageAsBase64(slide.savedImageUrl);
-                if (imageBase64) usedProvider = 'saved';
-             } catch (savedErr) {
-                console.warn(`[PPTX] Could not fetch saved image for slide ${index}, regenerating...`);
-             }
-          }
+              // 1. Saved Image
+              if (slide.savedImageUrl) {
+                 try {
+                    imageBase64 = await fetchImageAsBase64(slide.savedImageUrl);
+                    if (imageBase64) usedProvider = 'saved';
+                 } catch (e) {}
+              }
 
-          // If we didn't find a saved image (or failed to fetch it), GENERATE A NEW ONE
-          if (!imageBase64) {
-              if (imageProvider === 'imagen') {
+              // 2. Imagen (Primary) - Will throw on 429 or Safety Block
+              if (!imageBase64 && imageProvider === 'imagen') {
                  try {
                     imageBase64 = await generateImagenImage(slide.imagePrompt);
                     usedProvider = 'imagen';
                  } catch (err) {
-                    console.warn(`[PPTX] Imagen failed for slide ${index}, trying fallback...`, err.message);
+                    console.warn(`[PPTX] Imagen failed for slide ${globalIndex} (Switching to fallback):`, err.message);
+                    // Fall through to other providers
                  }
               } 
-              else if (imageProvider === 'grok') {
+              
+              // 3. Grok (Alternative)
+              if (!imageBase64 && imageProvider === 'grok') {
                 if (process.env.GROK_IMAGE_API_KEY || process.env.XAI_API_KEY) {
-                  imageBase64 = await generateGrokImage(slide.imagePrompt);
-                  usedProvider = 'grok';
+                  try {
+                    imageBase64 = await generateGrokImage(slide.imagePrompt);
+                    usedProvider = 'grok';
+                  } catch (e) {}
                 }
               }
               
-              // Pollinations fallback
+              // 4. Pollinations (Fallback)
               if (!imageBase64) {
                 const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
                 if (imageUrl) {
@@ -513,28 +531,37 @@ export const generatePptxFromData = async (requestBody) => {
                   usedProvider = 'pollinations';
                 }
               }
+              
+              if (imageBase64) {
+                imageCache.set(globalIndex, imageBase64);
+              }
+              return usedProvider;
+            } catch (error) {
+              console.warn(`[PPTX] Failed to generate image for slide ${globalIndex}:`, error.message);
+              return null;
+            }
           }
-          
-          if (imageBase64) {
-            imageCache.set(index, imageBase64);
-          }
-          return { index, provider: usedProvider };
-        } catch (error) {
-          console.warn(`[PPTX Generation] Failed to generate image for slide ${index + 1}:`, error.message);
-          return { index, provider: null };
-        }
+          return null;
+      });
+      
+      const results = await Promise.all(batchPromises);
+      results.forEach(p => { if (p) usedProviders.add(p); });
+
+      // --- CRITICAL DELAY: Wait 2 seconds between batches ---
+      if (i + batchSize < slides.length) {
+        await sleep(2000); 
       }
-    });
-    
-    const results = await Promise.all(imagePromises);
-    const usedProviders = results.filter(r => r && r.provider).map(r => r.provider);
-    if (usedProviders.length > 0) {
-      imageProviderFinal = usedProviders[0];
     }
     
-    console.log(`[PPTX Generation] All images pre-generated (${imageCache.size}/${slides.length})`);
+    // Determine final provider used
+    if (usedProviders.has('imagen')) imageProviderFinal = 'imagen';
+    else if (usedProviders.has('grok')) imageProviderFinal = 'grok';
+    else if (usedProviders.has('pollinations')) imageProviderFinal = 'pollinations';
+    
+    console.log(`[PPTX Generation] All images pre-generated. Cache size: ${imageCache.size}`);
   }
 
+  // --- STANDARD PPTX GENERATION LOGIC ---
   let pptx = new PptxGenJS();
   pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
   pptx.layout = 'LAYOUT_16x9';
@@ -932,3 +959,5 @@ export const generatePptxFromData = async (requestBody) => {
   console.log(`PPTX buffer ready, size: ${pptxBuffer.length} bytes`);
   return { buffer: pptxBuffer, imageProviderFinal: imageProviderFinal || (includeImages ? 'none' : null) };
 };
+
+export { generateImagenImage };
