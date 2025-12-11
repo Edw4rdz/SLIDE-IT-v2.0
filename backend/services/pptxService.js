@@ -1,8 +1,13 @@
+// In-memory cache for Imagen images: key = prompt+model, value = base64
+const imagenImageCache = new Map();
+
+export { generateImagenImage };
 // backend/services/pptxService.js
 import PptxGenJS from "pptxgenjs";
 import axios from "axios";
 import { PNG } from "pngjs";
-import { grokClient, GROK_IMAGE_MODEL } from "../config/grokConfig.js"; // Import Grok client
+import { GoogleAuth } from "google-auth-library"; // --- NEW IMPORT ---
+import { grokClient, GROK_IMAGE_MODEL } from "../config/grokConfig.js";
 
 /**
  * Normalize arbitrary color inputs (arrays, gradients, rgb/hex strings) to #RRGGBB
@@ -186,6 +191,78 @@ const parseFontSize = (value, fallback) => {
 };
 
 /**
+ * --- NEW: Generate Image using Google Vertex AI (Service Account) ---
+ */
+async function generateImagenImage(prompt) {
+
+  if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;
+
+  // Use prompt + model as cache key
+  const modelId = process.env.IMAGEN_MODEL_ID || 'imagen-3.0-fast-generate-001';
+  const cacheKey = `${modelId}::${prompt.trim()}`;
+  if (imagenImageCache.has(cacheKey)) {
+    return imagenImageCache.get(cacheKey);
+  }
+
+  try {
+    // 1. Get Authentication Token from Service Account
+    const auth = new GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/cloud-platform']
+    });
+    
+    const client = await auth.getClient();
+    const accessToken = await client.getAccessToken();
+    const token = accessToken.token;
+
+    // 2. Configure Vertex AI Endpoint
+    const projectId = process.env.GOOGLE_PROJECT_ID; 
+    const location = process.env.GCP_LOCATION || 'us-central1';
+    
+    if (!projectId) throw new Error("GOOGLE_PROJECT_ID is missing in .env");
+
+    // Use the model ID from env (e.g., 'imagen-4.0-fast-generate-001') or fallback
+    // (already set above)
+    console.log(`[Imagen] Using Vertex AI Model: ${modelId} in ${location}`);
+    const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelId}:predict`;
+
+    // 3. Make the Request
+    const response = await axios.post(url, {
+      instances: [
+        { prompt: prompt }
+      ],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: "16:9" // Optimize for slides
+      }
+    }, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // 4. Extract Image
+    const b64 = response.data.predictions?.[0]?.bytesBase64Encoded;
+    
+    if (b64) {
+      const dataUrl = `data:image/png;base64,${b64}`;
+      imagenImageCache.set(cacheKey, dataUrl);
+      // Limit cache size to 200
+      if (imagenImageCache.size > 200) {
+        const firstKey = imagenImageCache.keys().next().value;
+        imagenImageCache.delete(firstKey);
+      }
+      return dataUrl;
+    }
+    throw new Error("No image data in Vertex AI response");
+
+  } catch (error) {
+    console.error("[Imagen] Generation failed:", error.response?.data?.error || error.message);
+    throw error;
+  }
+}
+
+/**
  * Helper to get the AI image URL (copied from your frontend)
  */
 function getPollinationsImageUrl(prompt) {
@@ -203,22 +280,18 @@ async function generateGrokImage(prompt) {
   try {
     console.log(`[Grok Image] Generating image for prompt: "${prompt}"`);
     
-    // Note: This assumes Grok/xAI follows OpenAI's image generation API structure
-    // Adjust parameters as needed based on official xAI documentation
     const response = await grokClient.images.generate({
       model: GROK_IMAGE_MODEL,
       prompt: prompt,
       n: 1,
-      response_format: "b64_json" // Request base64 directly
+      response_format: "b64_json"
     });
-        // x.ai images API does not support 'size'; omit to avoid 400 errors
 
     if (response.data && response.data.length > 0) {
       const image = response.data[0];
       if (image.b64_json) {
         return `data:image/png;base64,${image.b64_json}`;
       } else if (image.url) {
-        // If URL is returned, fetch it
         return await fetchImageAsBase64(image.url);
       }
     }
@@ -229,38 +302,27 @@ async function generateGrokImage(prompt) {
     if (error.response) {
       console.error("[Grok Image] API Error Data:", error.response.data);
     }
-    throw error; // Re-throw to trigger fallback
+    throw error;
   }
 }
 
-/**
- * Fetches an image from a URL and returns it as a base64 string.
- * This runs on the server, so it will not have browser-related (CORS) errors.
- */
 const fetchImageAsBase64 = async (url) => {
   try {
     const response = await axios.get(url, {
       responseType: 'arraybuffer'
     });
     const base64 = Buffer.from(response.data, 'binary').toString('base64');
-    // We must provide a data URI scheme for pptxgenjs
     return `data:${response.headers['content-type']};base64,${base64}`;
   } catch (err) {
     console.error(`Error fetching image for PPTX: ${url}`, err.message);
-    return null; // Return null if fetching fails
+    return null;
   }
 };
 
-/**
- * Generate a chart image using QuickChart.io (server-side rendering of Chart.js config)
- * Returns data:image/png;base64,... or null on failure
- */
 async function generateChartImage(chartData, chartType = 'bar', width = 800, height = 450) {
   if (!chartData || !Array.isArray(chartData) || chartData.length === 0) return null;
   try {
-    // Build a Chart.js config
     const keys = Object.keys(chartData[0]);
-    // Determine label key (first non-numeric-like key) and value keys
     const labelKey = keys[0];
     const valueKeys = keys.slice(1);
     const labels = chartData.map(r => String(r[labelKey]));
@@ -280,7 +342,7 @@ async function generateChartImage(chartData, chartType = 'bar', width = 800, hei
       borderColor: colors[i % colors.length].replace('0.6', '1'),
       borderWidth: 1,
     }));
-    // For pie charts, Chart.js expects a single dataset; use first numeric column
+    
     if (chartType === 'pie' && datasets.length > 1) {
       datasets = [
         {
@@ -323,91 +385,47 @@ async function generateChartImage(chartData, chartType = 'bar', width = 800, hei
   }
 }
 
-/**
- * Helper to calculate text box height based on text content
- * 
- * @param {string} text - The text content
- * @param {number} fontSize - Font size in points
- * @param {number} boxWidth - Text box width in inches
- * @param {number} lineHeight - Line height multiplier (default 1.2)
- * @param {string} fontFace - Font family name (default 'Arial')
- * @returns {number} - Calculated height in inches
- */
 const calculateTextBoxHeight = (text, fontSize, boxWidth, lineHeight = 1.2, fontFace = 'Arial') => {
   if (!text || text.trim() === '') return 0.5;
-  
-  // Average character width ratio based on font size (empirically adjusted)
-  // Most fonts have an average character width of about 0.5-0.6 times the font size
   const avgCharWidthRatio = 0.55;
-  
-  // Convert box width from inches to points (1 inch = 72 points)
   const boxWidthPts = boxWidth * 72;
-  
-  // Estimate average character width in points
   const avgCharWidth = fontSize * avgCharWidthRatio;
-  
-  // Calculate characters per line
   const charsPerLine = Math.floor(boxWidthPts / avgCharWidth);
-  
-  // Ensure minimum characters per line
   const effectiveCharsPerLine = Math.max(charsPerLine, 10);
   
-  // Split text into lines and count wrapped lines
   const lines = text.split('\n');
   let totalLines = 0;
   
   for (const line of lines) {
     if (line.length === 0) {
-      // Empty line still takes vertical space
       totalLines += 1;
     } else {
-      // Account for word wrapping - split by spaces to simulate word wrap
       const words = line.split(/\s+/);
       let currentLineLength = 0;
       let linesInParagraph = 0;
       
       for (const word of words) {
         const wordLength = word.length;
-        
         if (currentLineLength + wordLength + 1 <= effectiveCharsPerLine) {
-          // Word fits on current line
-          currentLineLength += wordLength + 1; // +1 for space
+          currentLineLength += wordLength + 1;
         } else {
-          // Word needs new line
           if (currentLineLength > 0) {
             linesInParagraph += 1;
           }
           currentLineLength = wordLength + 1;
         }
       }
-      
-      // Add final line of paragraph
-      if (currentLineLength > 0) {
-        linesInParagraph += 1;
-      }
-      
+      if (currentLineLength > 0) linesInParagraph += 1;
       totalLines += Math.max(linesInParagraph, 1);
     }
   }
   
-  // Calculate height in points: totalLines * fontSize * lineHeight
   const heightPts = totalLines * fontSize * lineHeight;
-  
-  // Convert points to inches (1 inch = 72 points)
   const heightInches = heightPts / 72;
-  
-  // Add small padding (0.2 inches) and ensure minimum height
   const finalHeight = Math.max(0.5, heightInches + 0.2);
-  
-  console.log(`[calculateTextBoxHeight] Text: "${text.substring(0, 50)}..." | fontSize: ${fontSize}pt | boxWidth: ${boxWidth}" | lines: ${totalLines} | height: ${finalHeight}"`);
-  
   return finalHeight;
 };
 
-/**
- * Automatically fit font size for a text box so content does not overflow the available height.
- * Returns the largest font size that fits.
- */
 function autoFitFontSize(text, boxWidth, boxHeight, minFont = 12, maxFont = 40, lineHeight = 1.2, fontFace = 'Arial') {
   let fontSize = maxFont;
   while (fontSize >= minFont) {
@@ -420,14 +438,9 @@ function autoFitFontSize(text, boxWidth, boxHeight, minFont = 12, maxFont = 40, 
   return minFont;
 }
 
-/**
- * Main service function to generate the PPTX from frontend data.
- */
 export const generatePptxFromData = async (requestBody) => {
   const { slides, includeImages, imageProvider, forceSecondSlide, chartData, chartType, chartSummary } = requestBody;
-  const incomingDesign = typeof requestBody.design === 'object' && requestBody.design !== null
-    ? requestBody.design
-    : {};
+  const incomingDesign = typeof requestBody.design === 'object' && requestBody.design !== null ? requestBody.design : {};
   const design = {
     font: incomingDesign.font || 'Arial',
     globalBackground: incomingDesign.globalBackground || '#ffffff',
@@ -437,21 +450,18 @@ export const generatePptxFromData = async (requestBody) => {
     canvasBackground: incomingDesign.canvasBackground || '#f4f5fb'
   };
 
-
   if (!slides || slides.length === 0) {
     throw new Error("No slides data provided");
   }
 
-  // Always copy the second slide from Edit Preview if provided
   if (forceSecondSlide && slides.length > 1) {
     slides[1] = forceSecondSlide;
   }
 
   console.log(`[PPTX Generation] Starting with ${slides.length} slides, imageProvider: ${imageProvider || 'none'}`);
 
-  // OPTIMIZATION: Pre-generate all images in parallel before creating slides
   let imageProviderFinal = null;
-  const imageCache = new Map(); // Cache generated images by slide index
+  const imageCache = new Map();
   
   if (includeImages) {
     console.log(`[PPTX Generation] Pre-generating images in parallel...`);
@@ -461,27 +471,48 @@ export const generatePptxFromData = async (requestBody) => {
         return { index, provider: null };
       }
       
-      if (slide.imagePrompt) {
+    if (slide.imagePrompt) {
         try {
           let imageBase64 = null;
           let usedProvider = null;
-          
-          if (imageProvider === 'grok') {
-            if (process.env.GROK_IMAGE_API_KEY || process.env.XAI_API_KEY) {
-              imageBase64 = await generateGrokImage(slide.imagePrompt);
-              usedProvider = 'grok';
-              console.log(`[PPTX Generation] Grok image generated for slide ${index + 1}`);
-            } else {
-              throw new Error("No Grok/xAI API key available");
-            }
-          } else {
-            // Pollinations fallback
-            const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
-            if (imageUrl) {
-              imageBase64 = await fetchImageAsBase64(imageUrl);
-              usedProvider = 'pollinations';
-              console.log(`[PPTX Generation] Pollinations image generated for slide ${index + 1}`);
-            }
+
+          // --- NEW: Check if we already have a saved image from a previous generation ---
+          if (slide.savedImageUrl) {
+             try {
+                console.log(`[PPTX] Fetching saved image for slide ${index}...`);
+                // Re-use the existing helper to fetch the URL
+                imageBase64 = await fetchImageAsBase64(slide.savedImageUrl);
+                if (imageBase64) usedProvider = 'saved';
+             } catch (savedErr) {
+                console.warn(`[PPTX] Could not fetch saved image for slide ${index}, regenerating...`);
+             }
+          }
+
+          // If we didn't find a saved image (or failed to fetch it), GENERATE A NEW ONE
+          if (!imageBase64) {
+              if (imageProvider === 'imagen') {
+                 try {
+                    imageBase64 = await generateImagenImage(slide.imagePrompt);
+                    usedProvider = 'imagen';
+                 } catch (err) {
+                    console.warn(`[PPTX] Imagen failed for slide ${index}, trying fallback...`, err.message);
+                 }
+              } 
+              else if (imageProvider === 'grok') {
+                if (process.env.GROK_IMAGE_API_KEY || process.env.XAI_API_KEY) {
+                  imageBase64 = await generateGrokImage(slide.imagePrompt);
+                  usedProvider = 'grok';
+                }
+              }
+              
+              // Pollinations fallback
+              if (!imageBase64) {
+                const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
+                if (imageUrl) {
+                  imageBase64 = await fetchImageAsBase64(imageUrl);
+                  usedProvider = 'pollinations';
+                }
+              }
           }
           
           if (imageBase64) {
@@ -490,51 +521,28 @@ export const generatePptxFromData = async (requestBody) => {
           return { index, provider: usedProvider };
         } catch (error) {
           console.warn(`[PPTX Generation] Failed to generate image for slide ${index + 1}:`, error.message);
-          // Try fallback to Pollinations if Grok fails
-          if (imageProvider === 'grok') {
-            try {
-              const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
-              if (imageUrl) {
-                const fallbackImage = await fetchImageAsBase64(imageUrl);
-                imageCache.set(index, fallbackImage);
-                console.log(`[PPTX Generation] Fallback Pollinations image for slide ${index + 1}`);
-                return { index, provider: 'pollinations' };
-              }
-            } catch (fallbackError) {
-              console.warn(`[PPTX Generation] Fallback also failed for slide ${index + 1}`);
-            }
-          }
           return { index, provider: null };
         }
       }
-      return { index, provider: null };
     });
     
-    // Wait for all images to be generated in parallel
     const results = await Promise.all(imagePromises);
-    
-    // Determine which provider was used
     const usedProviders = results.filter(r => r && r.provider).map(r => r.provider);
     if (usedProviders.length > 0) {
-      imageProviderFinal = usedProviders[0]; // Use the first successful provider
+      imageProviderFinal = usedProviders[0];
     }
     
     console.log(`[PPTX Generation] All images pre-generated (${imageCache.size}/${slides.length})`);
   }
 
   let pptx = new PptxGenJS();
-  // Set layout using the correct method
   pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
   pptx.layout = 'LAYOUT_16x9';
 
-  // --- NEW: Always add chart slide as first slide if chartData/chartType/chartSummary are provided ---
   let slideOffset = 0;
-  // Create chart slide if at least chartData and chartType exist. chartSummary is optional.
   if (chartData && chartType) {
     const chartSlide = pptx.addSlide();
-    // Default design for chart slide
     chartSlide.background = { color: colorToPptx(design.globalBackground, '#ffffff') };
-    // Title
     chartSlide.addText('Chart & Summary', {
       x: 0.5, y: 0.3, w: 9, h: 0.8,
       fontFace: design.font,
@@ -544,13 +552,11 @@ export const generatePptxFromData = async (requestBody) => {
       align: 'center',
       valign: 'top',
     });
-    // Chart rendering: prefer server-side image rendering (QuickChart) to support multi-series and ensure consistent visuals.
     let chartRendered = false;
     if (Array.isArray(chartData) && chartData.length > 0) {
       try {
         const chartImage = await generateChartImage(Array.isArray(chartData) ? chartData : [], (chartType || 'bar'), 800, 450);
         if (chartImage) {
-          // Use image to fill large left side
           chartSlide.addImage({ data: chartImage, x: 1.0, y: 1.1, w: 5.0, h: 3.4 });
           chartRendered = true;
         }
@@ -558,12 +564,10 @@ export const generatePptxFromData = async (requestBody) => {
         console.warn('[PPTX] Chart image generation failed, falling back to native chart', err.message);
       }
     }
-    // Fallback to native PPTX chart if image rendering failed and we have at least single series
     if (!chartRendered) {
       let chartTypePptx = 'bar';
       if (chartType === 'line') chartTypePptx = 'line';
       if (chartType === 'pie') chartTypePptx = 'pie';
-      // Prepare chart data for pptxgenjs (single series only)
       let chartLabels = [];
       let chartValues = [];
       if (Array.isArray(chartData) && chartData.length > 0) {
@@ -588,7 +592,6 @@ export const generatePptxFromData = async (requestBody) => {
         });
       }
     }
-    // Summary text box (optional)
     if (chartSummary) {
       chartSlide.addText(chartSummary, {
         x: 5.7, y: 1.2, w: 3.3, h: 3.0,
@@ -603,36 +606,22 @@ export const generatePptxFromData = async (requestBody) => {
     slideOffset = 1;
   }
 
-  // Now create slides using the pre-generated images
   for (let slideIndex = 0; slideIndex < slides.length; slideIndex++) {
     const slide = slides[slideIndex];
     let pptxSlide = pptx.addSlide();
 
-    // 1. DETERMINE STYLES from the 'design' object
     const slideLayout = slide.layout || 'content';
     const layoutStyles = design.layouts?.[slideLayout] || {};
 
     const slideBg = slide.background || layoutStyles.background || design.globalBackground;
-    const titleColorNorm = normalizeColor(
-      slide.titleColor || layoutStyles.titleColor || design.globalTitleColor,
-      '#000000'
-    );
-    const textColorNorm = normalizeColor(
-      slide.textColor || layoutStyles.textColor || design.globalTextColor,
-      '#333333'
-    );
+    const titleColorNorm = normalizeColor(slide.titleColor || layoutStyles.titleColor || design.globalTitleColor, '#000000');
+    const textColorNorm = normalizeColor(slide.textColor || layoutStyles.textColor || design.globalTextColor, '#333333');
 
     const defaultFont = design.font || 'Arial';
     const titleFontFace = slide.styles?.titleFont || slide.styles?.textFont || defaultFont;
     const bodyFontFace = slide.styles?.textFont || slide.styles?.titleFont || defaultFont;
-    const titleFontSize = parseFontSize(
-      slide.styles?.titleSize,
-      slideLayout === 'title' ? 44 : 32
-    );
-    const bodyFontSize = parseFontSize(
-      slide.styles?.textSize,
-      slideLayout === 'title' ? 24 : 18
-    );
+    const titleFontSize = parseFontSize(slide.styles?.titleSize, slideLayout === 'title' ? 44 : 32);
+    const bodyFontSize = parseFontSize(slide.styles?.textSize, slideLayout === 'title' ? 24 : 18);
     const titleBold = !!slide.styles?.titleBold;
     const titleItalic = !!slide.styles?.titleItalic;
     const bodyBold = !!slide.styles?.textBold;
@@ -643,99 +632,56 @@ export const generatePptxFromData = async (requestBody) => {
     const titleColorPptx = colorToPptx(titleColorNorm, '#000000');
     const textColorPptx = colorToPptx(textColorNorm, '#333333');
 
-    // Full-slide background using template colors
     const bgColorNorm = normalizeColor(slideBg, design.globalBackground);
     const gradientBackground = createCardBackgroundImage(slideBg, 1920, 1080);
     if (gradientBackground) {
-      pptxSlide.addImage({
-        data: gradientBackground,
-        x: 0,
-        y: 0,
-        w: 10,
-        h: 5.625
-      });
+      pptxSlide.addImage({ data: gradientBackground, x: 0, y: 0, w: 10, h: 5.625 });
     } else {
       pptxSlide.background = { color: colorToPptx(bgColorNorm, design.globalBackground) };
     }
 
-    const cardPaddingX = 0.6;
-    const cardPaddingY = 0.5;
-    const contentBounds = {
-      x: 0.5,
-      y: 0.6,
-      w: 9.2,
-      h: 4.7
-    };
-
-    // 2. GET PRE-GENERATED IMAGE FROM CACHE
     const imageBase64 = imageCache.get(slideIndex) || null;
-
-    // 3. DEFINE LAYOUTS
-    let titleOpts, bodyOpts;
-    const contentArea = {
-      x: contentBounds.x + cardPaddingX,
-      y: contentBounds.y + cardPaddingY,
-      w: contentBounds.w - cardPaddingX * 2,
-      h: contentBounds.h - cardPaddingY * 2
-    };
-
-    // Image positioning - Convert normalized coordinates (0-1) to PPTX inches
     const SLIDE_WIDTH_INCHES = 10.0;
     const SLIDE_HEIGHT_INCHES = 5.625;
     const imagePosition = slide.imagePosition || "right";
     
     let imgX, imgY, imgW, imgH;
-    
-    // Calculate body positioning based on image position
     let bodyX = 0.5;
     let bodyW = 9.0;
     
     if (imageBase64) {
-      // Frontend normalized coordinates to PPTX inches conversion
       if (slide.imageData) {
-        // Use custom image data if available
         imgX = slide.imageData.x * SLIDE_WIDTH_INCHES;
         imgY = slide.imageData.y * SLIDE_HEIGHT_INCHES;
         imgW = slide.imageData.width * SLIDE_WIDTH_INCHES;
         imgH = slide.imageData.height * SLIDE_HEIGHT_INCHES;
 
-        // Recalculate body positioning based on custom image position
         if (imagePosition === "left") {
           bodyX = imgX + imgW + (0.04 * SLIDE_WIDTH_INCHES);
           bodyW = Math.max(0.5, SLIDE_WIDTH_INCHES - bodyX - 0.5);
         } else if (imagePosition === "right") {
           bodyX = 0.5;
           bodyW = Math.max(0.5, imgX - 0.5);
-        } else {
-          // Center or other
-          bodyX = 0.5;
-          bodyW = 9.0;
         }
       } else if (imagePosition === "center") {
-        // Center: normalized { x: 0.35, y: 0.5, width: 0.3, height: 0.4 }
-        imgX = 0.35 * SLIDE_WIDTH_INCHES;  // 3.5"
-        imgY = 0.5 * SLIDE_HEIGHT_INCHES;   // 2.8125"
-        imgW = 0.3 * SLIDE_WIDTH_INCHES;    // 3.0"
-        imgH = 0.4 * SLIDE_HEIGHT_INCHES;   // 2.25"
-        // Text takes full width at top
-        bodyX = 0.5;
-        bodyW = 9.0;
+        imgX = 0.35 * SLIDE_WIDTH_INCHES;
+        imgY = 0.5 * SLIDE_HEIGHT_INCHES;
+        imgW = 0.3 * SLIDE_WIDTH_INCHES;
+        imgH = 0.4 * SLIDE_HEIGHT_INCHES;
       } else if (imagePosition === "left") {
-        // Left: normalized { x: 0.05, y: 0.2, width: 0.35, height: 0.65 }
-        imgX = 0.05 * SLIDE_WIDTH_INCHES;  // 0.5"
-        imgY = 0.2 * SLIDE_HEIGHT_INCHES;   // 1.125"
-        imgW = 0.35 * SLIDE_WIDTH_INCHES;   // 3.5"
-        imgH = 0.65 * SLIDE_HEIGHT_INCHES;  // 3.65625"
-        bodyX = (0.05 + 0.35 + 0.04) * SLIDE_WIDTH_INCHES; // After image + margin
+        imgX = 0.05 * SLIDE_WIDTH_INCHES;
+        imgY = 0.2 * SLIDE_HEIGHT_INCHES;
+        imgW = 0.35 * SLIDE_WIDTH_INCHES;
+        imgH = 0.65 * SLIDE_HEIGHT_INCHES;
+        bodyX = (0.05 + 0.35 + 0.04) * SLIDE_WIDTH_INCHES;
         bodyW = SLIDE_WIDTH_INCHES - bodyX - 0.5;
       } else {
-        // Right: normalized { x: 0.6, y: 0.2, width: 0.35, height: 0.65 }
-        imgX = 0.6 * SLIDE_WIDTH_INCHES;   // 6.0"
-        imgY = 0.2 * SLIDE_HEIGHT_INCHES;   // 1.125"
-        imgW = 0.35 * SLIDE_WIDTH_INCHES;   // 3.5"
-        imgH = 0.65 * SLIDE_HEIGHT_INCHES;  // 3.65625"
+        imgX = 0.6 * SLIDE_WIDTH_INCHES;
+        imgY = 0.2 * SLIDE_HEIGHT_INCHES;
+        imgW = 0.35 * SLIDE_WIDTH_INCHES;
+        imgH = 0.65 * SLIDE_HEIGHT_INCHES;
         bodyX = 0.5;
-        bodyW = (0.6 - 0.05) * SLIDE_WIDTH_INCHES; // Space before image
+        bodyW = (0.6 - 0.05) * SLIDE_WIDTH_INCHES;
       }
       
       pptxSlide.addImage({
@@ -748,73 +694,44 @@ export const generatePptxFromData = async (requestBody) => {
       });
     }
 
-    // 4. ADD TEXT TO SLIDE
-    
-    const SLIDE_WIDTH = 10.0;
-    const SLIDE_HEIGHT = 5.625;
-
-    // Resolve Title Box - if image exists, always use dynamic positioning
     let finalTitleX, finalTitleY, finalTitleW, finalTitleH;
     if (slide.titleBox) {
-      // Use manual titleBox if provided
-      finalTitleX = slide.titleBox.x * SLIDE_WIDTH;
-      finalTitleY = slide.titleBox.y * SLIDE_HEIGHT;
-      finalTitleW = slide.titleBox.width * SLIDE_WIDTH;
-      finalTitleH = slide.titleBox.height * SLIDE_HEIGHT;
+      finalTitleX = slide.titleBox.x * SLIDE_WIDTH_INCHES;
+      finalTitleY = slide.titleBox.y * SLIDE_HEIGHT_INCHES;
+      finalTitleW = slide.titleBox.width * SLIDE_WIDTH_INCHES;
+      finalTitleH = slide.titleBox.height * SLIDE_HEIGHT_INCHES;
     } else if (imageBase64) {
-      // With image: use dynamic positioning based on image position
       finalTitleX = bodyX;
       finalTitleW = bodyW;
-      
-      // For center layout, use smaller title box to save space
       if (imagePosition === 'center') {
-        finalTitleY = 0.35;  // 0.6" / 5.625"
-        finalTitleH = 0.56;  // 0.1 * 5.625" (reduced from 0.8")
+        finalTitleY = 0.35;
+        finalTitleH = 0.56;
       } else {
         finalTitleY = 0.5;
         finalTitleH = 0.8;
       }
     } else {
-      // Fallback defaults
       finalTitleX = 0.5;
       finalTitleW = 9.0;
       finalTitleY = 0.35;
       finalTitleH = 1.0;
     }
 
-    // Add title with dynamic height FIRST (so we can calculate body position)
-    // Match frontend auto‑shrink behavior so downloaded PPTX looks like EditPreview
-    // Preserve original text exactly as typed (no markdown interpretation)
     const titleText = (slide.title || '').replace(/\*\*/g, '"');
-
     let adjustedTitleSize = titleFontSize;
     try {
       const trimmed = titleText.trim();
-      const approxLength = trimmed.length;
-      if (approxLength > 0) {
-        const safeLength = 40; // keep full size up to ~40 chars
-        if (approxLength > safeLength) {
-          const shrinkRatio = safeLength / approxLength;
-          const estimated = Math.floor(titleFontSize * shrinkRatio);
-          adjustedTitleSize = Math.max(estimated, 14); // never below 14pt
-        }
+      if (trimmed.length > 40) {
+        const shrinkRatio = 40 / trimmed.length;
+        adjustedTitleSize = Math.max(Math.floor(titleFontSize * shrinkRatio), 14);
       }
     } catch {
       adjustedTitleSize = titleFontSize;
     }
     
     let actualTitleHeight = 0;
-    
     if (titleText.trim()) {
-      // Calculate dynamic height based on title text
-      const dynamicTitleHeight = calculateTextBoxHeight(
-        titleText,
-        adjustedTitleSize,
-        finalTitleW,
-        1.2,
-        titleFontFace
-      );
-      
+      const dynamicTitleHeight = calculateTextBoxHeight(titleText, adjustedTitleSize, finalTitleW, 1.2, titleFontFace);
       actualTitleHeight = dynamicTitleHeight;
       
       pptxSlide.addText(titleText, {
@@ -830,93 +747,59 @@ export const generatePptxFromData = async (requestBody) => {
         align: titleAlign || (slideLayout === 'title' ? 'center' : 'left'),
         margin: 0,
         lineSpacing: adjustedTitleSize * 1.2,
-        fit: 'resize', // Allow PowerPoint to resize if user edits
-        valign: 'top' // Align text to top of box
+        fit: 'resize',
+        valign: 'top'
       });
     } else {
-      // No title text - use a small default spacing
       actualTitleHeight = 0.3;
     }
 
-    // Resolve Body Box - AFTER title is calculated to avoid overlap
     let finalBodyX, finalBodyY, finalBodyW, finalBodyH;
     if (slide.bodyBox) {
-      // Use manual bodyBox if provided (takes precedence for custom positioning)
-      finalBodyX = slide.bodyBox.x * SLIDE_WIDTH;
-      finalBodyY = slide.bodyBox.y * SLIDE_HEIGHT;
-      finalBodyW = slide.bodyBox.width * SLIDE_WIDTH;
-      finalBodyH = slide.bodyBox.height * SLIDE_HEIGHT;
+      finalBodyX = slide.bodyBox.x * SLIDE_WIDTH_INCHES;
+      finalBodyY = slide.bodyBox.y * SLIDE_HEIGHT_INCHES;
+      finalBodyW = slide.bodyBox.width * SLIDE_WIDTH_INCHES;
+      finalBodyH = slide.bodyBox.height * SLIDE_HEIGHT_INCHES;
     } else if (imageBase64) {
-      // With image: use dynamic positioning based on image position
       finalBodyX = bodyX;
       finalBodyW = bodyW;
-      
-      // For center image layout, position body below image
       if (imagePosition === 'center') {
-        // Body starts below the centered image
-        finalBodyY = imgY + imgH + 0.1; // Image bottom + small gap
-        finalBodyH = Math.max(0.8, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
+        finalBodyY = imgY + imgH + 0.1;
+        finalBodyH = Math.max(0.8, SLIDE_HEIGHT_INCHES - finalBodyY - 0.2);
       } else {
-        // For left/right layouts, body is beside image
-        // Start below title with a small gap (0.05")
         finalBodyY = finalTitleY + actualTitleHeight + 0.05;
-        finalBodyH = Math.max(1.0, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
+        finalBodyH = Math.max(1.0, SLIDE_HEIGHT_INCHES - finalBodyY - 0.2);
       }
     } else {
-      // No image: body below title
       finalBodyX = 0.5;
       finalBodyW = 9.0;
-      // Start below title with a small gap (0.05")
       finalBodyY = finalTitleY + actualTitleHeight + 0.05;
-      finalBodyH = Math.max(1.0, SLIDE_HEIGHT - finalBodyY - 0.2); // Fill remaining space
+      finalBodyH = Math.max(1.0, SLIDE_HEIGHT_INCHES - finalBodyY - 0.2);
     }
 
-    // Get bullet lines using the same logic as the old frontend
     const getBulletLinesForSlide = (sdata) => {
       if (!sdata) return [];
-      
       let sourceArray = [];
       if (Array.isArray(sdata.bullets)) {
         sourceArray = sdata.bullets.filter(Boolean);
       } else {
-        const text = typeof sdata.bullets === 'string' && sdata.bullets.trim().length
-          ? sdata.bullets
-          : (typeof sdata.text === 'string' ? sdata.text : '');
+        const text = typeof sdata.bullets === 'string' && sdata.bullets.trim().length ? sdata.bullets : (typeof sdata.text === 'string' ? sdata.text : '');
         sourceArray = [text];
       }
-
-      return sourceArray
-        .map(b => String(b))
-        .map(b => b.replace(/([a-z])\.([A-Z])/g, '$1.\n$2')) // Fix missing spaces between sentences
-        .flatMap(b => b.split(/\n|•/))
-        .map(l => (l || '').trim())
-        .filter(Boolean);
+      return sourceArray.map(b => String(b)).map(b => b.replace(/([a-z])\.([A-Z])/g, '$1.\n$2')).flatMap(b => b.split(/\n|•/)).map(l => (l || '').trim()).filter(Boolean);
     };
 
     const bulletLines = getBulletLinesForSlide(slide);
     const hasBullets = bulletLines.length > 0;
     const hasText = slide.text && slide.text.trim().length > 0;
 
-    // Match old frontend behavior: use proper bullet formatting
     if (slideLayout === 'title') {
-      // Title layout: show text (no bullets, just newlines)
       let bodyText = typeof slide.text === 'string' ? slide.text.trim() : '';
-      if (!bodyText && bulletLines.length) {
-        bodyText = bulletLines.join('\n');
-      }
-      // Preserve quotes instead of markdown asterisks
+      if (!bodyText && bulletLines.length) bodyText = bulletLines.join('\n');
       bodyText = bodyText.replace(/\*\*/g, '"');
       
       if (bodyText) {
-        const dynamicBodyHeight = calculateTextBoxHeight(
-          bodyText,
-          bodyFontSize,
-          finalBodyW,
-          1.2,
-          bodyFontFace
-        );
-        
-        // Ensure body text doesn't overflow slide - use the smaller of dynamic or available height
+        const dynamicBodyHeight = calculateTextBoxHeight(bodyText, bodyFontSize, finalBodyW, 1.2, bodyFontFace);
         const constrainedBodyHeight = Math.min(dynamicBodyHeight, finalBodyH);
         
         pptxSlide.addText(bodyText, {
@@ -932,27 +815,14 @@ export const generatePptxFromData = async (requestBody) => {
           align: bodyAlign || 'left',
           margin: 0,
           lineSpacing: bodyFontSize * 1.2,
-          fit: 'shrink', // Shrink text if it doesn't fit
-          valign: 'top' // Align text to top of box
+          fit: 'shrink',
+          valign: 'top'
         });
       }
     } else {
-      // Content layout: show bullets or text
-      // Preserve quotes instead of markdown asterisks
       const bulletText = bulletLines.map(b => `• ${b.replace(/\*\*/g, '"')}`).join('\n');
-      
-      const adjustedFontSize = bodyFontSize;
-      
       if (hasBullets || hasText) {
-        const dynamicBodyHeight = calculateTextBoxHeight(
-          bulletText,
-          adjustedFontSize,
-          finalBodyW,
-          1.2,
-          bodyFontFace
-        );
-        
-        // Ensure body text doesn't overflow slide - use the smaller of dynamic or available height
+        const dynamicBodyHeight = calculateTextBoxHeight(bulletText, bodyFontSize, finalBodyW, 1.2, bodyFontFace);
         const constrainedBodyHeight = Math.min(dynamicBodyHeight, finalBodyH);
         
         pptxSlide.addText(bulletText, {
@@ -962,115 +832,53 @@ export const generatePptxFromData = async (requestBody) => {
           h: constrainedBodyHeight,
           color: textColorPptx,
           fontFace: bodyFontFace,
-          fontSize: adjustedFontSize,
+          fontSize: bodyFontSize,
           bold: bodyBold,
           italic: bodyItalic,
           align: bodyAlign || 'left',
           margin: 0,
-          lineSpacing: adjustedFontSize * 1.2,
-          fit: 'shrink', // Shrink text if it doesn't fit
-          valign: 'top' // Align text to top of box
+          lineSpacing: bodyFontSize * 1.2,
+          fit: 'shrink',
+          valign: 'top'
         });
       }
     }
 
-    // --- FIX FOR TABLES & STICKERS ---
-    
-    // Handle Stickers (Images/Shapes) - match old frontend behavior
     if (Array.isArray(slide.stickers)) {
       for (const sticker of slide.stickers) {
         if (!sticker || !sticker.url) continue;
-
         let dataUrl = null;
-        
-        // If it's already a data URL, use it directly
         if (sticker.url.startsWith('data:')) {
           dataUrl = sticker.url;
-          
-          // Check if it's an SVG data URL - should be converted to PNG on frontend
-          if (dataUrl.includes('data:image/svg+xml')) {
-            console.log(`Note: SVG sticker detected. Frontend should convert to PNG for best compatibility.`);
-            // We'll still try to add it in case PptxGenJS can handle it
-          }
         } else {
-          // Fetch external URL (like pollinations.ai images)
           try {
             dataUrl = await fetchImageAsBase64(sticker.url);
-          } catch (err) {
-            console.warn(`Failed to fetch sticker image: ${sticker.url}`, err.message);
-            continue;
-          }
+          } catch (err) { continue; }
         }
-
         if (!dataUrl) continue;
-
-        // Note: SVG rasterization would require additional libraries (sharp, canvas, etc.)
-        // For now, we'll skip SVG rasterization and let PptxGenJS handle it if it can
-        // If SVG support is needed, consider adding sharp or canvas library
-
-        // Convert percentage (0-1) to Inches (10 x 5.625) - match old frontend
         const x = (sticker.x || 0) * 10.0;
         const y = (sticker.y || 0) * 5.625;
         const w = (sticker.width || 0.18) * 10.0;
         const h = (sticker.height || 0.18) * 5.625;
-        const rotate = sticker.rotate || 0;
-
         try {
-          pptxSlide.addImage({
-            data: dataUrl,
-            x: x,
-            y: y,
-            w: w,
-            h: h,
-            rotate: rotate
-          });
-        } catch (err) {
-          console.warn(`Failed to add sticker to slide: ${sticker.url}`, err.message);
-        }
+          pptxSlide.addImage({ data: dataUrl, x, y, w, h, rotate: sticker.rotate || 0 });
+        } catch (err) {}
       }
     }
 
-    // Handle Tables - match old frontend behavior
     if (Array.isArray(slide.tables)) {
       for (const tbl of slide.tables) {
         try {
           const rowsCount = Math.max(1, tbl?.rows || (Array.isArray(tbl?.cells) ? tbl.cells.length : 1));
           const colsCount = Math.max(1, tbl?.cols || (Array.isArray(tbl?.cells?.[0]) ? tbl.cells[0].length : 1));
-          
-          // Ensure table cells exist
-          const ensureTableCells = (rows, cols, existing = []) => {
-            return Array.from({ length: rows }, (_, rIdx) => {
-              const srcRow = Array.isArray(existing[rIdx]) ? existing[rIdx] : [];
-              return Array.from({ length: cols }, (_, cIdx) => (srcRow[cIdx] !== undefined ? srcRow[cIdx] : ''));
-            });
-          };
-          
           const cellMatrix = ensureTableCells(rowsCount, colsCount, tbl?.cells);
-          
           const fillColor = colorToPptx(tbl?.background || '#FFFFFF', '#FFFFFF');
           const borderColor = colorToPptx(tbl?.borderColor || '#111827', '#111827');
           const tableTextColor = colorToPptx(textColorNorm, '#333333');
-          
-          // Convert border width from px to pt (old frontend used pxToPt)
-          const pxToPt = (px) => Number((px * 72 / 96).toFixed(2));
           const borderPt = pxToPt(typeof tbl?.borderWidth === 'number' ? tbl.borderWidth : 1.33);
-          
-          // Map border style
-          const mapBorderStyle = (style) => {
-            if (style === 'dashed' || style === 'dash') return 'dash';
-            if (style === 'dotted' || style === 'dot') return 'dash';
-            return 'solid';
-          };
           const borderType = mapBorderStyle(tbl?.borderStyle);
+          const borderDef = ['t', 'r', 'b', 'l'].map(() => ({ color: borderColor, pt: borderPt, type: borderType }));
           
-          // Create border definition for all sides
-          const borderDef = ['t', 'r', 'b', 'l'].map(() => ({ 
-            color: borderColor, 
-            pt: borderPt, 
-            type: borderType 
-          }));
-          
-          // Map table data
           const tableRows = cellMatrix.map((row) =>
             row.map((value) => ({
               text: value || '',
@@ -1088,39 +896,22 @@ export const generatePptxFromData = async (requestBody) => {
             }))
           );
           
-          // Calculate table dimensions (match old frontend)
           const widthFrac = typeof tbl?.width === 'number' && tbl.width > 0 ? tbl.width : 0.5;
           const heightFrac = typeof tbl?.height === 'number' && tbl.height > 0 ? tbl.height : 0.3;
-          const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
-          const SLIDE_WIDTH_IN = 10.0;
-          const SLIDE_HEIGHT_IN = 5.625;
-          
-          const tableWidth = clamp(widthFrac * SLIDE_WIDTH_IN, 1, SLIDE_WIDTH_IN);
-          const tableHeight = clamp(heightFrac * SLIDE_HEIGHT_IN, 0.5, SLIDE_HEIGHT_IN);
-          const tableX = clamp((tbl?.x || 0) * SLIDE_WIDTH_IN, 0, SLIDE_WIDTH_IN - tableWidth);
-          const tableY = clamp((tbl?.y || 0) * SLIDE_HEIGHT_IN, 0, SLIDE_HEIGHT_IN - tableHeight);
+          const tableWidth = clamp(widthFrac * SLIDE_WIDTH_INCHES, 1, SLIDE_WIDTH_INCHES);
+          const tableHeight = clamp(heightFrac * SLIDE_HEIGHT_INCHES, 0.5, SLIDE_HEIGHT_INCHES);
+          const tableX = clamp((tbl?.x || 0) * SLIDE_WIDTH_INCHES, 0, SLIDE_WIDTH_INCHES - tableWidth);
+          const tableY = clamp((tbl?.y || 0) * SLIDE_HEIGHT_INCHES, 0, SLIDE_HEIGHT_INCHES - tableHeight);
           
           const colW = Array.from({ length: colsCount }, () => tableWidth / colsCount);
           const rowH = Array.from({ length: rowsCount }, () => tableHeight / rowsCount);
           
-          pptxSlide.addTable(tableRows, {
-            x: tableX,
-            y: tableY,
-            w: tableWidth,
-            h: tableHeight,
-            colW,
-            rowH,
-            valign: 'top',
-          });
-        } catch (tableErr) {
-          console.warn('Failed to add table to PPTX export', tableErr);
-        }
+          pptxSlide.addTable(tableRows, { x: tableX, y: tableY, w: tableWidth, h: tableHeight, colW, rowH, valign: 'top' });
+        } catch (tableErr) {}
       }
     }
   }
 
-  // 5. RETURN THE FILE BUFFER
-  // This generates the file in memory
   console.log("PPTX generation complete. Generating buffer...");
   const pptxData = await pptx.write({ outputType: 'nodebuffer' });
   
@@ -1135,11 +926,9 @@ export const generatePptxFromData = async (requestBody) => {
   } else if (typeof pptxData === 'string') {
     pptxBuffer = Buffer.from(pptxData, 'base64');
   } else {
-    console.error('Unknown PPTX data format:', typeof pptxData, pptxData);
     throw new Error('Unknown PPTX data format returned from pptxgenjs');
   }
   
   console.log(`PPTX buffer ready, size: ${pptxBuffer.length} bytes`);
   return { buffer: pptxBuffer, imageProviderFinal: imageProviderFinal || (includeImages ? 'none' : null) };
 };
-// All exports are now ES module style (export const ...), so no module.exports needed

@@ -30,3 +30,5 @@ serviceAccountKey.json
 # One-time scripts
 migrateHistory.js
 backupHistory.js
+
+service-account.json

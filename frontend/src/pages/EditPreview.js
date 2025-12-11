@@ -1243,7 +1243,18 @@ export default function EditPreview() {
 
   useEffect(() => {
 
-    if (editedSlides && editedSlides.length > 0 && showImageColumn) {
+    // Always generate preview images when slides exist and either the image column
+    // is enabled OR we're using a backend image provider (imagen/grok) that
+    // can return base64 data URLs. Previously this only ran when `showImageColumn`
+    // was true which caused previews to be empty even though the backend would
+    // include images in the PPTX generation.
+    if (editedSlides && editedSlides.length > 0 && (imageProvider === 'imagen' || imageProvider === 'grok' || showImageColumn)) {
+      // Use a copy to avoid mutating state and causing repeated requests
+      const slidesCopy = editedSlides.map(s => ({ ...s }));
+      // Fallback: If first slide is missing imagePrompt, set a default for Imagen
+      if (imageProvider === 'imagen' && slidesCopy[0] && (!slidesCopy[0].imagePrompt || !slidesCopy[0].imagePrompt.trim())) {
+        slidesCopy[0].imagePrompt = 'A visually appealing slide background';
+      }
 
       setFetchingImages(true);
 
@@ -1328,6 +1339,41 @@ export default function EditPreview() {
           
 
           console.log('[AI IMAGE DEBUG - Grok] All images generated in parallel:', Object.keys(urls).length);
+
+        } else if (imageProvider === 'imagen') {
+
+          console.log('[AI IMAGE DEBUG] Using Google Imagen provider - PARALLEL generation');
+
+          const { generateImageFromImagen } = await import('../api');
+
+          const imagePromisesImagen = editedSlides.map(async (slide) => {
+            if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage) {
+              try {
+                console.log('[AI IMAGE DEBUG - Imagen] Generating for slide:', slide.id, 'Prompt:', slide.imagePrompt);
+                const imageDataUrl = await generateImageFromImagen(slide.imagePrompt);
+                if (imageDataUrl) {
+                  return { slideId: slide.id, url: imageDataUrl };
+                } else {
+                  console.warn('[AI IMAGE DEBUG - Imagen] No image returned for slide:', slide.id);
+                  return null;
+                }
+              } catch (error) {
+                console.error('[AI IMAGE DEBUG - Imagen] Error generating image for slide:', slide.id, error);
+                return null;
+              }
+            }
+            return null;
+          });
+
+          const resultsImagen = await Promise.all(imagePromisesImagen);
+
+          resultsImagen.forEach(result => {
+            if (result && result.slideId && result.url) {
+              urls[result.slideId] = result.url;
+            }
+          });
+
+          console.log('[AI IMAGE DEBUG - Imagen] All images generated in parallel:', Object.keys(urls).length);
 
         } else {
 
@@ -1414,15 +1460,20 @@ export default function EditPreview() {
 
       // Generate images
       const results = await Promise.all(updates.map(async (u) => {
-          let url = null;
-          if (imageProvider === 'grok') {
+           let url = null;
+           if (imageProvider === 'grok') {
              try {
-                 const { generateImageFromGrok } = await import('../api');
-                 url = await generateImageFromGrok(u.prompt);
+                const { generateImageFromGrok } = await import('../api');
+                url = await generateImageFromGrok(u.prompt);
              } catch (e) { console.error("Sticker generation error:", e); }
-          } else {
+           } else if (imageProvider === 'imagen') {
+             try {
+                const { generateImageFromImagen } = await import('../api');
+                url = await generateImageFromImagen(u.prompt);
+             } catch (e) { console.error("Sticker generation error (Imagen):", e); }
+           } else {
              url = getPollinationsImageUrl(u.prompt);
-          }
+           }
           return { ...u, url };
       }));
       
@@ -3630,9 +3681,34 @@ export default function EditPreview() {
 
 
 
-  const openPreviewModal = () => {
+  const openPreviewModal = async () => {
 
     if (!editedSlides.length) return;
+
+    // If using Google Imagen, trigger immediate generation for preview
+    if (imageProvider === 'imagen') {
+      setFetchingImages(true);
+      const urls = {};
+      try {
+        const { generateImageFromImagen } = await import('../api');
+        const promises = editedSlides.map(async (slide) => {
+          if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage) {
+            try {
+              const img = await generateImageFromImagen(slide.imagePrompt);
+              if (img) urls[slide.id] = img;
+            } catch (err) {
+              console.error('[Preview Imagen] Error generating for slide', slide.id, err);
+            }
+          }
+        });
+        await Promise.all(promises);
+        setPreviewImageUrls(prev => ({ ...prev, ...urls }));
+      } catch (e) {
+        console.error('[Preview Imagen] Generation failed:', e);
+      } finally {
+        setFetchingImages(false);
+      }
+    }
 
     setPreviewSlideIndex(0);
 
@@ -6509,8 +6585,8 @@ export default function EditPreview() {
                         )}
                     </div>
 
-                    {/* Image (Absolute) - only show if showImageColumn is enabled AND there's an actual image */}
-                    {showImageColumn && !slide.removedImage && (slide.uploadedImage || previewImageUrls[slide.id]) && (
+                    {/* Image (Absolute) - show if there's an actual image, regardless of showImageColumn */}
+                    {!slide.removedImage && (slide.uploadedImage || previewImageUrls[slide.id]) && (
                       <div
                         style={{
                           position: 'absolute',

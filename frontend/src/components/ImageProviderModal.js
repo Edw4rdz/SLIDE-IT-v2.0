@@ -12,8 +12,16 @@ const PROVIDERS = [
   { 
     value: "grok", 
     label: "Grok Image", 
-    desc: "Higher quality with faster delivery",
+    desc: "High quality with faster delivery",
     badge: "Premium",
+    badgeClass: "premium"
+  },
+  // --- NEW: Add Google Imagen Option ---
+  { 
+    value: "imagen", 
+    label: "Google Imagen", 
+    desc: "Photorealistic AI from Google DeepMind",
+    badge: "New",
     badgeClass: "premium"
   }
 ];

@@ -150,6 +150,21 @@ export const generateImageFromGrok = async (prompt) => {
   }
 };
 
+// --- GOOGLE IMAGEN HELPER (via backend proxy) ---
+export const generateImageFromImagen = async (prompt) => {
+  if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;
+  try {
+    const res = await axios.post(`${API_BASE}/generate-imagen-image`, { prompt });
+    if (res.data && res.data.success && res.data.base64) {
+      return `data:image/png;base64,${res.data.base64}`;
+    }
+    return null;
+  } catch (err) {
+    console.warn("Imagen generation backend proxy failed:", err.message);
+    return null;
+  }
+};
+
 // --- POWERPOINT EXPORT LOGIC (via backend) ---
 export const downloadPPTX = async (slides, design, fileName, includeImages = true, imageProvider = 'pollinations') => {
   try {

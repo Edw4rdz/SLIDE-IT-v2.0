@@ -1,3 +1,25 @@
+// Controller: POST /api/generate-imagen-image
+export const generateImagenImageAPI = async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing or invalid prompt' });
+    }
+    // Dynamically import the Imagen generator
+    const { generateImagenImage } = await import('../services/pptxService.js');
+    const imageDataUrl = await generateImagenImage(prompt);
+    if (imageDataUrl) {
+      // Remove the data URL prefix for consistency with other endpoints
+      const base64 = imageDataUrl.replace(/^data:image\/png;base64,/, '');
+      return res.json({ success: true, base64 });
+    } else {
+      return res.status(502).json({ success: false, error: 'No image returned from Imagen' });
+    }
+  } catch (error) {
+    console.error('[Imagen API] Generation failed:', error.message);
+    res.status(502).json({ success: false, error: 'Failed to generate Imagen image', details: error.message });
+  }
+};
 import axios from "axios";
 import { scanBuffer } from "../services/virusScanService.js";
 // In-memory cache for image results (prompt -> base64)
