@@ -1354,6 +1354,26 @@ export default function EditPreview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editedSlides.length, JSON.stringify(editedSlides.map(s => s.imagePrompt)), showImageColumn, imageProvider]); 
 
+  // Save generated preview images to slide data so they persist when reopening
+  useEffect(() => {
+    if (!previewImageUrls || Object.keys(previewImageUrls).length === 0) return;
+    
+    let hasUpdates = false;
+    const updatedSlides = editedSlides.map(slide => {
+      const previewUrl = previewImageUrls[slide.id];
+      // Only update if there's a preview URL and no uploadedImage yet
+      if (previewUrl && !slide.uploadedImage) {
+        hasUpdates = true;
+        return { ...slide, uploadedImage: previewUrl };
+      }
+      return slide;
+    });
+    
+    if (hasUpdates) {
+      setEditedSlides(updatedSlides);
+    }
+  }, [previewImageUrls]); // Only depend on previewImageUrls to avoid loops
+
   // Auto-generate sticker images for slides that have sticker prompts but no URLs
   useEffect(() => {
     if (!editedSlides || editedSlides.length === 0) return;

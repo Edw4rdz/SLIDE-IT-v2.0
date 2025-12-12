@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaSignOutAlt, FaUpload } from 'react-icons/fa';
 import { getTemplates, uploadTemplate } from '../api';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { notify } from '../utils/notify';
 import '../styles/uploadTemplate.css'; // Main styles for this page
 import '../styles/dashboard.css'; // Shared dashboard styles
 
@@ -48,6 +50,7 @@ const TEMPLATE_THUMB_OVERRIDES = {
 export default function UploadTemplate() {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Get current user from localStorage or sessionStorage
   const getCurrentUser = () => {
@@ -200,12 +203,21 @@ export default function UploadTemplate() {
 
   // Handle logout
   const handleLogout = () => {
-    if (!window.confirm('Are you sure you want to log out?')) return;
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
     setLoggingOut(true);
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
     localStorage.removeItem('selectedTemplate');
+    notify('Logged out successfully.', 'success');
     setTimeout(() => navigate('/login'), 1200);
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   // Handle removing an uploaded template
@@ -434,6 +446,17 @@ export default function UploadTemplate() {
           </div>
         </div>
       </main>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={confirmLogout}
+        onCancel={cancelLogout}
+      />
     </div>
   );
 }

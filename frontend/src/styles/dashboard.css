@@ -34,6 +34,7 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+  z-index: 10;
 }
 
 /* Upload Template Button */
@@ -131,6 +132,8 @@ body {
   min-height: 100vh;
   width: calc(100vw - 230px);
   overflow-x: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 /* Content */
