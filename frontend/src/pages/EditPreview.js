@@ -646,13 +646,38 @@ export default function EditPreview() {
 
   
 
-  // Get the image provider from navigation state (default to 'pollinations')
+  // Get the image provider - check navigation state first (from Conversions or other pages), then draft, then default
+  const getInitialImageProvider = () => {
+    // First check navigation state (takes priority when navigating from Conversions)
+    if (location.state?.imageProvider) {
+      console.log('[INIT] Using imageProvider from navigation:', location.state.imageProvider);
+      return location.state.imageProvider;
+    }
+    
+    // Then check if there's a draft with imageProvider (for direct loads)
+    const convId = location.state?.convId || location.state?.topic;
+    if (convId) {
+      const draftKey = `slideit_draft_${convId}`;
+      try {
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+          const draft = JSON.parse(savedDraft);
+          if (draft.imageProvider) {
+            console.log('[INIT] Using imageProvider from draft:', draft.imageProvider);
+            return draft.imageProvider;
+          }
+        }
+      } catch (e) {
+        console.warn('[INIT] Failed to check draft for imageProvider:', e);
+      }
+    }
+    
+    // Default to pollinations
+    console.log('[INIT] Using default imageProvider: pollinations');
+    return 'pollinations';
+  };
 
-  const [imageProvider, setImageProvider] = useState(
-
-    location.state?.imageProvider || 'pollinations'
-
-  );
+  const [imageProvider, setImageProvider] = useState(getInitialImageProvider());
 
   
 
@@ -799,14 +824,9 @@ export default function EditPreview() {
           }
         }
         
-        // Update imageProvider if present in draft, BUT only if not already set via navigation
-        // Navigation state should take priority over saved draft
-        if (draft.imageProvider && !location.state?.imageProvider) {
-          setImageProvider(draft.imageProvider);
-          console.log('[DRAFT] Loaded imageProvider from draft:', draft.imageProvider);
-        } else if (location.state?.imageProvider) {
-          console.log('[DRAFT] Using imageProvider from navigation:', location.state.imageProvider);
-        }
+        // imageProvider is already initialized from draft in getInitialImageProvider()
+        // So we don't need to set it again here
+        console.log('[DRAFT] ImageProvider already initialized:', imageProvider);
         
         setDraftLoaded(true);
         console.log('[DRAFT] Draft loaded successfully');
@@ -1287,25 +1307,30 @@ export default function EditPreview() {
               // Create a unique key for this prompt to track if we've generated it
               const promptKey = `${slide.id}-${slide.imagePrompt}`;
               
-              // Skip if already generated
+              // Skip if already generated or currently generating
               if (generatedPromptsRef.current.has(promptKey)) {
-                console.log('[AI IMAGE DEBUG - Imagen] Already generated for slide:', slide.id);
+                console.log('[AI IMAGE DEBUG - Imagen] Already generated or generating for slide:', slide.id);
                 return null;
               }
+              
+              // Mark as generating BEFORE making the API call to prevent duplicates
+              generatedPromptsRef.current.add(promptKey);
               
               try {
                 console.log('[AI IMAGE DEBUG - Imagen] Generating for slide:', slide.id, 'Prompt:', slide.imagePrompt);
                 const imageDataUrl = await generateImageFromImagen(slide.imagePrompt);
                 if (imageDataUrl) {
-                  // Mark this prompt as generated
-                  generatedPromptsRef.current.add(promptKey);
                   return { slideId: slide.id, url: imageDataUrl };
                 } else {
                   console.warn('[AI IMAGE DEBUG - Imagen] No image returned for slide:', slide.id);
+                  // Remove from set if generation failed
+                  generatedPromptsRef.current.delete(promptKey);
                   return null;
                 }
               } catch (error) {
                 console.error('[AI IMAGE DEBUG - Imagen] Error generating image for slide:', slide.id, error);
+                // Remove from set if generation failed
+                generatedPromptsRef.current.delete(promptKey);
                 return null;
               }
             }
@@ -3355,7 +3380,12 @@ export default function EditPreview() {
         const base64String = reader.result;
         setEditedSlides(currentSlides => {
           const updatedSlides = currentSlides.map(s =>
-            s.id === slideId ? { ...s, uploadedImage: base64String, imagePrompt: "" } : s
+            s.id === slideId ? { 
+              ...s, 
+              uploadedImage: base64String, 
+              imagePrompt: "",
+              generatedImagePrompt: undefined // Clear this since it's a manual upload
+            } : s
           );
           // Save draft immediately after updating slides
           saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
@@ -3372,7 +3402,13 @@ export default function EditPreview() {
   const handleRemoveImage = (slideId) => {
     setEditedSlides(currentSlides => {
       const updatedSlides = currentSlides.map(s =>
-        s.id === slideId ? { ...s, uploadedImage: null, imagePrompt: "", removedImage: true } : s
+        s.id === slideId ? { 
+          ...s, 
+          uploadedImage: null, 
+          imagePrompt: "", 
+          removedImage: true,
+          generatedImagePrompt: undefined // Clear this since image is removed
+        } : s
       );
       // Save draft immediately after removing image
       saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);

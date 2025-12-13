@@ -90,7 +90,8 @@ export default function Conversions() {
         topic: draft?.topic || conv.fileName,
         includeImages: conv.includeImages === true || conv.includeImages === 'true',
         convId: conv.id || conv.fileName,
-        initialDesign: draft?.design || conv.design || null
+        initialDesign: draft?.design || conv.design || null,
+        imageProvider: draft?.imageProvider || conv.imageProvider || 'pollinations' // Pass imageProvider from draft
       },
     });
   };
