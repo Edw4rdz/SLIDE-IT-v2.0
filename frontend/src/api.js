@@ -134,22 +134,6 @@ export const generateImageFromPollinations = async (prompt) => {
   }
 };
 
-// --- GROK IMAGE GENERATION HELPER (via backend proxy) ---
-export const generateImageFromGrok = async (prompt) => {
-  if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;
-  try {
-    const res = await axios.post(`${API_BASE}/generate-grok-image`, { prompt });
-    if (res.data && res.data.success && res.data.base64) {
-      // Always return as a data URL
-      return `data:image/png;base64,${res.data.base64}`;
-    }
-    return null;
-  } catch (err) {
-    console.warn("Grok image generation backend proxy failed:", err.message);
-    return null;
-  }
-};
-
 // --- GOOGLE IMAGEN HELPER (via backend proxy) ---
 export const generateImageFromImagen = async (prompt) => {
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;

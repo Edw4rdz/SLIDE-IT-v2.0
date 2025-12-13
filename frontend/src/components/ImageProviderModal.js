@@ -5,24 +5,12 @@ const PROVIDERS = [
   { 
     value: "pollinations", 
     label: "Pollinations", 
-    desc: "Fast and free tier AI image generation",
-    badge: "Free",
-    badgeClass: "free"
+    desc: "Fast AI for generating images.",
   },
-  { 
-    value: "grok", 
-    label: "Grok Image", 
-    desc: "High quality with faster delivery",
-    badge: "Premium",
-    badgeClass: "premium"
-  },
-  // --- NEW: Add Google Imagen Option ---
   { 
     value: "imagen", 
     label: "Google Imagen", 
-    desc: "Photorealistic AI from Google DeepMind",
-    badge: "New",
-    badgeClass: "premium"
+    desc: "Generate higher-quality images.",
   }
 ];
 
@@ -35,9 +23,9 @@ export default function ImageProviderModal({ isOpen, onSelect, onCancel }) {
     <div className="ai-provider-modal-overlay">
       <div className="ai-provider-modal-content">
         <div className="ai-provider-modal-header">
-          <h2 className="ai-provider-modal-title">Select Image Provider</h2>
+          <h2 className="ai-provider-modal-title">Select Image Model</h2>
           <p className="ai-provider-modal-subtitle">
-            Choose the service to generate images for your slides
+            Select an AI model that will generate images for your presentation slides.
           </p>
         </div>
 

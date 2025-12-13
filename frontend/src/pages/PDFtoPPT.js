@@ -333,7 +333,9 @@ export default function PDFToPPT() {
                   <ul>
                     <li>Text-based PDFs produce better slides.</li>
                     <li>Scanned images may have limited text extraction.</li>
-                    <li>Try 10–20 slides for balanced detail.</li>
+                    <li>Try 15–20 slides for balanced detail.</li>
+                    <li>Above 20 Slides may affect performance.</li>
+                  Note: <strong>Processing may take longer than usual. Kindly be patient.</strong>
                     <li>Edit in the next page before downloading.</li>
                     Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>
                   </ul>

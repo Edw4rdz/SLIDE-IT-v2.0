@@ -7,7 +7,6 @@ import {
   generateFromTextFile, // <--- Updated import
   generateFromTopic,
   generatePollinationsImage, // <-- New import
-  generateGrokImageAPI, // <-- New import for Grok images
   generateImagenImageAPI, // <-- New import for Imagen images
   generatePptx
 } from "../controllers/aiController.js";
@@ -32,9 +31,6 @@ router.post("/generate-topics", generateFromTopic);
 
 // Pollinations AI Image Generation (PUBLIC)
 router.post("/generate-image", generatePollinationsImage);
-
-// Grok AI Image Generation (PUBLIC)
-router.post("/generate-grok-image", generateGrokImageAPI);
 
 // Imagen AI Image Generation (PUBLIC)
 router.post("/generate-imagen-image", generateImagenImageAPI);

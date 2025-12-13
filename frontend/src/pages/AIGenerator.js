@@ -31,7 +31,7 @@ export default function AIGenerator() {
     return fits ? fontSize : minFont;
   }
 
-  const [slides, setSlides] = useState(10);
+  const [slides, setSlides] = useState(15);
   const [topic, setTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
@@ -331,6 +331,8 @@ export default function AIGenerator() {
                 <ul>
                   <li>Be specific with your topic for better results.</li>
                   <li>Try 5–15 slides for best balance.</li>
+                  <li>Above 20 Slides may affect performance.</li>
+                  Note: <strong>Processing may take longer than usual. Kindly be patient.</strong>
                   <li>Preview and refine content before downloading.</li>
                   <li>Edit in the next page to customize slides.</li>
                   Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>

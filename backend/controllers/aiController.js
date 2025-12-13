@@ -79,49 +79,6 @@ export const generatePollinationsImage = async (req, res) => {
   }
 };
 
-// Controller: POST /api/generate-grok-image
-export const generateGrokImageAPI = async (req, res) => {
-  try {
-    let { prompt } = req.body;
-    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
-      return res.status(400).json({ success: false, error: "Missing or invalid prompt" });
-    }
-    
-    // Import Grok configuration
-    const { grokClient, GROK_IMAGE_MODEL } = await import("../config/grokConfig.js");
-    
-    console.log(`[Grok Image API] Generating image for prompt: "${prompt}"`);
-    
-    // Call Grok API to generate image
-    const response = await grokClient.images.generate({
-      model: GROK_IMAGE_MODEL,
-      prompt: prompt,
-      n: 1,
-      response_format: "b64_json"
-    });
-    
-    if (response.data && response.data.length > 0) {
-      const image = response.data[0];
-      if (image.b64_json) {
-        return res.json({ success: true, base64: image.b64_json, cached: false });
-      } else if (image.url) {
-        // If URL is returned, fetch it and convert to base64
-        const axios = (await import("axios")).default;
-        const imgResponse = await axios.get(image.url, { responseType: 'arraybuffer' });
-        const base64 = Buffer.from(imgResponse.data, 'binary').toString('base64');
-        return res.json({ success: true, base64, cached: false });
-      }
-    }
-    
-    throw new Error("No image data returned from Grok API");
-  } catch (error) {
-    console.error("[Grok Image API] Generation failed:", error.message);
-    if (error.response) {
-      console.error("[Grok Image API] Error Data:", error.response.data);
-    }
-    res.status(502).json({ success: false, error: "Failed to generate Grok image", details: error.message });
-  }
-};
 
 import { 
   convertPdfToSlides, 

@@ -376,7 +376,9 @@ export default function TextToPPT() {
                 <ul>
                   <li>Well-structured text gives better slides.</li>
                   <li>Keep content clear and concise.</li>
-                  <li>Try 5–15 slides for best results.</li>
+                   <li>Try 5–15 slides for best balance.</li>
+                  <li>Above 20 Slides may affect performance.</li>
+                  Note: <strong>Processing may take longer than usual. Kindly be patient.</strong>
                   <li>Edit in the next page before downloading.</li>
                   Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>
                 </ul>

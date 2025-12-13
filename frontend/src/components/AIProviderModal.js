@@ -5,17 +5,12 @@ const PROVIDERS = [
   { 
     value: "gemini", 
     label: "Gemini", 
-    desc: "Fast and reliable AI for presentation content",
-    badge: "Free",
-    badgeClass: "free"
+    desc: "Fast and reliable AI for presentation content.",
   },
   { 
     value: "grok", 
     label: "Grok AI", 
-    desc: "Premium AI",
-    badge: "Premium",
-    badgeClass: "premium",
-    disabled: false
+    desc: "Advanced reasoning AI for structured presentation content.",
   }
 ];
 
@@ -28,9 +23,9 @@ export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
     <div className="ai-provider-modal-overlay">
       <div className="ai-provider-modal-content">
         <div className="ai-provider-modal-header">
-          <h2 className="ai-provider-modal-title">Select AI Provider</h2>
+          <h2 className="ai-provider-modal-title">Select Text Summarization Model</h2>
           <p className="ai-provider-modal-subtitle">
-            Choose the AI model to generate your presentation content
+           Select an AI model that will summarize your text into presentation content.
           </p>
         </div>
 

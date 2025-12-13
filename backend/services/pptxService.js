@@ -3,7 +3,7 @@ import PptxGenJS from "pptxgenjs";
 import axios from "axios";
 import { PNG } from "pngjs";
 import { GoogleAuth } from "google-auth-library";
-import { grokClient, GROK_IMAGE_MODEL } from "../config/grokConfig.js";
+
 
 // In-memory cache for Imagen images: key = prompt+model, value = base64
 const imagenImageCache = new Map();
@@ -284,35 +284,7 @@ function getPollinationsImageUrl(prompt) {
   return `https://image.pollinations.ai/prompt/${encodedPrompt}`;
 }
 
-/**
- * Helper to generate image using Grok API
- */
-async function generateGrokImage(prompt) {
-  if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;
-  
-  try {
-    const response = await grokClient.images.generate({
-      model: GROK_IMAGE_MODEL,
-      prompt: prompt,
-      n: 1,
-      response_format: "b64_json"
-    });
 
-    if (response.data && response.data.length > 0) {
-      const image = response.data[0];
-      if (image.b64_json) {
-        return `data:image/png;base64,${image.b64_json}`;
-      } else if (image.url) {
-        return await fetchImageAsBase64(image.url);
-      }
-    }
-    
-    throw new Error("No image data returned from Grok API");
-  } catch (error) {
-    console.warn("[Grok Image] Generation failed:", error.message);
-    throw error;
-  }
-}
 
 const fetchImageAsBase64 = async (url) => {
   try {
@@ -512,18 +484,7 @@ export const generatePptxFromData = async (requestBody) => {
                     // Fall through to other providers
                  }
               } 
-              
-              // 3. Grok (Alternative)
-              if (!imageBase64 && imageProvider === 'grok') {
-                if (process.env.GROK_IMAGE_API_KEY || process.env.XAI_API_KEY) {
-                  try {
-                    imageBase64 = await generateGrokImage(slide.imagePrompt);
-                    usedProvider = 'grok';
-                  } catch (e) {}
-                }
-              }
-              
-              // 4. Pollinations (Fallback)
+
               if (!imageBase64) {
                 const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
                 if (imageUrl) {
@@ -555,7 +516,6 @@ export const generatePptxFromData = async (requestBody) => {
     
     // Determine final provider used
     if (usedProviders.has('imagen')) imageProviderFinal = 'imagen';
-    else if (usedProviders.has('grok')) imageProviderFinal = 'grok';
     else if (usedProviders.has('pollinations')) imageProviderFinal = 'pollinations';
     
     console.log(`[PPTX Generation] All images pre-generated. Cache size: ${imageCache.size}`);

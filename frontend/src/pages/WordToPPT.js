@@ -326,7 +326,9 @@ export default function WordToPPT() {
                 <ul>
                   <li>Well-structured documents produce better slides.</li>
                   <li>Use headings for better content organization.</li>
-                  <li>Try 5–15 slides for optimal results.</li>
+                  <li>Try 5–15 slides for best balance.</li>
+                  <li>Above 20 Slides may affect performance.</li>
+                  Note: <strong>Processing may take longer than usual. Kindly be patient.</strong>
                   <li>Edit in the next page before downloading.</li>
                   Note: <strong>AI may contain inaccuracies. Please review carefully!</strong>
                 </ul>
