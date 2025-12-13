@@ -3508,35 +3508,57 @@ export default function EditPreview() {
       });
     };
 
-    // 1. Prepare slides: Convert any relative sticker URLs to Base64 and SVG to PNG
+    // 1. Prepare slides: Convert any URLs to Base64 (uploadedImage, previewImageUrls, stickers)
     // This allows the backend to embed the image data directly.
     const slidesForExport = await Promise.all(
       editedSlides.map(async (slide) => {
-        if (!Array.isArray(slide.stickers) || slide.stickers.length === 0) {
-          return slide;
+        let processedSlide = { ...slide };
+
+        // Convert uploadedImage if it's a URL (not already base64)
+        if (slide.uploadedImage && typeof slide.uploadedImage === 'string') {
+          if (slide.uploadedImage.startsWith('http://') || slide.uploadedImage.startsWith('https://')) {
+            console.log('[Download] Converting uploadedImage URL to base64 for slide:', slide.id);
+            const base64Image = await urlToBase64(slide.uploadedImage);
+            processedSlide.uploadedImage = base64Image || slide.uploadedImage;
+          }
+        }
+        // Fallback: Use previewImageUrls if no uploadedImage
+        else if (!slide.uploadedImage && previewImageUrls[slide.id]) {
+          const previewUrl = previewImageUrls[slide.id];
+          if (previewUrl.startsWith('http://') || previewUrl.startsWith('https://')) {
+            console.log('[Download] Converting previewImageUrl to base64 for slide:', slide.id);
+            const base64Image = await urlToBase64(previewUrl);
+            processedSlide.uploadedImage = base64Image || previewUrl;
+          } else {
+            processedSlide.uploadedImage = previewUrl;
+          }
         }
 
-        const processedStickers = await Promise.all(
-          slide.stickers.map(async (sticker) => {
-            let processedUrl = sticker.url;
-            
-            // Check if it's a relative path (e.g. "/stickers/...") and not already a data URL
-            if (sticker.url && typeof sticker.url === 'string' && sticker.url.startsWith('/') && !sticker.url.startsWith('//')) {
-              const base64Data = await urlToBase64(sticker.url);
-              processedUrl = base64Data || sticker.url;
-            }
-            
-            // Convert SVG data URLs to PNG (PptxGenJS doesn't handle SVG well)
-            if (processedUrl && typeof processedUrl === 'string' && processedUrl.includes('data:image/svg+xml')) {
-              console.log('Converting SVG sticker to PNG for PPTX compatibility...');
-              processedUrl = await svgDataUrlToPng(processedUrl, 400, 400);
-            }
-            
-            return { ...sticker, url: processedUrl };
-          })
-        );
+        // Process stickers
+        if (Array.isArray(slide.stickers) && slide.stickers.length > 0) {
+          const processedStickers = await Promise.all(
+            slide.stickers.map(async (sticker) => {
+              let processedUrl = sticker.url;
+              
+              // Check if it's a relative path (e.g. "/stickers/...") and not already a data URL
+              if (sticker.url && typeof sticker.url === 'string' && sticker.url.startsWith('/') && !sticker.url.startsWith('//')) {
+                const base64Data = await urlToBase64(sticker.url);
+                processedUrl = base64Data || sticker.url;
+              }
+              
+              // Convert SVG data URLs to PNG (PptxGenJS doesn't handle SVG well)
+              if (processedUrl && typeof processedUrl === 'string' && processedUrl.includes('data:image/svg+xml')) {
+                console.log('Converting SVG sticker to PNG for PPTX compatibility...');
+                processedUrl = await svgDataUrlToPng(processedUrl, 400, 400);
+              }
+              
+              return { ...sticker, url: processedUrl };
+            })
+          );
+          processedSlide.stickers = processedStickers;
+        }
 
-        return { ...slide, stickers: processedStickers };
+        return processedSlide;
       })
     );
     
@@ -6309,8 +6331,8 @@ export default function EditPreview() {
                         )}
                     </div>
 
-                    {/* Image (Absolute) - show if there's an actual image, regardless of showImageColumn */}
-                    {!slide.removedImage && (slide.uploadedImage || previewImageUrls[slide.id]) && (
+                    {/* Image (Absolute) - only show if showImageColumn is enabled AND there's an actual image */}
+                    {showImageColumn && !slide.removedImage && (slide.uploadedImage || previewImageUrls[slide.id]) && (
                       <div
                         style={{
                           position: 'absolute',
