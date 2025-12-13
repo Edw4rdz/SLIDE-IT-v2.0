@@ -1153,6 +1153,9 @@ export default function EditPreview() {
   // Track if image generation is already in progress to prevent duplicates
   const imageGenerationInProgress = useRef(false);
 
+  // Track which slide prompts have been generated to prevent duplicates
+  const generatedPromptsRef = useRef(new Set());
+
   useEffect(() => {
 
     // Always generate preview images when slides exist and either the image column
@@ -1162,6 +1165,18 @@ export default function EditPreview() {
     // include images in the PPTX generation.
     if (editedSlides && editedSlides.length > 0 && (imageProvider === 'imagen' || imageProvider === 'grok' || showImageColumn)) {
       
+      // Check if there are any slides that need image generation
+      const slidesNeedingImages = editedSlides.filter(slide => 
+        slide.imagePrompt && !slide.uploadedImage && !slide.removedImage
+      );
+      
+      // If no slides need images, skip generation
+      if (slidesNeedingImages.length === 0) {
+        console.log('[IMAGE GEN] All slides already have images, skipping generation');
+        imageGenerationInProgress.current = false;
+        return;
+      }
+      
       // Prevent duplicate image generation
       if (imageGenerationInProgress.current) {
         console.log('[IMAGE GEN] Already in progress, skipping...');
@@ -1169,6 +1184,8 @@ export default function EditPreview() {
       }
       
       imageGenerationInProgress.current = true;
+      
+      console.log(`[IMAGE GEN] Generating images for ${slidesNeedingImages.length} slide(s)`);
       
       // Use a copy to avoid mutating state and causing repeated requests
       const slidesCopy = editedSlides.map(s => ({ ...s }));
@@ -1266,11 +1283,22 @@ export default function EditPreview() {
           const { generateImageFromImagen } = await import('../api');
 
           const imagePromisesImagen = editedSlides.map(async (slide) => {
-            if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage) {
+            if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage && !slide.removedImage) {
+              // Create a unique key for this prompt to track if we've generated it
+              const promptKey = `${slide.id}-${slide.imagePrompt}`;
+              
+              // Skip if already generated
+              if (generatedPromptsRef.current.has(promptKey)) {
+                console.log('[AI IMAGE DEBUG - Imagen] Already generated for slide:', slide.id);
+                return null;
+              }
+              
               try {
                 console.log('[AI IMAGE DEBUG - Imagen] Generating for slide:', slide.id, 'Prompt:', slide.imagePrompt);
                 const imageDataUrl = await generateImageFromImagen(slide.imagePrompt);
                 if (imageDataUrl) {
+                  // Mark this prompt as generated
+                  generatedPromptsRef.current.add(promptKey);
                   return { slideId: slide.id, url: imageDataUrl };
                 } else {
                   console.warn('[AI IMAGE DEBUG - Imagen] No image returned for slide:', slide.id);
@@ -1287,7 +1315,7 @@ export default function EditPreview() {
           const resultsImagen = await Promise.all(imagePromisesImagen);
 
           resultsImagen.forEach(result => {
-            if (result && result.slideId && result.url) {
+            if (result && result.slideId !== undefined && result.url) {
               urls[result.slideId] = result.url;
             }
           });
@@ -1334,7 +1362,8 @@ export default function EditPreview() {
 
         console.log('[AI IMAGE DEBUG] Final previewImageUrls:', urls);
 
-        setPreviewImageUrls(urls);
+        // Merge with existing previewImageUrls to preserve already generated images
+        setPreviewImageUrls(prev => ({ ...prev, ...urls }));
 
         imageGenerationInProgress.current = false; // Reset flag
 
@@ -1352,26 +1381,31 @@ export default function EditPreview() {
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editedSlides.length, JSON.stringify(editedSlides.map(s => s.imagePrompt)), showImageColumn, imageProvider]); 
+  }, [
+    editedSlides.length, 
+    JSON.stringify(editedSlides.map(s => s.imagePrompt)), 
+    showImageColumn, 
+    imageProvider
+  ]); 
 
   // Save generated preview images to slide data so they persist when reopening
   useEffect(() => {
     if (!previewImageUrls || Object.keys(previewImageUrls).length === 0) return;
     
-    let hasUpdates = false;
-    const updatedSlides = editedSlides.map(slide => {
-      const previewUrl = previewImageUrls[slide.id];
-      // Only update if there's a preview URL and no uploadedImage yet
-      if (previewUrl && !slide.uploadedImage) {
-        hasUpdates = true;
-        return { ...slide, uploadedImage: previewUrl };
-      }
-      return slide;
+    setEditedSlides(prevSlides => {
+      let hasUpdates = false;
+      const updatedSlides = prevSlides.map(slide => {
+        const previewUrl = previewImageUrls[slide.id];
+        // Only update if there's a preview URL and no uploadedImage yet
+        if (previewUrl && !slide.uploadedImage) {
+          hasUpdates = true;
+          return { ...slide, uploadedImage: previewUrl };
+        }
+        return slide;
+      });
+      
+      return hasUpdates ? updatedSlides : prevSlides;
     });
-    
-    if (hasUpdates) {
-      setEditedSlides(updatedSlides);
-    }
   }, [previewImageUrls]); // Only depend on previewImageUrls to avoid loops
 
   // Auto-generate sticker images for slides that have sticker prompts but no URLs
