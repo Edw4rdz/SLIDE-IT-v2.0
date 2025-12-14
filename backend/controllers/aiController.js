@@ -92,7 +92,7 @@ import { parseExcelAndSuggestCharts } from '../services/excelChartSuggestService
 import fs from "fs";
 import { saveHistory } from "../services/historyService.js";
 import { generatePptxFromData } from "../services/pptxService.js";
-import { uploadToS3 } from "../services/s3Service.js";
+import { uploadToS3, getSignedUrl } from "../services/s3Service.js";
 import { saveConversion, saveAIGeneratedConversion } from "../services/conversionService.js";
 
 const getFileBuffer = (file) => {
@@ -142,6 +142,9 @@ const enforceSlideCount = (slides, count) => {
  * @param {Object} params - Conversion parameters
  * @returns {Promise<Object>} - Upload results with URLs
  */
+/**
+ * Helper function to handle PPTX generation, S3 upload, and saving to both collections
+ */
 const handlePptxUploadAndSave = async (slides, params) => {
   const {
     userId,
@@ -150,7 +153,6 @@ const handlePptxUploadAndSave = async (slides, params) => {
     includeImages,
     previewThumb,
     imageProvider,
-    // Optional: chart info for first slide
     chartData,
     chartType,
     chartSummary,
@@ -158,35 +160,10 @@ const handlePptxUploadAndSave = async (slides, params) => {
   
   console.log(`\n${'='.repeat(60)}`);
   console.log(`[UPLOAD FLOW] Starting for ${fileName}`);
-  console.log(`[UPLOAD FLOW] User: ${userId}, Slides: ${slides.length}, Type: ${conversionType}, ImageProvider: ${imageProvider}`);
-  console.log(`${'='.repeat(60)}\n`);
   
-  // First, ALWAYS save to history collection (for backward compatibility and UI display)
-  let historyId = null;
   try {
-    if (userId) {
-      console.log('[Step 1/4] Saving to history collection...');
-      const historyRecord = await saveHistory({
-        userId,
-        fileName,
-        conversionType,
-        includeImages: includeImages || false,
-        previewThumb: previewThumb || null,
-        slides,
-        imageProviderRequested: imageProvider || null
-      });
-      historyId = historyRecord.id;
-      console.log(`✅ [Step 1/4] History saved with ID: ${historyId}`);
-    }
-  } catch (historyError) {
-    console.error('❌ [Step 1/4] History Save Failed:', historyError.message);
-    // Continue even if history save fails
-  }
-
-  // Then try to generate PPTX, upload to S3, and save to conversions
-  try {
-    // 1. Generate PPTX file from slides
-    console.log(`[Step 2/4] Starting PPTX generation for ${slides.length} slides...`);
+    // 1. Generate PPTX and capture generated images
+    console.log(`[Step 1/4] Generating PPTX and creating images...`);
     const pptxResult = await generatePptxFromData({
       slides,
       design: {
@@ -198,40 +175,95 @@ const handlePptxUploadAndSave = async (slides, params) => {
       },
       includeImages: includeImages || false,
       imageProvider: imageProvider,
-      // Pass through chart info so pptxService can build a first chart slide
       chartData,
       chartType,
       chartSummary,
     });
 
     const pptxBuffer = pptxResult.buffer;
-    const imageProviderFinal = pptxResult.imageProviderFinal || imageProvider || null;
-    console.log(`✅ [Step 2/4] PPTX generated, size: ${pptxBuffer.length} bytes`);
+    const generatedImages = pptxResult.generatedImages || {};
+    const imageProviderFinal = pptxResult.imageProviderFinal || imageProvider;
+    
+    // 2. Upload Generated Images to S3
+    // This permanently saves the Imagen images so they appear in drafts
+    if (includeImages && Object.keys(generatedImages).length > 0) {
+        console.log(`[Step 2/4] Uploading ${Object.keys(generatedImages).length} AI images to S3...`);
+        
+        await Promise.all(Object.entries(generatedImages).map(async ([indexStr, base64Data]) => {
+            try {
+                const index = parseInt(indexStr);
+                if (!slides[index]) return;
 
-    // 2. Upload to S3
-    console.log('[Step 3/4] Uploading to S3...');
+                // Prepare buffer
+                const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
+                const imgBuffer = Buffer.from(base64Content, 'base64');
+                const imgFileName = `slide_img_${Date.now()}_${index}_${Math.random().toString(36).substr(7)}.png`;
+                
+                // Upload
+                const s3ImgResult = await uploadToS3(imgBuffer, imgFileName, 'image/png', userId);
+
+                // Try to generate a presigned URL for frontend preview (safer than public URLs)
+                let signedUrl = null;
+                try {
+                  signedUrl = await getSignedUrl(s3ImgResult.key, 3600); // 1 hour
+                } catch (signErr) {
+                  console.warn('[S3] Failed to generate signed URL, falling back to public URL:', signErr?.message || signErr);
+                  signedUrl = s3ImgResult.url;
+                }
+
+                // UPDATE SLIDE WITH SIGNED URL (frontend should use this for immediate preview)
+                slides[index].uploadedImage = signedUrl;
+                // Also store the underlying S3 key so long-term retrieval can use signed URLs later
+                slides[index].uploadedImageKey = s3ImgResult.key;
+                
+                // Optional: Clear prompt so frontend doesn't try to regenerate
+                // slides[index].imagePrompt = ""; 
+                
+                console.log(`   > Slide ${index} image saved: ${s3ImgResult.url}`);
+            } catch (err) {
+                console.error(`   > Failed to save image for slide ${indexStr}:`, err.message);
+            }
+        }));
+    }
+
+    // 3. Upload PPTX to S3
+    console.log('[Step 3/4] Uploading PPTX to S3...');
     const pptxFileName = `${fileName.replace(/\.[^/.]+$/, '')}.pptx`;
     const s3Result = await uploadToS3(
       pptxBuffer,
       pptxFileName,
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      userId  // Pass userId to organize by user folder
+      userId
     );
 
-    console.log(`✅ [Step 3/4] S3 upload successful: ${s3Result.url}`);
-
-    // 3. Save to appropriate conversions collection
+    // 4. Save to History and Conversions
+    // CRITICAL: We save AFTER the images are uploaded and slides are updated
+    let historyId = null;
     if (userId) {
-      console.log('[Step 4/4] Saving to conversions collection...');
+      console.log('[Step 4/4] Saving to Database...');
       
-      // Determine if this is AI-generated content
+      try {
+        // Save to History (Drafts)
+        const historyRecord = await saveHistory({
+          userId,
+          fileName,
+          conversionType,
+          includeImages: includeImages || false,
+          previewThumb: previewThumb || null,
+          slides: slides, // <--- Now contains the S3 URLs for the images
+          imageProviderRequested: imageProvider || null
+        });
+        historyId = historyRecord.id;
+        console.log(`✅ History saved. ID: ${historyId}`);
+      } catch (e) {
+        console.error("History save failed:", e.message);
+      }
+
+      // Save to Conversions
       const isAIGenerated = conversionType === 'AI-Generated PPTs';
-      
-      // Use appropriate save function based on conversion type
       const saveFn = isAIGenerated ? saveAIGeneratedConversion : saveConversion;
-      const collectionName = isAIGenerated ? 'AI-generated' : 'userconversions';
       
-      const conversionRecord = await saveFn({
+      await saveFn({
         userId,
         fileName: pptxFileName,
         originalFileName: fileName,
@@ -246,19 +278,10 @@ const handlePptxUploadAndSave = async (slides, params) => {
         imageProviderRequested: imageProvider || null,
         imageProviderFinal: imageProviderFinal || null
       });
-
-      console.log(`✅ [Step 4/4] Saved to ${collectionName} with ID: ${conversionRecord.id}`);
-
-      // 4. Update history record with S3 info
-      if (historyId) {
-        console.log(`[Info] History ${historyId} linked to S3: ${s3Result.key}`);
-      }
     }
 
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`[UPLOAD FLOW] ✅ COMPLETE SUCCESS`);
-    console.log(`${'='.repeat(60)}\n`);
-
+    console.log(`[UPLOAD FLOW] ✅ SUCCESS`);
+    
     return {
       s3Url: s3Result.url,
       s3Key: s3Result.key,
@@ -268,22 +291,10 @@ const handlePptxUploadAndSave = async (slides, params) => {
     };
 
   } catch (error) {
-    console.error(`\n${'='.repeat(60)}`);
-    console.error('[UPLOAD FLOW] ❌ PARTIAL FAILURE');
-    console.error('Error:', error.message);
-    console.error('Stack:', error.stack);
-    console.error(`${'='.repeat(60)}\n`);
-    
-    // Return error but include historyId so UI still works
-    return {
-      error: error.message,
-      s3Url: null,
-      s3Key: null,
-      historyId
-    };
+    console.error(`[UPLOAD FLOW] ❌ ERROR:`, error.message);
+    return { error: error.message, s3Url: null, historyId: null };
   }
 };
-
 export const generateFromPdf = async (req, res) => {
   try {
     if (!req.file) {

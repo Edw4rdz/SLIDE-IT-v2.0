@@ -224,7 +224,8 @@ async function generateImagenImage(prompt) {
   try {
     const client = await getAuthClient();
     const accessToken = await client.getAccessToken();
-    const token = accessToken.token;
+    // support different shapes returned by google-auth-library (string or object)
+    const token = typeof accessToken === 'string' ? accessToken : (accessToken?.token || accessToken?.access_token || null);
 
     const projectId = process.env.GOOGLE_PROJECT_ID; 
     const location = process.env.GCP_LOCATION || 'us-central1';
@@ -233,38 +234,109 @@ async function generateImagenImage(prompt) {
 
     const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelId}:predict`;
 
-    // 2. UPDATE: Add the new parameters from your snippet to fix safety blocks
-    const response = await axios.post(url, {
-      instances: [
-        { prompt: prompt }
-      ],
+    const payload = {
+      instances: [ { prompt: prompt } ],
       parameters: {
         sampleCount: 1,
         aspectRatio: "16:9",
-        // --- NEW PARAMETERS FROM YOUR SNIPPET ---
-        personGeneration: "allow_all", // Allows generating people
-        safetySetting: "block_few",    // Reduces strict safety blocking
-        addWatermark: false            // Optional: set to true if you want it
+        personGeneration: "allow_all",
+        safetySetting: "block_few",
+        addWatermark: false
       }
-    }, {
+    };
+
+    const response = await axios.post(url, payload, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': token ? `Bearer ${token}` : undefined,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 30000
     });
 
-    const b64 = response.data.predictions?.[0]?.bytesBase64Encoded;
-    
+    const resp = response?.data || {};
+
+    // Try common fields first
+    let b64 = resp?.predictions?.[0]?.bytesBase64Encoded || resp?.predictions?.[0]?.image?.b64 || resp?.predictions?.[0]?.data?.[0]?.b64 || null;
+
+    // Helper: recursively search for a long base64-like string
+    const findBase64InObject = (obj) => {
+      if (!obj) return null;
+      if (typeof obj === 'string') {
+        const s = obj.replace(/^data:\w+\/\w+;base64,/, '');
+        // heuristic: base64 string longer than 200 chars
+        if (/^[A-Za-z0-9+/=\n\r]+$/.test(s) && s.length > 200) return s;
+        return null;
+      }
+      if (Array.isArray(obj)) {
+        for (const item of obj) {
+          const found = findBase64InObject(item);
+          if (found) return found;
+        }
+      } else if (typeof obj === 'object') {
+        for (const k of Object.keys(obj)) {
+          try {
+            const found = findBase64InObject(obj[k]);
+            if (found) return found;
+          } catch (e) { continue; }
+        }
+      }
+      return null;
+    };
+
+    if (!b64) {
+      b64 = findBase64InObject(resp);
+    }
+
     if (b64) {
-      const dataUrl = `data:image/png;base64,${b64}`;
-      imagenImageCache.set(cacheKey, dataUrl);
-      
+      // If the found string already contains data URL prefix, keep it
+      const cleaned = b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`;
+      imagenImageCache.set(cacheKey, cleaned);
       if (imagenImageCache.size > 200) {
         const firstKey = imagenImageCache.keys().next().value;
         imagenImageCache.delete(firstKey);
       }
-      return dataUrl;
+      return cleaned;
     }
+
+    // As a last resort, check for direct image URL and fetch it
+    const findImageUrl = (obj) => {
+      if (!obj) return null;
+      if (typeof obj === 'string' && (obj.startsWith('http://') || obj.startsWith('https://'))) return obj;
+      if (Array.isArray(obj)) {
+        for (const item of obj) {
+          const u = findImageUrl(item);
+          if (u) return u;
+        }
+      } else if (typeof obj === 'object') {
+        for (const k of Object.keys(obj)) {
+          try {
+            const u = findImageUrl(obj[k]);
+            if (u) return u;
+          } catch (e) { continue; }
+        }
+      }
+      return null;
+    };
+
+    const imageUrl = resp?.predictions?.[0]?.imageUri || resp?.predictions?.[0]?.imageUrl || findImageUrl(resp);
+    if (imageUrl) {
+      try {
+        const fetched = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 20000 });
+        const mime = fetched.headers['content-type'] || 'image/png';
+        const base64 = Buffer.from(fetched.data, 'binary').toString('base64');
+        const dataUrl = `data:${mime};base64,${base64}`;
+        imagenImageCache.set(cacheKey, dataUrl);
+        if (imagenImageCache.size > 200) {
+          const firstKey = imagenImageCache.keys().next().value;
+          imagenImageCache.delete(firstKey);
+        }
+        return dataUrl;
+      } catch (fetchErr) {
+        // ignore and fallthrough to error below
+        console.warn('[Imagen] failed to fetch imageUrl:', fetchErr.message);
+      }
+    }
+
     throw new Error("No image data in Vertex AI response");
 
   } catch (error) {
@@ -440,13 +512,13 @@ export const generatePptxFromData = async (requestBody) => {
   console.log(`[PPTX Generation] Starting with ${slides.length} slides, imageProvider: ${imageProvider || 'none'}`);
 
   let imageProviderFinal = null;
-  const imageCache = new Map();
+  const imageCache = new Map(); // Stores the generated base64 images
   
   if (includeImages) {
     console.log(`[PPTX Generation] Pre-generating images in batches...`);
     
-    // --- THROTTLING FIX: Batch size 2, Delay 2000ms ---
-    const batchSize = 2; // Reduced from 5 to 2 to prevent "429 Quota Exceeded"
+    // Batch size 2 to prevent rate limits
+    const batchSize = 2; 
     const usedProviders = new Set();
     
     for (let i = 0; i < slides.length; i += batchSize) {
@@ -456,9 +528,14 @@ export const generatePptxFromData = async (requestBody) => {
       const batchPromises = batch.map(async (slide, batchIndex) => {
         const globalIndex = i + batchIndex;
         
+        // If image is already uploaded/saved, use it
         if (slide.uploadedImage) {
-          imageCache.set(globalIndex, slide.uploadedImage);
-          return null;
+          try {
+             // Convert URL to base64 for PPTX embedding
+             const b64 = await fetchImageAsBase64(slide.uploadedImage);
+             if(b64) imageCache.set(globalIndex, b64);
+          } catch(e) {}
+          return 'saved';
         }
         
         if (slide.imagePrompt) {
@@ -466,7 +543,7 @@ export const generatePptxFromData = async (requestBody) => {
               let imageBase64 = null;
               let usedProvider = null;
 
-              // 1. Saved Image
+              // 1. Saved Image (Legacy check)
               if (slide.savedImageUrl) {
                  try {
                     imageBase64 = await fetchImageAsBase64(slide.savedImageUrl);
@@ -474,17 +551,17 @@ export const generatePptxFromData = async (requestBody) => {
                  } catch (e) {}
               }
 
-              // 2. Imagen (Primary) - Will throw on 429 or Safety Block
+              // 2. Imagen (Primary)
               if (!imageBase64 && imageProvider === 'imagen') {
                  try {
                     imageBase64 = await generateImagenImage(slide.imagePrompt);
                     usedProvider = 'imagen';
                  } catch (err) {
-                    console.warn(`[PPTX] Imagen failed for slide ${globalIndex} (Switching to fallback):`, err.message);
-                    // Fall through to other providers
+                    console.warn(`[PPTX] Imagen failed for slide ${globalIndex}:`, err.message);
                  }
               } 
 
+              // 3. Pollinations (Fallback)
               if (!imageBase64) {
                 const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
                 if (imageUrl) {
@@ -508,13 +585,11 @@ export const generatePptxFromData = async (requestBody) => {
       const results = await Promise.all(batchPromises);
       results.forEach(p => { if (p) usedProviders.add(p); });
 
-      // --- CRITICAL DELAY: Wait 2 seconds between batches ---
       if (i + batchSize < slides.length) {
         await sleep(2000); 
       }
     }
     
-    // Determine final provider used
     if (usedProviders.has('imagen')) imageProviderFinal = 'imagen';
     else if (usedProviders.has('pollinations')) imageProviderFinal = 'pollinations';
     
@@ -522,7 +597,7 @@ export const generatePptxFromData = async (requestBody) => {
   }
 
   // --- STANDARD PPTX GENERATION LOGIC ---
-  let pptx = new PptxGenJS();
+let pptx = new PptxGenJS();
   pptx.defineLayout({ name: 'LAYOUT_16x9', width: 10, height: 5.625 });
   pptx.layout = 'LAYOUT_16x9';
 
@@ -593,7 +668,7 @@ export const generatePptxFromData = async (requestBody) => {
     slideOffset = 1;
   }
 
-  for (let slideIndex = 0; slideIndex < slides.length; slideIndex++) {
+ for (let slideIndex = 0; slideIndex < slides.length; slideIndex++) {
     const slide = slides[slideIndex];
     let pptxSlide = pptx.addSlide();
 
@@ -627,7 +702,7 @@ export const generatePptxFromData = async (requestBody) => {
       pptxSlide.background = { color: colorToPptx(bgColorNorm, design.globalBackground) };
     }
 
-    const imageBase64 = imageCache.get(slideIndex) || null;
+   const imageBase64 = imageCache.get(slideIndex) || null; 
     const SLIDE_WIDTH_INCHES = 10.0;
     const SLIDE_HEIGHT_INCHES = 5.625;
     const imagePosition = slide.imagePosition || "right";
@@ -898,26 +973,38 @@ export const generatePptxFromData = async (requestBody) => {
       }
     }
   }
+// ... inside generatePptxFromData ...
 
-  console.log("PPTX generation complete. Generating buffer...");
+console.log("PPTX generation complete. Generating buffer...");
   const pptxData = await pptx.write({ outputType: 'nodebuffer' });
   
   let pptxBuffer;
   if (Buffer.isBuffer(pptxData)) {
     pptxBuffer = pptxData;
-  } else if (pptxData instanceof Uint8Array) {
-    pptxBuffer = Buffer.from(pptxData);
-  } else if (pptxData instanceof Blob) {
-    const arrayBuffer = await pptxData.arrayBuffer();
-    pptxBuffer = Buffer.from(arrayBuffer);
   } else if (typeof pptxData === 'string') {
     pptxBuffer = Buffer.from(pptxData, 'base64');
   } else {
-    throw new Error('Unknown PPTX data format returned from pptxgenjs');
+    pptxBuffer = Buffer.from(await pptxData.arrayBuffer());
   }
   
   console.log(`PPTX buffer ready, size: ${pptxBuffer.length} bytes`);
-  return { buffer: pptxBuffer, imageProviderFinal: imageProviderFinal || (includeImages ? 'none' : null) };
+
+  // --- FIX: Return generated images so Controller can save them ---
+  const generatedImagesObj = {};
+  if (imageCache && imageCache.size > 0) {
+    for (const [index, base64Data] of imageCache.entries()) {
+      // Only return strictly generated images (base64), not existing URLs
+      if (typeof base64Data === 'string' && base64Data.startsWith('data:image')) {
+          generatedImagesObj[index] = base64Data;
+      }
+    }
+  }
+
+  return { 
+    buffer: pptxBuffer, 
+    imageProviderFinal: imageProviderFinal || (includeImages ? 'none' : null),
+    generatedImages: generatedImagesObj // <--- THIS IS THE KEY FIX
+  };
 };
 
 export { generateImagenImage };
