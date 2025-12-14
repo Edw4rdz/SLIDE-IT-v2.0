@@ -785,3 +785,23 @@ export const generatePptx = async (req, res) => {
     res.status(500).json({ error: "Failed to generate PPTX file", details: error.message });
   }
 };
+
+// Controller: POST /api/presigned-url
+// Generates a fresh presigned URL from an S3 key
+export const getFreshPresignedUrl = async (req, res) => {
+  try {
+    const { key } = req.body;
+    
+    if (!key || typeof key !== 'string') {
+      return res.status(400).json({ success: false, error: 'S3 key is required' });
+    }
+    
+    // Generate a fresh presigned URL (1 hour expiry)
+    const url = await getSignedUrl(key, 3600);
+    
+    res.json({ success: true, url });
+  } catch (error) {
+    console.error('[Presigned URL] Error generating URL:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to generate presigned URL', details: error.message });
+  }
+};

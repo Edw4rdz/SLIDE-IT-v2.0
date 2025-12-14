@@ -149,6 +149,44 @@ export const generateImageFromImagen = async (prompt) => {
   }
 };
 
+// --- PRESIGNED URL HELPER ---
+// Get a fresh presigned URL from an S3 key
+export const getFreshPresignedUrl = async (key) => {
+  if (!key || typeof key !== "string" || key.trim() === "") return null;
+  try {
+    const res = await axios.post(`${API_BASE}/presigned-url`, { key });
+    if (res.data && res.data.success && res.data.url) {
+      return res.data.url;
+    }
+    return null;
+  } catch (err) {
+    console.warn("Failed to get fresh presigned URL:", err.message);
+    return null;
+  }
+};
+
+// Helper function to check if a URL is an S3 presigned URL
+export const isS3PresignedUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  return url.includes('.s3.') && url.includes('X-Amz-');
+};
+
+// Helper function to refresh expired S3 presigned URLs
+export const refreshPresignedUrlIfNeeded = async (slide) => {
+  // If slide has uploadedImageKey and the URL looks like a presigned URL, refresh it
+  if (slide.uploadedImageKey && slide.uploadedImage && isS3PresignedUrl(slide.uploadedImage)) {
+    try {
+      const freshUrl = await getFreshPresignedUrl(slide.uploadedImageKey);
+      if (freshUrl) {
+        return { ...slide, uploadedImage: freshUrl };
+      }
+    } catch (err) {
+      console.warn('Failed to refresh presigned URL for slide:', err);
+    }
+  }
+  return slide;
+};
+
 // --- POWERPOINT EXPORT LOGIC (via backend) ---
 export const downloadPPTX = async (slides, design, fileName, includeImages = true, imageProvider = 'pollinations') => {
   try {

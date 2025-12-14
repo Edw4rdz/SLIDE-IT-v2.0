@@ -8,7 +8,8 @@ import {
   generateFromTopic,
   generatePollinationsImage, // <-- New import
   generateImagenImageAPI, // <-- New import for Imagen images
-  generatePptx
+  generatePptx,
+  getFreshPresignedUrl // <-- New import for refreshing expired URLs
 } from "../controllers/aiController.js";
 
 const router = express.Router();
@@ -37,5 +38,8 @@ router.post("/generate-imagen-image", generateImagenImageAPI);
 
 // Generate PPTX from slides data
 router.post("/generate-pptx", generatePptx);
+
+// Get fresh presigned URL from S3 key
+router.post("/presigned-url", getFreshPresignedUrl);
 
 export default router;

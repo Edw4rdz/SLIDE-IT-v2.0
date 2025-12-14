@@ -47,7 +47,12 @@ async function saveDraft(slides, topic, convId, design, imageProvider) {
 
       }
 
-      return { ...slide, uploadedImage: img };
+      // Preserve uploadedImageKey for S3 images so we can regenerate presigned URLs later
+      return { 
+        ...slide, 
+        uploadedImage: img,
+        uploadedImageKey: slide.uploadedImageKey || null
+      };
 
     }));
 
@@ -762,82 +767,97 @@ export default function EditPreview() {
     const convId = location.state?.convId || topic;
     const draftKey = `slideit_draft_${convId}`;
     
-    try {
-      const savedDraft = localStorage.getItem(draftKey);
-      if (savedDraft) {
-        const draft = JSON.parse(savedDraft);
-        console.log('[DRAFT] Loading saved draft from localStorage:', draftKey);
-        
-        // Update slides with draft data
-        if (draft.slides && Array.isArray(draft.slides)) {
-          const restoredSlides = draft.slides.map((slide, index) => ({
-            ...slide,
-            id: slide.id ?? `slide-${index}-${Date.now()}`,
-            layout: slide.layout || 'content',  // All slides use content layout
-            uploadedImage: slide.uploadedImage || null,
-            tables: Array.isArray(slide.tables)
-              ? slide.tables.map((tbl) => {
-                  const rows = Number.isInteger(tbl?.rows) && tbl.rows > 0 ? tbl.rows : 1;
-                  const cols = Number.isInteger(tbl?.cols) && tbl.cols > 0 ? tbl.cols : 1;
-                  const baseTable = {
-                    ...tbl,
-                    rows,
-                    cols,
-                    borderStyle: tbl?.borderStyle || 'solid',
-                    borderWidth: typeof tbl?.borderWidth === 'number' ? tbl.borderWidth : DEFAULT_BORDER_WIDTH,
-                    borderColor: tbl?.borderColor || '#111827',
-                    background: tbl?.background || '#ffffff',
-                    cells: ensureTableCells(rows, cols, tbl?.cells),
-                    userResized: Boolean(tbl?.userResized),
-                    columnWidths: Array.isArray(tbl?.columnWidths) ? tbl.columnWidths : undefined,
-                    rowHeights: Array.isArray(tbl?.rowHeights) ? tbl.rowHeights : undefined
-                  };
-                  return ensureTableSizing(applyAutoSizeIfNeeded(baseTable));
-                })
-              : [],
-            styles: slide.styles || {
-              titleFont: 'Arial',
-              titleSize: 32,
-              titleBold: false,
-              titleItalic: false,
-              textFont: 'Arial',
-              textSize: 16,
-              textBold: false,
-              textItalic: false,
-              textAlign: 'left'
-            }
-          }));
+    const loadDraft = async () => {
+      try {
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+          const draft = JSON.parse(savedDraft);
+          console.log('[DRAFT] Loading saved draft from localStorage:', draftKey);
           
-          setEditedSlides(restoredSlides);
-        }
-        
-        // Update topic if present
-        if (draft.topic) {
-          setTopic(draft.topic);
-        }
-        
-        // Update design if present
-        if (draft.design) {
-          setCurrentDesign(draft.design);
-          if (draft.design.id) {
-            setSelectedTemplateId(draft.design.id);
+          // Update slides with draft data
+          if (draft.slides && Array.isArray(draft.slides)) {
+            // Import the helper function
+            const { refreshPresignedUrlIfNeeded } = await import('../api');
+            
+            // Refresh expired presigned URLs for all slides
+            const restoredSlidesPromises = draft.slides.map(async (slide, index) => {
+              // First refresh the URL if needed
+              const slideWithFreshUrl = await refreshPresignedUrlIfNeeded(slide);
+              
+              return {
+                ...slideWithFreshUrl,
+                id: slideWithFreshUrl.id ?? `slide-${index}-${Date.now()}`,
+                layout: slideWithFreshUrl.layout || 'content',  // All slides use content layout
+                uploadedImage: slideWithFreshUrl.uploadedImage || null,
+                uploadedImageKey: slideWithFreshUrl.uploadedImageKey || null, // Preserve the key
+                tables: Array.isArray(slideWithFreshUrl.tables)
+                  ? slideWithFreshUrl.tables.map((tbl) => {
+                      const rows = Number.isInteger(tbl?.rows) && tbl.rows > 0 ? tbl.rows : 1;
+                      const cols = Number.isInteger(tbl?.cols) && tbl.cols > 0 ? tbl.cols : 1;
+                      const baseTable = {
+                        ...tbl,
+                        rows,
+                        cols,
+                        borderStyle: tbl?.borderStyle || 'solid',
+                        borderWidth: typeof tbl?.borderWidth === 'number' ? tbl.borderWidth : DEFAULT_BORDER_WIDTH,
+                        borderColor: tbl?.borderColor || '#111827',
+                        background: tbl?.background || '#ffffff',
+                        cells: ensureTableCells(rows, cols, tbl?.cells),
+                        userResized: Boolean(tbl?.userResized),
+                        columnWidths: Array.isArray(tbl?.columnWidths) ? tbl.columnWidths : undefined,
+                        rowHeights: Array.isArray(tbl?.rowHeights) ? tbl.rowHeights : undefined
+                      };
+                      return ensureTableSizing(applyAutoSizeIfNeeded(baseTable));
+                    })
+                  : [],
+                styles: slideWithFreshUrl.styles || {
+                  titleFont: 'Arial',
+                  titleSize: 32,
+                  titleBold: false,
+                  titleItalic: false,
+                  textFont: 'Arial',
+                  textSize: 16,
+                  textBold: false,
+                  textItalic: false,
+                  textAlign: 'left'
+                }
+              };
+            });
+            
+            const restoredSlides = await Promise.all(restoredSlidesPromises);
+            setEditedSlides(restoredSlides);
           }
+          
+          // Update topic if present
+          if (draft.topic) {
+            setTopic(draft.topic);
+          }
+          
+          // Update design if present
+          if (draft.design) {
+            setCurrentDesign(draft.design);
+            if (draft.design.id) {
+              setSelectedTemplateId(draft.design.id);
+            }
+          }
+        
+          // imageProvider is already initialized from draft in getInitialImageProvider()
+          // So we don't need to set it again here
+          console.log('[DRAFT] ImageProvider already initialized:', imageProvider);
+          
+          setDraftLoaded(true);
+          console.log('[DRAFT] Draft loaded successfully');
+        } else {
+          console.log('[DRAFT] No draft found for key:', draftKey);
+          setDraftLoaded(true);
         }
-        
-        // imageProvider is already initialized from draft in getInitialImageProvider()
-        // So we don't need to set it again here
-        console.log('[DRAFT] ImageProvider already initialized:', imageProvider);
-        
-        setDraftLoaded(true);
-        console.log('[DRAFT] Draft loaded successfully');
-      } else {
-        console.log('[DRAFT] No draft found for key:', draftKey);
+      } catch (error) {
+        console.error('[DRAFT] Error loading draft:', error);
         setDraftLoaded(true);
       }
-    } catch (error) {
-      console.error('[DRAFT] Error loading draft:', error);
-      setDraftLoaded(true);
-    }
+    };
+    
+    loadDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 

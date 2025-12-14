@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {useNavigate } from "react-router-dom";
-import { getHistory, deleteHistory, downloadPPTX } from "../api"; 
+import { getHistory, deleteHistory, downloadPPTX, refreshPresignedUrlIfNeeded } from "../api"; 
 import { notify } from "../utils/notify";
 import "../styles/dashboard.css";
 import "../styles/conversion.css";
@@ -12,6 +12,7 @@ export default function Conversions() {
  
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshedUrls, setRefreshedUrls] = useState({}); // Cache for refreshed URLs
 
  
 
@@ -50,6 +51,52 @@ export default function Conversions() {
       isMounted = false;
     };
   }, [navigate]);
+
+  // Refresh expired presigned URLs for thumbnails
+  useEffect(() => {
+    const refreshThumbnails = async () => {
+      for (const conv of history) {
+        const draftKey = conv.id ? `slideit_draft_${conv.id}` : `slideit_draft_${conv.fileName}`;
+        let draft = null;
+        try {
+          draft = JSON.parse(localStorage.getItem(draftKey));
+        } catch {}
+        
+        const displaySlides = draft?.slides || conv.slides;
+        if (displaySlides && displaySlides.length > 0) {
+          const firstSlide = displaySlides[0];
+          
+          // Check if we need to refresh the URL
+          if (firstSlide.uploadedImageKey && firstSlide.uploadedImage && !refreshedUrls[conv.id]) {
+            try {
+              const refreshedSlide = await refreshPresignedUrlIfNeeded(firstSlide);
+              if (refreshedSlide.uploadedImage !== firstSlide.uploadedImage) {
+                // URL was refreshed, update the cache
+                setRefreshedUrls(prev => ({
+                  ...prev,
+                  [conv.id]: refreshedSlide.uploadedImage
+                }));
+                
+                // Update the draft in localStorage
+                if (draft) {
+                  const updatedSlides = draft.slides.map((s, idx) => 
+                    idx === 0 ? refreshedSlide : s
+                  );
+                  localStorage.setItem(draftKey, JSON.stringify({ ...draft, slides: updatedSlides }));
+                }
+              }
+            } catch (err) {
+              console.warn(`Failed to refresh URL for conversion ${conv.id}:`, err);
+            }
+          }
+        }
+      }
+    };
+    
+    if (history.length > 0) {
+      refreshThumbnails();
+    }
+  }, [history, refreshedUrls]);
 
   // ✅ Delete Conversion
   const [confirm, setConfirm] = useState({ open: false, id: null });
@@ -257,7 +304,11 @@ export default function Conversions() {
                 const displayTitle = draft?.topic || conv.fileName || 'Untitled Conversion';
                 // Prefer first slide's uploadedImage from draft if present
                 let thumbUrl = null;
-                if (displaySlides && displaySlides.length > 0) {
+                
+                // First check if we have a refreshed URL in cache
+                if (refreshedUrls[conv.id]) {
+                  thumbUrl = refreshedUrls[conv.id];
+                } else if (displaySlides && displaySlides.length > 0) {
                   const firstSlide = displaySlides[0];
                   // Priority: 1) Draft's uploaded image, 2) Draft's image URL, 3) Original image
                   if (firstSlide.uploadedImage) {
