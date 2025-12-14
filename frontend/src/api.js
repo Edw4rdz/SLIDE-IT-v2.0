@@ -173,16 +173,30 @@ export const isS3PresignedUrl = (url) => {
 
 // Helper function to refresh expired S3 presigned URLs
 export const refreshPresignedUrlIfNeeded = async (slide) => {
+  console.log('[refreshPresignedUrlIfNeeded] Checking slide:', slide.id, {
+    hasUploadedImageKey: !!slide.uploadedImageKey,
+    hasUploadedImage: !!slide.uploadedImage,
+    isPresignedUrl: slide.uploadedImage ? isS3PresignedUrl(slide.uploadedImage) : false,
+    uploadedImageKey: slide.uploadedImageKey,
+    uploadedImagePreview: slide.uploadedImage?.substring(0, 100)
+  });
+  
   // If slide has uploadedImageKey and the URL looks like a presigned URL, refresh it
   if (slide.uploadedImageKey && slide.uploadedImage && isS3PresignedUrl(slide.uploadedImage)) {
     try {
+      console.log('[refreshPresignedUrlIfNeeded] Requesting fresh URL for key:', slide.uploadedImageKey);
       const freshUrl = await getFreshPresignedUrl(slide.uploadedImageKey);
       if (freshUrl) {
+        console.log('[refreshPresignedUrlIfNeeded] Got fresh URL:', freshUrl.substring(0, 100));
         return { ...slide, uploadedImage: freshUrl };
+      } else {
+        console.warn('[refreshPresignedUrlIfNeeded] No fresh URL returned');
       }
     } catch (err) {
-      console.warn('Failed to refresh presigned URL for slide:', err);
+      console.warn('[refreshPresignedUrlIfNeeded] Failed to refresh presigned URL for slide:', err);
     }
+  } else {
+    console.log('[refreshPresignedUrlIfNeeded] Skipping refresh - conditions not met');
   }
   return slide;
 };

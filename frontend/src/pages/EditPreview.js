@@ -630,6 +630,9 @@ export default function EditPreview() {
   const tableFrameRefs = useRef({});
 
   const stickerAnchorRefs = useRef({});
+  
+  // Track if we've already refreshed URLs for navigation state slides
+  const urlsRefreshedRef = useRef(false);
 
   // Download preview modal state
 
@@ -754,6 +757,46 @@ export default function EditPreview() {
       localStorage.setItem('slideit_edit_guide_seen', 'true');
     }
   }, []);
+
+  // Refresh expired presigned URLs for navigation state slides
+  useEffect(() => {
+    const refreshNavigationStateSlides = async () => {
+      // Only run once when slides come from navigation state
+      if (!urlsRefreshedRef.current && Array.isArray(location.state?.slides) && location.state.slides.length > 0 && editedSlides.length > 0) {
+        urlsRefreshedRef.current = true; // Mark as processed
+        
+        const { refreshPresignedUrlIfNeeded } = await import('../api');
+        
+        console.log('[URL REFRESH] Checking slides for expired presigned URLs...');
+        
+        const refreshedSlides = await Promise.all(
+          editedSlides.map(async (slide) => {
+            const refreshedSlide = await refreshPresignedUrlIfNeeded(slide);
+            if (refreshedSlide.uploadedImage !== slide.uploadedImage) {
+              console.log(`[URL REFRESH] ✓ Refreshed URL for slide ${slide.id}`);
+            }
+            return refreshedSlide;
+          })
+        );
+        
+        // Check if any URLs were actually refreshed
+        const hasChanges = refreshedSlides.some((slide, idx) => slide.uploadedImage !== editedSlides[idx].uploadedImage);
+        
+        if (hasChanges) {
+          console.log('[URL REFRESH] Updating slides with fresh URLs');
+          setEditedSlides(refreshedSlides);
+          
+          // Save the refreshed slides to draft immediately
+          const convId = location.state?.convId || topic;
+          saveDraft(refreshedSlides, topic, convId, currentDesign, imageProvider);
+        } else {
+          console.log('[URL REFRESH] No expired URLs detected');
+        }
+      }
+    };
+    
+    refreshNavigationStateSlides();
+  }, [editedSlides, location.state?.slides, topic, currentDesign, imageProvider]);
 
   // Load draft on mount if available
   useEffect(() => {
