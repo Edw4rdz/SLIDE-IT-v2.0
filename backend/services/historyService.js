@@ -1,5 +1,6 @@
 import { db } from "../config/firebaseAdmin.js"; // Import our Firestore database
 import { Timestamp } from "firebase-admin/firestore";
+import { deleteFromS3 } from "./s3Service.js";
 
 const historyCollection = db.collection('history');
 
@@ -60,7 +61,34 @@ export const getHistory = async (userId) => {
 };
 
 /**
+ * Helper function to get authUID from numeric userId
+ */
+const getAuthUIDFromNumericId = async (numericUserId) => {
+  try {
+    const usersRef = db.collection('users');
+    const snapshot = await usersRef.where('numericId', '==', String(numericUserId)).limit(1).get();
+    
+    if (snapshot.empty) {
+      // Fallback: check if the userId itself is an authUID
+      const directDoc = await usersRef.doc(String(numericUserId)).get();
+      if (directDoc.exists) {
+        return String(numericUserId);
+      }
+      console.warn(`⚠️  User not found with numericId: ${numericUserId}`);
+      return null;
+    }
+    
+    const userDoc = snapshot.docs[0];
+    return userDoc.data().authUID || userDoc.id;
+  } catch (err) {
+    console.error('[Helper] Error getting authUID:', err);
+    return null;
+  }
+};
+
+/**
  * Business Logic: Deletes a specific history item.
+ * Also deletes the corresponding conversion from the conversions collection.
  */
 export const deleteHistory = async (id, userId) => {
   try {
@@ -80,8 +108,72 @@ export const deleteHistory = async (id, userId) => {
       throw new Error("User not authorized to delete this item");
     }
     
-    // Delete the document
+    const historyData = doc.data();
+    
+    // Delete the history document
     await docRef.delete();
+    console.log(`[History] Deleted history item ${id}`);
+    
+    // Delete the corresponding conversion from conversions collection
+    try {
+      const authUID = await getAuthUIDFromNumericId(String(userId));
+      if (authUID) {
+        // Determine if it's AI-generated or user conversion
+        const isAIGenerated = historyData.conversionType === 'AI-Generated PPTs';
+        const subcollection = isAIGenerated ? 'AI-generated' : 'userconversions';
+        
+        // Query the conversions subcollection to find matching conversion
+        const conversionsRef = db
+          .collection('conversions')
+          .doc(authUID)
+          .collection(subcollection);
+        
+        // Find conversion by matching fileName
+        const conversionSnapshot = await conversionsRef
+          .where('originalFileName', '==', historyData.fileName)
+          .where('userId', '==', String(userId))
+          .limit(1)
+          .get();
+        
+        if (!conversionSnapshot.empty) {
+          const conversionDoc = conversionSnapshot.docs[0];
+          const conversionData = conversionDoc.data();
+          
+          // Delete from S3 first if s3Key exists
+          if (conversionData.s3Key) {
+            try {
+              await deleteFromS3(conversionData.s3Key);
+              console.log(`[History] Deleted S3 file: ${conversionData.s3Key}`);
+            } catch (s3Error) {
+              console.error('[History] Error deleting S3 file:', s3Error);
+            }
+          }
+          
+          // Delete image files from S3 if they exist in slides
+          if (historyData.slides && Array.isArray(historyData.slides)) {
+            for (const slide of historyData.slides) {
+              if (slide.uploadedImageKey) {
+                try {
+                  await deleteFromS3(slide.uploadedImageKey);
+                  console.log(`[History] Deleted S3 image: ${slide.uploadedImageKey}`);
+                } catch (imgError) {
+                  console.error('[History] Error deleting S3 image:', imgError);
+                }
+              }
+            }
+          }
+          
+          // Delete the conversion document
+          await conversionDoc.ref.delete();
+          console.log(`[History] Deleted conversion ${conversionDoc.id} from ${subcollection}`);
+        } else {
+          console.log(`[History] No matching conversion found in ${subcollection} for fileName: ${historyData.fileName}`);
+        }
+      }
+    } catch (convError) {
+      // Log the error but don't fail the history deletion
+      console.error('[History] Error deleting corresponding conversion:', convError);
+    }
     
     return { id: id, message: "Successfully deleted" };
   } catch (err) {

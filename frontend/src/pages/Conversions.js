@@ -115,6 +115,16 @@ export default function Conversions() {
       }
       // Uses the new function from api.js
       await deleteHistory(id, user.user_id);
+      
+      // Also delete the draft from localStorage
+      const draftKey = `slideit_draft_${id}`;
+      try {
+        localStorage.removeItem(draftKey);
+        console.log(`Deleted draft from localStorage: ${draftKey}`);
+      } catch (storageErr) {
+        console.warn('Failed to delete draft from localStorage:', storageErr);
+      }
+      
       setHistory((prev) => prev.filter((c) => c.id !== id));
       notify("Conversion deleted successfully!", "success");
     } catch (err) {

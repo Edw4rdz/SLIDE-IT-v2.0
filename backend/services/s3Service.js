@@ -44,10 +44,10 @@ export const uploadToS3 = async (fileBuffer, fileName, contentType = 'applicatio
       // Remove ACL - the bucket doesn't allow public ACLs
       // Access is controlled by bucket policy instead
       // ACL: 'public-read',  // REMOVED
-      // Add metadata
+      // Add metadata (sanitize all metadata values to remove invalid characters)
       Metadata: {
         'uploaded-at': new Date().toISOString(),
-        'original-filename': fileName,
+        'original-filename': sanitizedFileName,
         'user-id': sanitizedUserId
       }
     });
