@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
@@ -6,21 +6,15 @@ import "../styles/exceltoppt.css";
 import Sidebar from "../components/Sidebar";
 import AIProviderModal from "../components/AIProviderModal";
 import ImageProviderModal from "../components/ImageProviderModal";
-import { useEffect } from "react";
 import { convertExcel, cache, getHistory } from "../api"; // Added getHistory
 
-// Robust number sanitizer to handle currency, commas, parentheses, percent signs
 const sanitizeNumber = (raw) => {
   if (raw === null || raw === undefined) return null;
   let s = String(raw).trim();
   if (s === '') return null;
-  // Remove thousands separators and spaces
   s = s.replace(/[,\s]+/g, '');
-  // Handle parentheses for negative numbers e.g. (123)
   if (/^\(.+\)$/.test(s)) s = '-' + s.replace(/^\(|\)$/g, '');
-  // Remove currency symbols and other non-numeric trailing characters (keep e/E for scientific)
   s = s.replace(/[$£€¥₩₹%]/g, '');
-  // Remove any remaining non-numeric chars except . + - and exponent markers
   s = s.replace(/[^0-9eE+\-.]/g, '');
   if (s === '' || s === '+' || s === '-') return null;
   const n = Number(s);
@@ -28,8 +22,12 @@ const sanitizeNumber = (raw) => {
 };
 
 export default function ExcelToPPT() {
-  // Add this near the top with your other states
 const [currentConversionId, setCurrentConversionId] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [eta, setEta] = useState(null);
+  const progressIntervalRef = useRef(null);
+  const progressStartRef = useRef(null);
+  const estimatedTotalMsRef = useRef(0);
   const [chartSummary, setChartSummary] = useState("");
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -57,7 +55,6 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
   const navigate = useNavigate();
   const loggedInUser = JSON.parse(localStorage.getItem("user")) || null;
 
-  // Drag and drop handlers
   const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -201,7 +198,6 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
     return numericCount >= Math.max(1, Math.ceil(sample.length * 0.5));
   };
 
-  // *** NEW - Same behavior as PDFToPPT ***
 
   // Unified Convert to PowerPoint flow
   const [pendingConvert, setPendingConvert] = useState(false);
@@ -286,7 +282,22 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
   const handleConversionStart = async (includeImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Uploading Excel file...");
-
+    // start simulated determinate progress
+    const sCount = Number(slidesCount) || 15;
+    const perSlideMs = includeImages ? 3000 : 2000;
+    estimatedTotalMsRef.current = sCount * perSlideMs + 6000;
+    progressStartRef.current = Date.now();
+    setProgress(2);
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - progressStartRef.current;
+      const estTotal = Math.max(3000, estimatedTotalMsRef.current);
+      let raw = Math.min(95, (elapsed / estTotal) * 90 + Math.random() * 5);
+      raw = Math.max(2, raw);
+      setProgress((prev) => Math.max(prev, Math.floor(raw)));
+      const remainingMs = Math.max(0, estTotal * (1 - raw / 100));
+      setEta(formatMs(remainingMs));
+    }, 1000);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -381,6 +392,9 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
         const newTopic = file.name.replace(/\.(xlsx|xls)$/i, "");
         setTopic(newTopic);
         setLoadingText("Conversion completed!");
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        setProgress(100);
+        setEta(formatMs(0));
 
         // --- FIX START: ROBUST DRAFT SAVING ---
         if (loggedInUser?.user_id) {
@@ -449,11 +463,33 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
         "error"
       );
     } finally {
-      setIsLoading(false);
-      setLoadingText("");
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingText("");
+        setProgress(0);
+        setEta(null);
+      }, 700);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
       setPendingConvert(false);
     }
   };
+
+  function formatMs(ms) {
+    if (ms <= 0) return '00:00';
+    const totalSec = Math.ceil(ms / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    };
+  }, []);
 
   return (
     <div className="dashboard">
@@ -509,9 +545,14 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
                   disabled={isLoading || !file}
                 >
                   {isLoading ? (
-                    <div className="progress-bar-container">
-                      <div className="progress-bar-indeterminate"></div>
-                      <span className="progress-text">{loadingText}</span>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ height: 10, background: '#eee', borderRadius: 6, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${progress}%`, background: '#4caf50', transition: 'width 400ms ease' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12 }}>
+                        <span>{loadingText || 'Converting...'}</span>
+                        <span>{progress}% • ETA: {eta || '--:--'}</span>
+                      </div>
                     </div>
                   ) : convertedSlides ? (
                     "✅ Converted! Edit Now"
@@ -529,7 +570,6 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
                           <option value="bar">Bar</option>
                           <option value="line">Line</option>
                           <option value="pie">Pie</option>
-                          <option value="table">Table</option>
                         </select>
                         <div style={{ textAlign: 'right' }}>
                           <button onClick={() => { setShowChartTypeModal(false); setPendingConvert(false); }} style={{ marginRight: 8, padding: '8px 14px' }}>Cancel</button>

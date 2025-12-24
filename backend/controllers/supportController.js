@@ -22,8 +22,6 @@ export const sendSupportEmail = async (req, res) => {
       <hr />
       <div>${message.replace(/\n/g, '<br/>')}</div>
     `;
-
-    // Save to Firestore for later review
     try {
       await db.collection('supportMessages').add({
         name,
@@ -34,7 +32,6 @@ export const sendSupportEmail = async (req, res) => {
       });
     } catch (dbErr) {
       console.error('Failed to save support message to Firestore:', dbErr);
-      // continue even if DB write fails
     }
 
     // Send email to admin

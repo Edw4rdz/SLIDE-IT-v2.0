@@ -5,12 +5,12 @@ const PROVIDERS = [
   { 
     value: "pollinations", 
     label: "Pollinations", 
-    desc: "Fast AI for generating images.",
+    desc: "Open-source AI for creating images.",
   },
   { 
     value: "imagen", 
     label: "Google Imagen", 
-    desc: "Generate higher-quality images.",
+    desc: "Generate Realistic AI images.",
   }
 ];
 

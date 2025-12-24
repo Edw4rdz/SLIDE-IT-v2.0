@@ -7,23 +7,19 @@ export const PREBUILT_TEMPLATES = [
       "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop",
     link: "https://docs.google.com/presentation/d/1FuturisticTechDemo/copy",
     slides: [
-      /* ... slide content ... */
     ],
     design: {
       font: "Roboto",
-      // ✅ CHANGED to an array
       globalBackground: ["#0A1F44", "#092F6B", "#005E90"], 
       globalTitleColor: "#00E6FF",
       globalTextColor: "#E5E5E5",
       layouts: {
         title: {
-          // ✅ CHANGED to an array
           background: ["#0A1F44", "#092F6B", "#005E90"],
           titleColor: "#00E6FF",
           textColor: "#E5E5E5",
         },
         content: {
-          // ✅ CHANGED to an array
           background: ["#0A1F44", "#092F6B", "#005E90"],
           titleColor: "#00E6FF",
           textColor: "#E5E5E5",
@@ -38,23 +34,19 @@ export const PREBUILT_TEMPLATES = [
       "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?q=80&w=800&auto=format&fit=crop",
     link: "https://docs.google.com/presentation/d/1ElegantDarkBusiness/copy",
     slides: [
-      /* ... slide content ... */
     ],
     design: {
       font: "Lato",
-      // ✅ CHANGED to an array
       globalBackground: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
       globalTitleColor: "#FFD700",
       globalTextColor: "#E5E5E5",
       layouts: {
         title: {
-          // ✅ CHANGED to an array
           background: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
           titleColor: "#FFD700",
           textColor: "#E5E5E5",
         },
         content: {
-          // ✅ CHANGED to an array
           background: ["#0D0D0D", "#1A1A1A", "#3E2C00"],
           titleColor: "#FFD700",
           textColor: "#E5E5E5",
@@ -69,23 +61,19 @@ export const PREBUILT_TEMPLATES = [
       "https://png.pngtree.com/background/20250103/original/pngtree-vibrant-gradient-iridescent-colors-abstract-blur-shapes-transition-texture-for-eye-picture-image_15299202.jpg",
     link: "https://docs.google.com/presentation/d/1CreativeGradientSplash/copy",
     slides: [
-      /* ... slide content ... */
     ],
     design: {
       font: "Montserrat",
-      // ✅ CHANGED to an array
       globalBackground: ["#FF6A5E", "#D8458B", "#5E2BB8"],
       globalTitleColor: "#FFFFFF",
       globalTextColor: "#F0F0F0",
       layouts: {
         title: {
-          // ✅ CHANGED to an array
           background: ["#FF6A5E", "#D8458B", "#5E2BB8"],
           titleColor: "#FFFFFF",
           textColor: "#F0F0F0",
         },
         content: {
-          // ✅ CHANGED to an array
           background: ["#FF6A5E", "#D8458B", "#5E2BB8"],
           titleColor: "#FFFFFF",
           textColor: "#F0F0F0",
@@ -100,23 +88,19 @@ export const PREBUILT_TEMPLATES = [
       "https://www.slidescarnival.com/wp-content/uploads/Minimalist-White-Slides-1.jpg",
     link: "https://docs.google.com/presentation/d/1MinimalistWhiteSpace/copy",
     slides: [
-      /* ... slide content ... */
     ],
     design: {
       font: "Helvetica Neue",
-      // ✅ CHANGED to an array
       globalBackground: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
       globalTitleColor: "#222222",
       globalTextColor: "#555555",
       layouts: {
         title: {
-          // ✅ CHANGED to an array
           background: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
           titleColor: "#222222",
           textColor: "#555555",
         },
         content: {
-          // ✅ CHANGED to an array
           background: ["#FFFFFF", "#F8F8F8", "#ECECEC"],
           titleColor: "#222222",
           textColor: "#555555",

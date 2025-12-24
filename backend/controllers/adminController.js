@@ -1,4 +1,5 @@
 import admin, { db } from "../config/firebaseAdmin.js"; 
+import { sendWelcomeEmail } from "../config/emailConfig.js";
 
 
 /**
@@ -178,6 +179,13 @@ export const createUser = async (req, res) => {
 
     const docRef = db.collection("users").doc(); 
     await docRef.set(newUserDoc);
+
+    // Attempt to send welcome email; do not fail user creation if email sending fails
+    try {
+      await sendWelcomeEmail(email, firstName || username || 'User');
+    } catch (mailErr) {
+      console.error('Failed to send welcome email to', email, mailErr);
+    }
 
     res.status(201).json({
       id: docRef.id,

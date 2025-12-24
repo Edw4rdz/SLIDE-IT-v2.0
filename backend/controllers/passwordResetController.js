@@ -29,12 +29,12 @@ export const sendPasswordResetEmail = async (req, res) => {
       throw error;
     }
 
-    // Generate password reset link using Firebase Admin SDK
+    // Password reset link using Firebase Admin SDK
     const resetLink = await admin.auth().generatePasswordResetLink(email.toLowerCase(), {
       url: process.env.FRONTEND_URL || 'http://localhost:3000/login',
     });
 
-    // Create HTML email template
+    //HTML email template
     const subject = 'Reset Your SLIDE-IT Password';
     const html = `
       <!DOCTYPE html>

@@ -1,6 +1,5 @@
 import { listUploadedTemplates } from "../services/uploadService.js";
 import { extractPptxDesign, extractPptxThumbnail } from "../services/pptxExtractorService.js";
-import { scanFile } from "../services/virusScanService.js";
 import path from "path";
 import fs from "fs/promises";
 import { createCanvas } from "canvas";
@@ -13,19 +12,7 @@ export const handleUpload = async (req, res) => {
     return res.status(400).json({ success: false, message: "No file uploaded or invalid file type" });
   }
 
-  // Perform virus scan
-  const filePath = path.join(req.file.destination, req.file.filename);
-  try {
-    await scanFile(filePath);
-  } catch (error) {
-    // Delete the infected file
-    try {
-      await fs.unlink(filePath);
-    } catch (unlinkError) {
-      console.error("Error deleting infected file:", unlinkError);
-    }
-    return res.status(400).json({ success: false, message: error.message });
-  }
+  
 
   let design = null;
   let thumbnail = null;
@@ -34,7 +21,7 @@ export const handleUpload = async (req, res) => {
       const pptxPath = path.join(req.file.destination, req.file.filename);
       design = await extractPptxDesign(pptxPath);
 
-      // Extract thumbnail and encode as base64 data URL
+      // Extract thumbnail image
       const thumbFilename = await extractPptxThumbnail(pptxPath, req.file.destination, req.file.filename + "-thumb");
       if (thumbFilename) {
         const thumbPath = path.join(req.file.destination, thumbFilename);
@@ -45,7 +32,6 @@ export const handleUpload = async (req, res) => {
         const buffer = await fs.readFile(thumbPath);
         const base64 = buffer.toString('base64');
         thumbnail = `data:${mimeType};base64,${base64}`;
-        // Optionally, delete the file after encoding
         await fs.unlink(thumbPath);
       } else if (design && design.slides && design.slides.length > 0) {
         // Generate thumbnail from first slide design if no embedded thumbnail
@@ -65,8 +51,8 @@ export const handleUpload = async (req, res) => {
       mimetype: req.file.mimetype,
       size: req.file.size,
     },
-    design, // <-- include design info
-    thumbnail, // <-- base64 thumbnail or null
+    design, 
+    thumbnail, 
   });
 };
 
@@ -75,12 +61,9 @@ export const handleUpload = async (req, res) => {
  */
 export const getTemplates = async (req, res) => {
   try {
-    // 1. Call the service
     const templates = await listUploadedTemplates();
-    // 2. Send response
     res.json(templates);
   } catch (err) {
-    // 3. Handle errors
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -96,7 +79,7 @@ function generateThumbnailFromSlide(slideInfo, filename) {
     // Apply slide background
     const background = slideInfo.background || '#ffffff';
     if (background.startsWith('linear-gradient')) {
-      // Parse gradient (simple case: linear-gradient(135deg, #color1, #color2))
+      // Parse gradient 
       const match = background.match(/#[0-9a-fA-F]{6}/g);
       if (match && match.length >= 2) {
         const grad = ctx.createLinearGradient(0, 0, 360, 220);
@@ -111,21 +94,18 @@ function generateThumbnailFromSlide(slideInfo, filename) {
     }
     ctx.fillRect(0, 0, 360, 220);
 
-    // Add filename badge at top
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(14, 14, Math.min(filename.length * 8 + 20, 320), 26);
     ctx.font = 'bold 12px Arial';
     ctx.fillStyle = '#fff';
     ctx.fillText(filename.substring(0, 35), 24, 32);
 
-    // Add "Slide 1" text in center
     const titleColor = slideInfo.titleColor || '#000000';
     ctx.fillStyle = titleColor;
     ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('Slide 1', 180, 120);
 
-    // Return base64 data URL
     return canvas.toDataURL('image/jpeg', 0.8);
   } catch (err) {
     console.error('Error generating thumbnail:', err);

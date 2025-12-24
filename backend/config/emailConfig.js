@@ -187,4 +187,65 @@ export const sendOTPEmail = async (to, otp, userName = 'User') => {
   return sendEmail(to, subject, html);
 };
 
-export default { sendEmail, sendOTPEmail };
+/**
+ * Send a welcome/acknowledgement email after sign up
+ * @param {string} to - Recipient email
+ * @param {string} userName - Recipient name for personalization
+ * @returns {Promise<Object>} - Email send result
+ */
+export const sendWelcomeEmail = async (to, userName = 'User') => {
+  const subject = 'Welcome to SLIDE-IT — Let’s get started!';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.08); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #20c997 0%, #198754 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 26px; }
+        .content { padding: 30px; color: #333; }
+        .greeting { font-size: 18px; margin-bottom: 10px; }
+        .message { font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
+        .cta { display: inline-block; background: #198754; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; }
+        .footer { background-color: #f8f9fa; padding: 18px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #e0e0e0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Welcome to SLIDE-IT</h1>
+        </div>
+        <div class="content">
+          <div class="greeting">Hi ${userName},</div>
+          <div class="message">
+            Thanks for joining SLIDE-IT — we're excited to have you on board!
+          </div>
+          <div class="message">
+            Here are a few quick links to help you get started:
+            <ul>
+              <li>Upload your content and convert to slides quickly.</li>
+              <li>Explore prebuilt templates to speed up your workflow.</li>
+              <li>Visit our Help Center for tips and tricks.</li>
+            </ul>
+          </div>
+          <p style="text-align:center; margin-top:18px;">
+            <a class="cta" href="#">Open your dashboard</a>
+          </p>
+          <div class="message" style="margin-top:18px; font-size:13px; color:#666;">
+            If you need help, reply to this email or visit our support page.
+          </div>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} SLIDE-IT. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(to, subject, html);
+};
+
+export default { sendEmail, sendOTPEmail, sendWelcomeEmail };

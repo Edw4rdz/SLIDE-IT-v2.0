@@ -1,21 +1,17 @@
 import { getHistory, deleteHistory } from "../services/historyService.js";
-
-// Simple in-memory rate limiter (prevents spam from same user)
 const rateLimitCache = new Map();
-const RATE_LIMIT_WINDOW = 2000; // 2 seconds
-
+const RATE_LIMIT_WINDOW = 2000;
 /**
  * Controller: Handles request to get a user's history.
  */
 export const handleGetHistory = async (req, res) => {
   try {
-    // Get userId from the query parameters (e.g., /api/conversions?userId=123)
+    // Get userId from the query parameters
     const { userId } = req.query;
     if (!userId) {
       return res.status(400).json({ error: "User ID is required" });
     }
     
-    // Rate limiting: allow 1 request per 2 seconds per user
     const lastRequest = rateLimitCache.get(userId);
     const now = Date.now();
     if (lastRequest && (now - lastRequest) < RATE_LIMIT_WINDOW) {
@@ -42,9 +38,9 @@ export const handleGetHistory = async (req, res) => {
  */
 export const handleDeleteHistory = async (req, res) => {
   try {
-    // Get id from the URL parameters (e.g., /api/conversions/abc)
+    // Get id from the URL parameters
     const { id } = req.params;
-    // Get userId from the query (for security check)
+    // Get userId from the query
     const { userId } = req.query; 
 
     if (!id || !userId) {
@@ -55,7 +51,6 @@ export const handleDeleteHistory = async (req, res) => {
     res.json(result);
     
   } catch (err) {
-    // Handle specific errors
     if (err.message === "User not authorized...") {
       return res.status(403).json({ error: err.message });
     }

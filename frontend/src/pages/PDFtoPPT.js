@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { notify } from "../utils/notify";
 import { useNavigate } from "react-router-dom";
 import { convertPDF, cache } from "../api"; 
@@ -27,6 +27,11 @@ export default function PDFToPPT() {
   const [includeImagesChoice, setIncludeImagesChoice] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState("grockai");
   const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
+  const [progress, setProgress] = useState(0);
+  const [eta, setEta] = useState(null);
+  const progressIntervalRef = useRef(null);
+  const progressStartRef = useRef(null);
+  const estimatedTotalMsRef = useRef(0);
 
   // Drag and drop handlers
   const handleDragEnter = (e) => {
@@ -112,6 +117,22 @@ export default function PDFToPPT() {
   const handleConversionStart = async (includeImages, imgProvider) => {
     setIsLoading(true);
     setLoadingText("Uploading PDF...");
+    // start simulated determinate progress
+    const sCount = Number(slides) || 15;
+    const perSlideMs = includeImages ? 3000 : 2000;
+    estimatedTotalMsRef.current = sCount * perSlideMs + 5000;
+    progressStartRef.current = Date.now();
+    setProgress(2);
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - progressStartRef.current;
+      const estTotal = Math.max(3000, estimatedTotalMsRef.current);
+      let raw = Math.min(95, (elapsed / estTotal) * 90 + Math.random() * 5);
+      raw = Math.max(2, raw);
+      setProgress((prev) => Math.max(prev, Math.floor(raw)));
+      const remainingMs = Math.max(0, estTotal * (1 - raw / 100));
+      setEta(formatMs(remainingMs));
+    }, 1000);
 
     try {
       const formData = new FormData();
@@ -149,6 +170,9 @@ export default function PDFToPPT() {
         if (loggedInUser?.user_id) {
           cache.invalidate(`history-${loggedInUser.user_id}`);
         }
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        setProgress(100);
+        setEta(formatMs(0));
         notify("Conversion successful! You can now preview or edit it.", "success");
       } else {
         // Only show error if backend explicitly failed
@@ -159,10 +183,32 @@ export default function PDFToPPT() {
       console.error("PDF conversion error:", err);
       notify(`Conversion failed: ${err.response?.data?.error || err.message}`, "error");
     } finally {
-      setIsLoading(false);
-      setLoadingText("");
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingText("");
+        setProgress(0);
+        setEta(null);
+      }, 700);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
     }
   };
+
+  function formatMs(ms) {
+    if (ms <= 0) return '00:00';
+    const totalSec = Math.ceil(ms / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    };
+  }, []);
 
 
   return (
@@ -217,16 +263,21 @@ export default function PDFToPPT() {
                    className="uploadp-btn"
                    disabled={isLoading || !file} 
                  >
-                   {isLoading ? (
-                     <div className="progress-bar-container">
-                       <div className="progress-bar-indeterminate"></div>
-                       <span className="progress-text">{loadingText}</span>
-                     </div>
-                   ) : convertedSlides ? (
-                     "✅ Converted! Edit Now" 
-                   ) : (
-                     "Convert to PPT"
-                   )}
+                  {isLoading ? (
+                    <div style={{ width: '100%' }}>
+                      <div style={{ height: 10, background: '#eee', borderRadius: 6, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${progress}%`, background: '#4caf50', transition: 'width 400ms ease' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12 }}>
+                        <span>{loadingText || 'Processing...'}</span>
+                        <span>{progress}% • ETA: {eta || '--:--'}</span>
+                      </div>
+                    </div>
+                  ) : convertedSlides ? (
+                    "✅ Converted! Edit Now" 
+                  ) : (
+                    "Convert to PPT"
+                  )}
                  </button>
 
                  {convertedSlides && !isLoading && (

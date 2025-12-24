@@ -5,12 +5,12 @@ const PROVIDERS = [
   { 
     value: "gemini", 
     label: "Gemini", 
-    desc: "Fast and reliable AI for presentation content.",
+    desc: "Fast and Accurate AI for presentation content.",
   },
   { 
     value: "grok", 
     label: "Grok AI", 
-    desc: "Advanced reasoning AI for structured presentation content.",
+    desc: "Advanced Reasoning AI for structured presentation content.",
   }
 ];
 

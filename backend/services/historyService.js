@@ -17,14 +17,57 @@ export const saveHistory = async (historyData) => {
       progress: 100,
       uploadedAt: Timestamp.now()
     };
-    
+
+    // If caller provided an id, update that document instead of creating a new one
+    if (historyData.id) {
+      const docRef = historyCollection.doc(historyData.id);
+      await docRef.set(dataWithTimestamp, { merge: true });
+      return { id: historyData.id, ...dataWithTimestamp };
+    }
+
     // Add the new document to the 'history' collection
     const docRef = await historyCollection.add(dataWithTimestamp);
-    
     return { id: docRef.id, ...dataWithTimestamp };
   } catch (err) {
     console.error("Error saving history:", err);
     throw new Error("Failed to save conversion history.");
+  }
+};
+
+/**
+ * Create a draft history entry used to show progress during generation.
+ * Returns the new document id.
+ */
+export const createHistoryDraft = async (draftData) => {
+  try {
+    const data = {
+      ...draftData,
+      userId: String(draftData.userId || ''),
+      status: draftData.status || 'In Progress',
+      progress: typeof draftData.progress === 'number' ? draftData.progress : 0,
+      uploadedAt: draftData.uploadedAt || null,
+      createdAt: Timestamp.now()
+    };
+    const docRef = await historyCollection.add(data);
+    return { id: docRef.id, ...data };
+  } catch (err) {
+    console.error('Error creating history draft:', err);
+    throw new Error('Failed to create history draft');
+  }
+};
+
+/**
+ * Update progress/status/other fields on an existing history document.
+ */
+export const updateHistory = async (id, fields) => {
+  try {
+    if (!id) throw new Error('History id is required');
+    const docRef = historyCollection.doc(id);
+    await docRef.set({ ...fields, updatedAt: Timestamp.now() }, { merge: true });
+    return { id, ...fields };
+  } catch (err) {
+    console.error('Error updating history:', err);
+    throw new Error('Failed to update history');
   }
 };
 

@@ -1,5 +1,5 @@
 import { db } from '../config/firebaseAdmin.js';
-import { sendOTPEmail } from '../config/emailConfig.js';
+import { sendOTPEmail, sendWelcomeEmail } from '../config/emailConfig.js';
 import crypto from 'crypto';
 
 /**
@@ -107,21 +107,41 @@ export const verifyOTP = async (email, otp, userId) => {
     // Mark OTP as verified
     await otpRef.update({ verified: true });
 
-    // Update user's email verification status in Firestore
-    if (userId) {
-      const userDocRef = db.collection('users').doc(String(userId));
-      await userDocRef.update({ emailVerified: true });
-    } else {
-      // Fallback to email query if no userId
-      const usersRef = db.collection('users');
-      const userQuery = await usersRef.where('email', '==', email).get();
-      if (!userQuery.empty) {
-        const userDoc = userQuery.docs[0];
-        await userDoc.ref.update({ emailVerified: true });
+    // Update user's email verification status in Firestore and capture a display name
+    let recipientName = 'User';
+    try {
+      if (userId) {
+        const userDocRef = db.collection('users').doc(String(userId));
+        const userSnap = await userDocRef.get();
+        if (userSnap.exists) {
+          const udata = userSnap.data();
+          recipientName = udata.firstName || udata.username || udata.displayName || recipientName;
+          await userDocRef.update({ emailVerified: true });
+        }
+      } else {
+        // Fallback to email query if no userId
+        const usersRef = db.collection('users');
+        const userQuery = await usersRef.where('email', '==', email).get();
+        if (!userQuery.empty) {
+          const userDoc = userQuery.docs[0];
+          const udata = userDoc.data();
+          recipientName = udata.firstName || udata.username || udata.displayName || recipientName;
+          await userDoc.ref.update({ emailVerified: true });
+        }
       }
+    } catch (updateErr) {
+      console.warn('Could not update emailVerified or read user display name:', updateErr);
     }
 
     console.log(`✅ OTP verified successfully for ${email}`);
+
+    // Send welcome email; do not fail verification if sending fails
+    try {
+      await sendWelcomeEmail(email, recipientName);
+      console.log(`✅ Welcome email sent to ${email}`);
+    } catch (mailErr) {
+      console.error('❌ Failed to send welcome email:', mailErr);
+    }
     
     // Clean up verified OTP after a delay (optional)
     setTimeout(async () => {

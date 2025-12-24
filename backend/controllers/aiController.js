@@ -21,7 +21,6 @@ export const generateImagenImageAPI = async (req, res) => {
   }
 };
 import axios from "axios";
-import { scanBuffer } from "../services/virusScanService.js";
 // In-memory cache for image results (prompt -> base64)
 const pollinationsImageCache = new Map();
 
@@ -90,7 +89,7 @@ import {
 } from "../services/aiService.js";
 import { parseExcelAndSuggestCharts } from '../services/excelChartSuggestService.js';
 import fs from "fs";
-import { saveHistory } from "../services/historyService.js";
+import { saveHistory, createHistoryDraft, updateHistory } from "../services/historyService.js";
 import { generatePptxFromData } from "../services/pptxService.js";
 import { uploadToS3, getSignedUrl } from "../services/s3Service.js";
 import { saveConversion, saveAIGeneratedConversion } from "../services/conversionService.js";
@@ -162,8 +161,28 @@ const handlePptxUploadAndSave = async (slides, params) => {
   console.log(`[UPLOAD FLOW] Starting for ${fileName}`);
   
   try {
+    // Create a history draft so frontend can poll progress/status
+    let historyId = null;
+    if (userId) {
+      try {
+        const draft = await createHistoryDraft({
+          userId,
+          fileName: fileName,
+          conversionType,
+          includeImages: includeImages || false,
+          progress: 0,
+          status: 'In Progress',
+          slides: []
+        });
+        historyId = draft.id;
+      } catch (draftErr) {
+        console.warn('[History] Failed to create draft history:', draftErr.message || draftErr);
+      }
+    }
+
     // 1. Generate PPTX and capture generated images
     console.log(`[Step 1/4] Generating PPTX and creating images...`);
+    if (historyId) await updateHistory(historyId, { progress: 10 });
     const pptxResult = await generatePptxFromData({
       slides,
       design: {
@@ -183,7 +202,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
     const pptxBuffer = pptxResult.buffer;
     const generatedImages = pptxResult.generatedImages || {};
     const imageProviderFinal = pptxResult.imageProviderFinal || imageProvider;
-    
+    if (historyId) await updateHistory(historyId, { progress: 40 });
     // 2. Upload Generated Images to S3
     // This permanently saves the Imagen images so they appear in drafts
     if (includeImages && Object.keys(generatedImages).length > 0) {
@@ -219,15 +238,16 @@ const handlePptxUploadAndSave = async (slides, params) => {
                 // Optional: Clear prompt so frontend doesn't try to regenerate
                 // slides[index].imagePrompt = ""; 
                 
-                console.log(`   > Slide ${index} image saved: ${s3ImgResult.url}`);
+                        console.log(`   > Slide ${index} image saved: ${s3ImgResult.url}`);
             } catch (err) {
                 console.error(`   > Failed to save image for slide ${indexStr}:`, err.message);
             }
         }));
     }
+            if (historyId) await updateHistory(historyId, { progress: 60 });
 
-    // 3. Upload PPTX to S3
-    console.log('[Step 3/4] Uploading PPTX to S3...');
+            // 3. Upload PPTX to S3
+            console.log('[Step 3/4] Uploading PPTX to S3...');
     const pptxFileName = `${fileName.replace(/\.[^/.]+$/, '')}.pptx`;
     const s3Result = await uploadToS3(
       pptxBuffer,
@@ -235,16 +255,17 @@ const handlePptxUploadAndSave = async (slides, params) => {
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       userId
     );
+            if (historyId) await updateHistory(historyId, { progress: 85 });
 
-    // 4. Save to History and Conversions
-    // CRITICAL: We save AFTER the images are uploaded and slides are updated
-    let historyId = null;
+            // 4. Save to History and Conversions
+            // CRITICAL: We save AFTER the images are uploaded and slides are updated
     if (userId) {
       console.log('[Step 4/4] Saving to Database...');
       
       try {
-        // Save to History (Drafts)
-        const historyRecord = await saveHistory({
+        // Finalize history: update existing draft if it exists, otherwise create
+        const historyPayload = {
+          id: historyId || undefined,
           userId,
           fileName,
           conversionType,
@@ -252,7 +273,8 @@ const handlePptxUploadAndSave = async (slides, params) => {
           previewThumb: previewThumb || null,
           slides: slides, // <--- Now contains the S3 URLs for the images
           imageProviderRequested: imageProvider || null
-        });
+        };
+        const historyRecord = await saveHistory(historyPayload);
         historyId = historyRecord.id;
         console.log(`✅ History saved. ID: ${historyId}`);
       } catch (e) {
@@ -301,12 +323,7 @@ export const generateFromPdf = async (req, res) => {
       return res.status(400).json({ success: false, data: [], error: "No PDF file uploaded." });
     }
 
-    // Virus Scan
-    try {
-      await scanBuffer(req.file.buffer);
-    } catch (error) {
-      return res.status(400).json({ success: false, data: [], error: error.message });
-    }
+    
 
     const slideCount = coerceSlideCount(req.body.slideCount, 10);
     const userId = req.body.userId || null;
@@ -382,12 +399,7 @@ export const generateFromWord = async (req, res) => {
       return res.status(400).json({ error: "No Word document uploaded." });
     }
 
-    // Virus Scan
-    try {
-      await scanBuffer(req.file.buffer);
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    
 
     const slideCount = coerceSlideCount(req.body.slideCount, 10);
     const userId = req.body.userId || null;
@@ -463,12 +475,7 @@ export const generateFromExcel = async (req, res) => {
       return res.status(400).json({ error: "No Excel file uploaded." });
     }
 
-    // Virus Scan
-    try {
-      await scanBuffer(req.file.buffer);
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    
 
     const slideCount = coerceSlideCount(req.body.slideCount, 10);
     const userId = req.body.userId || null;
@@ -681,12 +688,7 @@ export const generateFromTextFile = async (req, res) => {
       return res.status(400).json({ error: "No text file uploaded." });
     }
 
-    // Virus Scan
-    try {
-      await scanBuffer(req.file.buffer);
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
+    
 
     const slideCount = coerceSlideCount(req.body.slideCount, 10);
     const userId = req.body.userId || null;
