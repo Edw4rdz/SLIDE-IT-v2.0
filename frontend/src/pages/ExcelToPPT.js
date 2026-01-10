@@ -85,6 +85,10 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
       droppedFile.type === "application/vnd.ms-excel"
     ) {
+      if (droppedFile.size > 50 * 1024 * 1024) {
+        notify("File too large (max 50MB)", "error");
+        return;
+      }
       setFile(droppedFile);
     } else {
       notify("Please upload a valid Excel file (.xlsx or .xls)", "error");
@@ -101,6 +105,11 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
       selectedFile.type === "application/vnd.ms-excel"
     ) {
+      if (selectedFile.size > 50 * 1024 * 1024) {
+        notify("File too large (max 50MB)", "error");
+        setFile(null);
+        return;
+      }
       setFile(selectedFile);
       setExcelSuggestions([]);
     } else {

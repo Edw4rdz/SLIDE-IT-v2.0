@@ -64,6 +64,10 @@ export default function WordToPPT() {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
         droppedFile.type === "application/msword")
     ) {
+      if (droppedFile.size > 25 * 1024 * 1024) {
+        notify("File too large (max 25MB)", "error");
+        return;
+      }
       setFile(droppedFile);
     } else {
       notify("Please upload a valid Word file (.docx or .doc)", "error");
@@ -78,6 +82,11 @@ export default function WordToPPT() {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
         selectedFile.type === "application/msword")
     ) {
+      if (selectedFile.size > 25 * 1024 * 1024) {
+        notify("File too large (max 25MB)", "error");
+        setFile(null);
+        return;
+      }
       setFile(selectedFile);
     } else {
       notify("Please upload a valid Word file (.docx or .doc)", "error");
