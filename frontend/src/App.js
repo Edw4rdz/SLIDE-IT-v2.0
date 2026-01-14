@@ -25,6 +25,7 @@ import Footer from "./components/Footer";
 import About from "./pages/About";
 import Privacy from "./pages/Privacy";
 import Support from "./pages/Support";
+import ResetPassword from "./pages/ResetPassword"; // Import the new page
 import { useLocation } from 'react-router-dom';
 
 export default function App() {
@@ -38,7 +39,7 @@ export default function App() {
 
 function AppContent() {
   const location = useLocation();
-  const hideFooterPaths = ['/login', '/signup', '/forgot-password', '/verify-otp', '/edit-preview'];
+  const hideFooterPaths = ['/login', '/signup', '/forgot-password', '/verify-otp', '/edit-preview', '/admin', '/reset-password'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -47,6 +48,7 @@ function AppContent() {
           <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-otp" element={<VerifyOTP />} />
           <Route path="/dashboard" element={<Dashboard />} />

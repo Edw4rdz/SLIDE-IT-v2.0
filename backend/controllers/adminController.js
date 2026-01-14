@@ -142,6 +142,18 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ error: "All fields are required." });
     }
 
+    // Age validation (13+)
+    const bDate = new Date(birthday);
+    const today = new Date();
+    let age = today.getFullYear() - bDate.getFullYear();
+    const m = today.getMonth() - bDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) {
+      age--;
+    }
+    if (age < 13) {
+      return res.status(400).json({ error: "User must be at least 13 years old." });
+    }
+
    
     const userRecord = await admin.auth().createUser({
       email: email,
@@ -155,8 +167,25 @@ export const createUser = async (req, res) => {
       const counterDoc = await transaction.get(counterRef);
       
       if (!counterDoc.exists) { 
-        throw new Error("Counter document does not exist!");
+        // If counter doesn't exist, find the highest existing numericId
+        const lastUserSnapshot = await db.collection("users")
+          .orderBy("numericId", "desc")
+          .limit(1)
+          .get();
+
+        let startId = 1;
+        if (!lastUserSnapshot.empty) {
+          const lastUser = lastUserSnapshot.docs[0].data();
+          if (lastUser.numericId) {
+            startId = lastUser.numericId + 1;
+          }
+        }
+
+        // Initialize userCounter with the next available ID
+        transaction.set(counterRef, { currentId: startId });
+        return startId;
       }
+
       const newCurrentId = counterDoc.data().currentId + 1;
       transaction.update(counterRef, { currentId: newCurrentId });
       return newCurrentId;

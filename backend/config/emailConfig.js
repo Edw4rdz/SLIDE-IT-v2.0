@@ -169,7 +169,7 @@ export const sendOTPEmail = async (to, otp, userName = 'User') => {
             please verify your email address using the One-Time Password (OTP) below:
           </div>
           <div class="otp-box">${otp}</div>
-          <div class="expiry">⏱️ This OTP will expire in 10 minutes</div>
+          <div class="expiry">⏱️ This OTP will expire in 5 minutes</div>
           <div class="warning">
             <strong>⚠️ Security Notice:</strong> Never share this OTP with anyone. 
             SLIDE-IT staff will never ask for your OTP.
@@ -230,9 +230,6 @@ export const sendWelcomeEmail = async (to, userName = 'User') => {
               <li>Visit our Help Center for tips and tricks.</li>
             </ul>
           </div>
-          <p style="text-align:center; margin-top:18px;">
-            <a class="cta" href="#">Open your dashboard</a>
-          </p>
           <div class="message" style="margin-top:18px; font-size:13px; color:#666;">
             If you need help, reply to this email or visit our support page.
           </div>

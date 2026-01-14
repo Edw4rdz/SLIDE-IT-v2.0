@@ -9,28 +9,6 @@ import "../styles/ai-generator.css";
 import Sidebar from "../components/Sidebar"; 
 
 export default function AIGenerator() {
-  // Utility to fit text inside a container by adjusting font size
-  function fitTextToContainer(text, containerWidth, containerHeight, minFont = 12, maxFont = 40, fontFamily = 'Arial', fontWeight = 'bold') {
-    if (!text) return minFont;
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    let fontSize = maxFont;
-    let fits = false;
-    while (fontSize >= minFont) {
-      ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-      const metrics = ctx.measureText(text);
-      const textWidth = metrics.width;
-      // Estimate height: fontSize * 1.2 (line height)
-      const textHeight = fontSize * 1.2;
-      if (textWidth <= containerWidth && textHeight <= containerHeight) {
-        fits = true;
-        break;
-      }
-      fontSize -= 1;
-    }
-    return fits ? fontSize : minFont;
-  }
-
   const [slides, setSlides] = useState(15);
   const [topic, setTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +21,6 @@ export default function AIGenerator() {
   const [includeImages, setIncludeImages] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("gemini");
   const [selectedImageProvider, setSelectedImageProvider] = useState("pollinations");
-  const previewRefs = useRef({});
   const [progress, setProgress] = useState(0);
   const [eta, setEta] = useState(null);
   const progressIntervalRef = useRef(null);
@@ -305,64 +282,6 @@ export default function AIGenerator() {
     <span id="slide-count">{slides} slides</span>
   </div>
 </div>
-              {/* Slide Preview Section */}
-              {convertedSlides.length > 0 && (
-                <div className="ai-card">
-                  <h2>Slide Preview (Auto Font Size)</h2>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-                    {convertedSlides.map((slide, idx) => (
-                      <div
-                        key={slide.id}
-                        ref={el => previewRefs.current[slide.id] = el}
-                        style={{
-                          width: 320,
-                          height: 180,
-                          border: '1px solid #ccc',
-                          borderRadius: 8,
-                          background: '#fff',
-                          overflow: 'hidden',
-                          position: 'relative',
-                          padding: 16,
-                          boxSizing: 'border-box',
-                        }}
-                      >
-                        {/* Title */}
-                        <div
-                          style={{
-                            width: '100%',
-                            height: 48,
-                            fontWeight: 'bold',
-                            color: '#222',
-                            textAlign: 'center',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            fontSize: fitTextToContainer(slide.title, 288, 48),
-                            fontFamily: 'Arial',
-                          }}
-                        >
-                          {slide.title}
-                        </div>
-                        {/* Body Text */}
-                        <div
-                          style={{
-                            width: '100%',
-                            height: 100,
-                            marginTop: 8,
-                            color: '#444',
-                            textAlign: 'left',
-                            overflow: 'hidden',
-                            fontSize: fitTextToContainer(slide.text || (slide.bullets ? slide.bullets.join(' ') : ''), 288, 100, 10, 24, 'Arial', 'normal'),
-                            fontFamily: 'Arial',
-                          }}
-                        >
-                          {slide.text || (slide.bullets ? slide.bullets.join(' • ') : '')}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Right */}

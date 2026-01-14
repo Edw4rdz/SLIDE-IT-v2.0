@@ -80,6 +80,59 @@ export const deleteHistory = async (id, userId) => {
   return response;
 };
 
+// --- URL REFRESHER ---
+export const refreshUrl = (key) => axios.post(`${API_BASE}/refresh-url`, { key });
+
+export const refreshPresignedUrlIfNeeded = async (slide) => {
+  if (!slide || !slide.uploadedImageKey) return slide;
+  
+  const currentUrl = slide.uploadedImage;
+  if (!currentUrl || !currentUrl.startsWith('http')) return slide;
+
+  // Check if it's a signed URL
+  const isSigned = currentUrl.includes('X-Amz-Signature') || currentUrl.includes('Signature=');
+  
+  if (isSigned) {
+    try {
+      // Check expiration helper
+      const urlObj = new URL(currentUrl);
+      const amzDate = urlObj.searchParams.get('X-Amz-Date');
+      const amzExpires = urlObj.searchParams.get('X-Amz-Expires');
+      const expires = urlObj.searchParams.get('Expires');
+      
+      let expirationTime = 0;
+      
+      if (amzDate && amzExpires) {
+          const year = amzDate.substring(0, 4);
+          const month = amzDate.substring(4, 6);
+          const day = amzDate.substring(6, 8);
+          const hour = amzDate.substring(9, 11);
+          const minute = amzDate.substring(11, 13);
+          const second = amzDate.substring(13, 15);
+          const creationDate = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
+          expirationTime = creationDate.getTime() + (parseInt(amzExpires) * 1000);
+      } else if (expires) {
+          expirationTime = parseInt(expires) * 1000;
+      }
+      
+      // If valid for at least 5 more minutes, return as is
+      if (expirationTime > 0 && Date.now() < expirationTime - 300000) {
+          return slide;
+      }
+
+      // Refresh
+      const res = await refreshUrl(slide.uploadedImageKey);
+      if (res.data && res.data.success && res.data.url) {
+          return { ...slide, uploadedImage: res.data.url };
+      }
+    } catch (e) {
+      console.error("Failed to refresh URL:", e);
+    }
+  }
+  
+  return slide;
+};
+
 // --- STATIC DATA ---
 export const prebuiltTemplates = [
   {
@@ -147,58 +200,6 @@ export const generateImageFromImagen = async (prompt) => {
     console.warn("Imagen generation backend proxy failed:", err.message);
     return null;
   }
-};
-
-// --- PRESIGNED URL HELPER ---
-// Get a fresh presigned URL from an S3 key
-export const getFreshPresignedUrl = async (key) => {
-  if (!key || typeof key !== "string" || key.trim() === "") return null;
-  try {
-    const res = await axios.post(`${API_BASE}/presigned-url`, { key });
-    if (res.data && res.data.success && res.data.url) {
-      return res.data.url;
-    }
-    return null;
-  } catch (err) {
-    console.warn("Failed to get fresh presigned URL:", err.message);
-    return null;
-  }
-};
-
-// Helper function to check if a URL is an S3 presigned URL
-export const isS3PresignedUrl = (url) => {
-  if (!url || typeof url !== 'string') return false;
-  return url.includes('.s3.') && url.includes('X-Amz-');
-};
-
-// Helper function to refresh expired S3 presigned URLs
-export const refreshPresignedUrlIfNeeded = async (slide) => {
-  console.log('[refreshPresignedUrlIfNeeded] Checking slide:', slide.id, {
-    hasUploadedImageKey: !!slide.uploadedImageKey,
-    hasUploadedImage: !!slide.uploadedImage,
-    isPresignedUrl: slide.uploadedImage ? isS3PresignedUrl(slide.uploadedImage) : false,
-    uploadedImageKey: slide.uploadedImageKey,
-    uploadedImagePreview: slide.uploadedImage?.substring(0, 100)
-  });
-  
-  // If slide has uploadedImageKey and the URL looks like a presigned URL, refresh it
-  if (slide.uploadedImageKey && slide.uploadedImage && isS3PresignedUrl(slide.uploadedImage)) {
-    try {
-      console.log('[refreshPresignedUrlIfNeeded] Requesting fresh URL for key:', slide.uploadedImageKey);
-      const freshUrl = await getFreshPresignedUrl(slide.uploadedImageKey);
-      if (freshUrl) {
-        console.log('[refreshPresignedUrlIfNeeded] Got fresh URL:', freshUrl.substring(0, 100));
-        return { ...slide, uploadedImage: freshUrl };
-      } else {
-        console.warn('[refreshPresignedUrlIfNeeded] No fresh URL returned');
-      }
-    } catch (err) {
-      console.warn('[refreshPresignedUrlIfNeeded] Failed to refresh presigned URL for slide:', err);
-    }
-  } else {
-    console.log('[refreshPresignedUrlIfNeeded] Skipping refresh - conditions not met');
-  }
-  return slide;
 };
 
 // --- POWERPOINT EXPORT LOGIC (via backend) ---

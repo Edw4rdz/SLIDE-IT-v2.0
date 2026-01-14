@@ -1,5 +1,6 @@
 import { listUploadedTemplates } from "../services/uploadService.js";
 import { extractPptxDesign, extractPptxThumbnail } from "../services/pptxExtractorService.js";
+import { getSignedUrl } from "../services/s3Service.js";
 import path from "path";
 import fs from "fs/promises";
 import { createCanvas } from "canvas";
@@ -54,6 +55,24 @@ export const handleUpload = async (req, res) => {
     design, 
     thumbnail, 
   });
+};
+
+/**
+ * Controller Logic: Refresh a presigned URL for a private S3 file
+ */
+export const handleRefreshUrl = async (req, res) => {
+  try {
+    const { key } = req.body;
+    if (!key) {
+      return res.status(400).json({ success: false, message: "Storage key is required" });
+    }
+
+    const url = await getSignedUrl(key);
+    res.json({ success: true, url });
+  } catch (err) {
+    console.error("Error refreshing signed URL:", err);
+    res.status(500).json({ success: false, message: "Failed to refresh URL" });
+  }
 };
 
 /**

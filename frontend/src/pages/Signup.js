@@ -66,6 +66,17 @@ export default function Signup() {
     if (isNaN(bDate.getTime())) return "Invalid birthday.";
     if (bDate > new Date()) return "Birthday cannot be in the future.";
 
+    // Age Check (13+)
+    const today = new Date();
+    let age = today.getFullYear() - bDate.getFullYear();
+    const m = today.getMonth() - bDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) {
+      age--;
+    }
+    if (age < 13) {
+      return "You must be at least 13 years old to create an account.";
+    }
+
     if (!email.trim()) return "Email is required.";
     if (!emailRegex.test(email)) return "Please enter a valid email address.";
 

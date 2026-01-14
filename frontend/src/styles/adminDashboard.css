@@ -269,7 +269,7 @@
   border-radius: 12px;
   box-shadow: 0 5px 20px rgba(0,0,0,0.1);
   width: 100%;
-  max-width: 450px;
+  max-width: 650px;
 }
 .modal-content h2 {
   margin-top: 0;
@@ -358,4 +358,10 @@
 .dashboard .sidebar .admin-link {
   margin-top: -4px; /* pull the Admin Panel up slightly (less than before) */
   padding: 8px 16px; /* slightly tighter padding */
+}
+
+/* Hide native password reveal button in Edge/Internet Explorer */
+.input-group input[type="password"]::-ms-reveal,
+.input-group input[type="password"]::-ms-clear {
+  display: none;
 }

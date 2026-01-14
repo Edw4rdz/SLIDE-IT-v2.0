@@ -30,9 +30,15 @@ export const sendPasswordResetEmail = async (req, res) => {
     }
 
     // Password reset link using Firebase Admin SDK
-    const resetLink = await admin.auth().generatePasswordResetLink(email.toLowerCase(), {
+    const firebaseLink = await admin.auth().generatePasswordResetLink(email.toLowerCase(), {
       url: process.env.FRONTEND_URL || 'http://localhost:3000/login',
     });
+
+    // Extract oobCode and construct custom frontend link
+    const urlObj = new URL(firebaseLink);
+    const oobCode = urlObj.searchParams.get('oobCode');
+    const baseUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/login$/, '') : 'http://localhost:3000';
+    const resetLink = `${baseUrl}/reset-password?oobCode=${oobCode}`;
 
     //HTML email template
     const subject = 'Reset Your SLIDE-IT Password';
@@ -78,7 +84,7 @@ export const sendPasswordResetEmail = async (req, res) => {
             padding: 15px 30px;
             margin: 25px 0;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            color: #ffffff !important;
             text-decoration: none;
             border-radius: 8px;
             font-weight: bold;
@@ -114,7 +120,7 @@ export const sendPasswordResetEmail = async (req, res) => {
             <p>Click the button below to reset your password:</p>
             
             <center>
-              <a href="${resetLink}" class="button">Reset Password</a>
+              <a href="${resetLink}" class="button" style="color: #ffffff;">Reset Password</a>
             </center>
             
             <p>Or copy and paste this link into your browser:</p>
