@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from "../utils/notify";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable, FaTrash, FaQuestionCircle } from 'react-icons/fa';
+import { FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTrash, FaQuestionCircle } from 'react-icons/fa';
 import { getTemplates, downloadPPTX } from '../api';
 import '../styles/edit-preview.css';
 import ConfirmDialog from "../components/ConfirmDialog";
