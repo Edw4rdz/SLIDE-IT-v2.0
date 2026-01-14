@@ -187,6 +187,12 @@ export const generateImageFromPollinations = async (prompt) => {
   }
 };
 
+// --- GROK IMAGE HELPER (fallback to Pollinations as Grok doesn't have image API) ---
+export const generateImageFromGrok = async (prompt) => {
+  // Grok AI doesn't have an image generation API, fallback to Pollinations
+  return generateImageFromPollinations(prompt);
+};
+
 // --- GOOGLE IMAGEN HELPER (via backend proxy) ---
 export const generateImageFromImagen = async (prompt) => {
   if (!prompt || typeof prompt !== "string" || prompt.trim() === "") return null;
