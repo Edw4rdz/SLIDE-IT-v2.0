@@ -325,6 +325,7 @@ export default function AIGenerator() {
         isOpen={showProviderModal}
         onSelect={handleProviderSelect}
         onCancel={() => setShowProviderModal(false)}
+        mode="generator"
       />
 
       {/* Image Provider Selection Modal */}

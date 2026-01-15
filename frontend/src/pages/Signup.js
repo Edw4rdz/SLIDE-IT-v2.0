@@ -237,7 +237,7 @@ export default function Signup() {
           <img src={signupImg} alt="Signup background" />
           <div className="text">
             <span className="text-1">Create Account</span>
-            <span className="text-2">Join Slide-IT today</span>
+            <span className="text-2">Join SLIDE-IT today</span>
           </div>
         </div>
 

@@ -14,18 +14,24 @@ const PROVIDERS = [
   }
 ];
 
-export default function AIProviderModal({ isOpen, onSelect, onCancel }) {
+export default function AIProviderModal({ isOpen, onSelect, onCancel, mode = "summarizer" }) {
   const [selectedProvider, setSelectedProvider] = useState("gemini");
 
   if (!isOpen) return null;
+
+  const isGenerator = mode === "generator";
+  const title = isGenerator ? "Select Text Generator Model" : "Select Text Summarization Model";
+  const subtitle = isGenerator 
+    ? "Select an AI model that will generate your text into presentation content."
+    : "Select an AI model that will summarize your text into presentation content.";
 
   return (
     <div className="ai-provider-modal-overlay">
       <div className="ai-provider-modal-content">
         <div className="ai-provider-modal-header">
-          <h2 className="ai-provider-modal-title">Select Text Summarization Model</h2>
+          <h2 className="ai-provider-modal-title">{title}</h2>
           <p className="ai-provider-modal-subtitle">
-           Select an AI model that will summarize your text into presentation content.
+           {subtitle}
           </p>
         </div>
 
