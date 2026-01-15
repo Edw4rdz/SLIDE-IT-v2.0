@@ -3,6 +3,7 @@ import PptxGenJS from "pptxgenjs";
 import axios from "axios";
 import { PNG } from "pngjs";
 import { GoogleAuth } from "google-auth-library";
+import { generatePollinationsImage, getPollinationsFreeImageUrl } from "./pollinationsService.js";
 
 
 // In-memory cache for Imagen images: key = prompt+model, value = base64
@@ -347,15 +348,6 @@ async function generateImagenImage(prompt) {
   }
 }
 
-/**
- * Helper to get the AI image URL (pollinations fallback)
- */
-function getPollinationsImageUrl(prompt) {
-  if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return null;
-  const encodedPrompt = encodeURIComponent(prompt.trim());
-  return `https://image.pollinations.ai/prompt/${encodedPrompt}`;
-}
-
 
 
 const fetchImageAsBase64 = async (url) => {
@@ -516,14 +508,25 @@ export const generatePptxFromData = async (requestBody) => {
   
   if (includeImages) {
     console.log(`[PPTX Generation] Pre-generating images in batches...`);
+    console.log(`[PPTX] Strategy: Pollinations = 1 slide/batch, Others = 2 slides/batch`);
     
-    // Batch size 2 to prevent rate limits
-    const batchSize = 2; 
     const usedProviders = new Set();
+    let i = 0;
+    let batchNum = 0;
     
-    for (let i = 0; i < slides.length; i += batchSize) {
+    while (i < slides.length) {
+      batchNum++;
+      
+      // Determine batch size based on provider
+      let batchSize;
+      if (imageProvider === 'pollinations') {
+        batchSize = 1; // Pollinations: 1 slide per batch
+      } else {
+        batchSize = 2; // Others (Imagen, etc): 2 slides per batch
+      }
+      
       const batch = slides.slice(i, i + batchSize);
-      console.log(`[PPTX] Processing image batch ${Math.floor(i/batchSize) + 1} (${batch.length} slides)...`);
+      console.log(`[PPTX] Processing batch ${batchNum}: ${batch.length} slide(s) with provider=${imageProvider || 'default'}...`);
       
       const batchPromises = batch.map(async (slide, batchIndex) => {
         const globalIndex = i + batchIndex;
@@ -559,14 +562,21 @@ export const generatePptxFromData = async (requestBody) => {
                  } catch (err) {
                     console.warn(`[PPTX] Imagen failed for slide ${globalIndex}:`, err.message);
                  }
-              } 
+              }
 
-              // 3. Pollinations (Fallback)
-              if (!imageBase64) {
-                const imageUrl = getPollinationsImageUrl(slide.imagePrompt);
-                if (imageUrl) {
-                  imageBase64 = await fetchImageAsBase64(imageUrl);
+              // 3. Pollinations (Primary or Fallback)
+              if (!imageBase64 && (imageProvider === 'pollinations' || !imageProvider)) {
+                try {
+                  // Uses authenticated API if available, falls back to free
+                  imageBase64 = await generatePollinationsImage(slide.imagePrompt, {
+                    width: 1280,
+                    height: 720,
+                    style: 'cinematic',
+                    nologo: true
+                  });
                   usedProvider = 'pollinations';
+                } catch (err) {
+                  console.warn(`[PPTX] Pollinations failed for slide ${globalIndex}:`, err.message);
                 }
               }
               
@@ -584,9 +594,15 @@ export const generatePptxFromData = async (requestBody) => {
       
       const results = await Promise.all(batchPromises);
       results.forEach(p => { if (p) usedProviders.add(p); });
-
-      if (i + batchSize < slides.length) {
-        await sleep(2000); 
+      
+      // Move to next batch
+      i += batchSize;
+      
+      // Add delay between batches (1-2 seconds for speed)
+      if (i < slides.length) {
+        const delayMs = 1000 + Math.random() * 1000; // 1-2 seconds
+        console.log(`[PPTX] Waiting ${Math.round(delayMs)}ms before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
     

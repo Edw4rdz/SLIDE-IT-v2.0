@@ -49,10 +49,6 @@ export const useDraftManagement = ({
   // Load draft on mount
   useEffect(() => {
     if (draftLoaded) return;
-    if (Array.isArray(location.state?.slides) && location.state.slides.length > 0) {
-      setDraftLoaded(true);
-      return;
-    }
     
     const convId = location.state?.convId || topic;
     const draftKey = `slideit_draft_${convId}`;
@@ -60,6 +56,8 @@ export const useDraftManagement = ({
     const loadDraft = async () => {
       try {
         const savedDraft = localStorage.getItem(draftKey);
+        
+        // Always prefer draft if it exists, even if location.state has slides
         if (savedDraft) {
           const draft = JSON.parse(savedDraft);
           
@@ -104,11 +102,9 @@ export const useDraftManagement = ({
               setSelectedTemplateId(draft.design.id);
             }
           }
-          
-          setDraftLoaded(true);
-        } else {
-          setDraftLoaded(true);
         }
+        
+        setDraftLoaded(true);
       } catch (error) {
         console.error('[DRAFT] Error loading draft:', error);
         setDraftLoaded(true);
@@ -116,7 +112,7 @@ export const useDraftManagement = ({
     };
     
     loadDraft();
-  }, [draftLoaded, setDraftLoaded, location.state?.slides, location.state?.convId, topic, setEditedSlides, setTopic, setCurrentDesign, setSelectedTemplateId]);
+  }, [draftLoaded, setDraftLoaded, location.state?.convId, topic, setEditedSlides, setTopic, setCurrentDesign, setSelectedTemplateId]);
 };
 
 export default useDraftManagement;

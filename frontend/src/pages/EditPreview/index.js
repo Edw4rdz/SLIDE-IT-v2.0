@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaDownload, FaArrowLeft, FaArrowRight, FaSearch, FaQuestionCircle } from 'react-icons/fa';
@@ -208,6 +208,38 @@ export default function EditPreview() {
     setShowDownloadPreview,
     setPreviewSlideIndex
   });
+
+  // Save draft on ANY navigation away from this page (browser back, system back, page reload, etc.)
+  useEffect(() => {
+    const convId = location.state?.convId || topic;
+    
+    // Save draft when page unloads (reload, close tab, browser navigation)
+    const handleBeforeUnload = (e) => {
+      saveDraft(editedSlides, topic, convId, currentDesign, imageProvider);
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Cleanup function runs when component unmounts (browser back, system back, route change)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Save draft when component unmounts for ANY reason
+      saveDraft(editedSlides, topic, convId, currentDesign, imageProvider);
+    };
+  }, [editedSlides, topic, location.state?.convId, currentDesign, imageProvider]);
+
+  // Auto-save draft periodically (every 10 seconds for more frequent saves)
+  useEffect(() => {
+    const convId = location.state?.convId || topic;
+    
+    const autoSaveInterval = setInterval(() => {
+      if (editedSlides.length > 0) {
+        saveDraft(editedSlides, topic, convId, currentDesign, imageProvider);
+      }
+    }, 10000); // Save every 10 seconds
+    
+    return () => clearInterval(autoSaveInterval);
+  }, [editedSlides, topic, location.state?.convId, currentDesign, imageProvider]);
 
   // Early return if no slides
   if (!location.state?.slides && editedSlides.length === 0) {

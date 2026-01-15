@@ -43,6 +43,7 @@ export async function saveDraft(slides, topic, convId, design, imageProvider) {
     };
     const key = convId ? `slideit_draft_${convId}` : `slideit_draft_${topic}`;
     localStorage.setItem(key, JSON.stringify(draft));
+    console.log(`[DRAFT SAVED] ${slides.length} slides saved to key: ${key}`);
   } catch (e) {
     console.warn('Failed to save draft:', e);
   }
