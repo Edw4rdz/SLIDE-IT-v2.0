@@ -142,7 +142,10 @@ export default function EditPreview() {
     previewImageUrls,
     setPreviewImageUrls,
     imageGenerationInProgress,
-    generatedPromptsRef
+    generatedPromptsRef,
+    topic,
+    convId: location.state?.convId || topic,
+    currentDesign
   });
 
   // Sticker interactions

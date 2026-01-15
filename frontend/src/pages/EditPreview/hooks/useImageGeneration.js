@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { getPollinationsImageUrl } from '../utils';
+import { getPollinationsImageUrl, saveDraft } from '../utils';
 
 /**
  * Custom hook for managing image generation
@@ -12,7 +12,10 @@ export const useImageGeneration = ({
   previewImageUrls,
   setPreviewImageUrls,
   imageGenerationInProgress,
-  generatedPromptsRef
+  generatedPromptsRef,
+  topic,
+  convId,
+  currentDesign
 }) => {
   // Generate preview images
   useEffect(() => {
@@ -26,6 +29,20 @@ export const useImageGeneration = ({
         imageGenerationInProgress.current = false;
         return;
       }
+      
+      // Clear old generated prompt references when prompts change
+      // This allows regeneration with new prompts for Imagen provider
+      const currentPrompts = new Set(editedSlides.map(s => `${s.id}-${s.imagePrompt}`));
+      const keysToDelete = Array.from(generatedPromptsRef.current).filter(key => {
+        const [slideId] = key.split('-').slice(0, 1);
+        const slide = editedSlides.find(s => s.id === slideId);
+        if (slide) {
+          const expectedKey = `${slide.id}-${slide.imagePrompt}`;
+          return key !== expectedKey;
+        }
+        return false;
+      });
+      keysToDelete.forEach(key => generatedPromptsRef.current.delete(key));
       
       if (imageGenerationInProgress.current) {
         return;
@@ -139,9 +156,15 @@ export const useImageGeneration = ({
         return slide;
       });
       
+      if (hasUpdates) {
+        // Save updated slides with new images to draft
+        const convIdValue = convId || topic;
+        saveDraft(updatedSlides, topic, convIdValue, currentDesign, imageProvider);
+      }
+      
       return hasUpdates ? updatedSlides : prevSlides;
     });
-  }, [previewImageUrls, setEditedSlides]);
+  }, [previewImageUrls, setEditedSlides, topic, convId, currentDesign, imageProvider]);
 
   // Auto-generate sticker images
   useEffect(() => {

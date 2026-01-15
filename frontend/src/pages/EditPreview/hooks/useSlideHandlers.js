@@ -37,13 +37,19 @@ export const useSlideHandlers = ({
           };
           if (field === 'imagePrompt') {
             updatedSlide.uploadedImage = null;
+            // Clear preview URL so it regenerates with new prompt
+            setPreviewImageUrls(prev => {
+              const next = { ...prev };
+              delete next[id];
+              return next;
+            });
           }
           return updatedSlide;
         }
         return s;
       })
     );
-  }, [setEditedSlides]);
+  }, [setEditedSlides, setPreviewImageUrls]);
 
   const handleStyleChange = useCallback((slideId, key, value) => {
     setEditedSlides(currentSlides =>
