@@ -51,6 +51,8 @@ export default function UploadTemplate() {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [templateToRemove, setTemplateToRemove] = useState(null);
 
   // Get current user from localStorage or sessionStorage
   const getCurrentUser = () => {
@@ -71,9 +73,6 @@ export default function UploadTemplate() {
 
   const [prebuiltTemplates, setPrebuiltTemplates] = useState([]);
   const [loadingPrebuilt, setLoadingPrebuilt] = useState(true);
-  const [selectedTemplate, setSelectedTemplate] = useState(
-    JSON.parse(localStorage.getItem(selectedKey)) || null
-  );
   const [uploadedTemplates, setUploadedTemplates] = useState(() => {
     const saved = localStorage.getItem(uploadedKey);
     return saved ? JSON.parse(saved) : [];
@@ -99,36 +98,7 @@ export default function UploadTemplate() {
   }, []);
 
 
-  // Handle selecting any template (prebuilt or uploaded)
-  const handleSelectTemplate = (tpl) => {
-    const editableCopy = {
-      ...tpl,
-      id: `copy-${tpl.id || tpl.name}-${Date.now()}`,
-      name: `${tpl.name} (Copy)`,
-    };
 
-    setSelectedTemplate(editableCopy);
-    localStorage.setItem(selectedKey, JSON.stringify(editableCopy));
-
-    // Pass slides to EditPreview (use tpl.slides if it exists)
-    const slidesToLoad = tpl.slides?.length ? tpl.slides : [
-      {
-        id: `slide-1-${Date.now()}`,
-        title: 'Sample Slide',
-        bullets: ['This is a sample slide.'],
-        layout: 'title',
-      },
-    ];
-
-    navigate('/edit-preview', {
-      state: {
-        slides: slidesToLoad,
-        initialDesign: editableCopy,
-        topic: tpl.name,
-        includeImages: true,
-      },
-    });
-  };
 
   // Handle uploading a template (simple: just store file name and preview)
   const handleUploadTemplate = async (e) => {
@@ -191,11 +161,29 @@ export default function UploadTemplate() {
     e.target.value = '';
   };
 
-  // Remove uploaded template
+  // Remove uploaded template - show confirmation first
   const handleRemoveUploaded = (id) => {
-    const updated = uploadedTemplates.filter(t => t.id !== id);
-    setUploadedTemplates(updated);
-    localStorage.setItem(uploadedKey, JSON.stringify(updated));
+    const template = uploadedTemplates.find(t => t.id === id);
+    setTemplateToRemove(template);
+    setShowRemoveConfirm(true);
+  };
+
+  // Confirm template removal
+  const confirmRemoveTemplate = () => {
+    if (templateToRemove) {
+      const updated = uploadedTemplates.filter(t => t.id !== templateToRemove.id);
+      setUploadedTemplates(updated);
+      localStorage.setItem(uploadedKey, JSON.stringify(updated));
+      notify('Template removed successfully!', 'success');
+    }
+    setShowRemoveConfirm(false);
+    setTemplateToRemove(null);
+  };
+
+  // Cancel template removal
+  const cancelRemoveTemplate = () => {
+    setShowRemoveConfirm(false);
+    setTemplateToRemove(null);
   };
 
 
@@ -305,8 +293,7 @@ export default function UploadTemplate() {
                   uploadedTemplates.map((tpl) => (
                     <div
                       key={tpl.id}
-                      className={`template-card uploaded-card ${selectedTemplate?.id === tpl.id ? 'selected' : ''}`}
-                      onClick={() => handleSelectTemplate(tpl)}
+                      className="template-card uploaded-card"
                     >
                       {tpl.thumbnail && tpl.thumbnail.startsWith('data:') ? (
                         <img
@@ -371,29 +358,15 @@ export default function UploadTemplate() {
                         })()
                       )}
                       <div className="template-name" title={tpl.name}>{tpl.name}</div>
-                      <div className="card-overlay">
-                        <p>{tpl.name}</p>
-                        <div className="uploaded-actions">
-                          <button
-                            className="use-button-overlay"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectTemplate(tpl);
-                            }}
-                          >
-                            Use
-                          </button>
-                          <button
-                            className="remove-button-overlay"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveUploaded(tpl.id);
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
+                      <button
+                        className="remove-button-hover"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveUploaded(tpl.id);
+                        }}
+                      >
+                        Remove
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -405,10 +378,7 @@ export default function UploadTemplate() {
                 prebuiltTemplates.map((tpl) => (
                   <div
                     key={tpl.id}
-                    className={`template-card prebuilt-card ${
-                      selectedTemplate?.id === tpl.id ? 'selected' : ''
-                    }`}
-                    onClick={() => handleSelectTemplate(tpl)}
+                    className="template-card prebuilt-card"
                   >
                     <img
                       src={TEMPLATE_THUMB_OVERRIDES[tpl.name] || tpl.thumbnail}
@@ -425,18 +395,6 @@ export default function UploadTemplate() {
                       }}
                     />
                     <div className="template-name" title={tpl.name}>{tpl.name}</div>
-                    <div className="card-overlay">
-                      <p>{tpl.name}</p>
-                      <button
-                        className="use-button-overlay"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelectTemplate(tpl);
-                        }}
-                      >
-                        Use
-                      </button>
-                    </div>
                   </div>
                 ))
               ) : (
@@ -456,6 +414,17 @@ export default function UploadTemplate() {
         cancelText="Cancel"
         onConfirm={confirmLogout}
         onCancel={cancelLogout}
+      />
+
+      {/* Remove Template Confirmation Dialog */}
+      <ConfirmDialog
+        open={showRemoveConfirm}
+        title="Remove Template"
+        message={`Are you sure you want to remove "${templateToRemove?.name || 'this template'}"? This action cannot be undone.`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        onConfirm={confirmRemoveTemplate}
+        onCancel={cancelRemoveTemplate}
       />
     </div>
   );

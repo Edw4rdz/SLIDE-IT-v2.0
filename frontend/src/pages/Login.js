@@ -362,7 +362,7 @@ export default function Login() {
         {/* Left side */}
         <div className="login-left">
           <h2 className="title">
-            Welcome to <span>Slide-IT</span>
+            Welcome to <span>SLIDE-IT</span>
           </h2>
           <p className="subtitle">Sign in to start your session</p>
 
