@@ -92,6 +92,33 @@ export default function Settings() {
       return;
     }
 
+    // Birthday validation (same as sign up)
+    if (!profile.birthday) {
+      notify("Birthday is required.", "error");
+      return;
+    }
+    const bDate = new Date(profile.birthday);
+    if (isNaN(bDate.getTime())) {
+      notify("Invalid birthday.", "error");
+      return;
+    }
+    if (bDate > new Date()) {
+      notify("Birthday cannot be in the future.", "error");
+      return;
+    }
+
+    // Age Check (13+)
+    const today = new Date();
+    let age = today.getFullYear() - bDate.getFullYear();
+    const m = today.getMonth() - bDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) {
+      age--;
+    }
+    if (age < 13) {
+      notify("You must be at least 13 years old.", "error");
+      return;
+    }
+
     try {
       const userRef = doc(db, "users", userDocId);
       const dataToUpdate = {

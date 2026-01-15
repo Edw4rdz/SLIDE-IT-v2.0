@@ -19,10 +19,10 @@ export const useImageGeneration = ({
 }) => {
   // Generate preview images
   useEffect(() => {
-    if (editedSlides && editedSlides.length > 0 && (imageProvider === 'imagen' || imageProvider === 'grok' || showImageColumn)) {
+    if (editedSlides && editedSlides.length > 0 && (imageProvider === 'imagen' || imageProvider === 'grok' || imageProvider === 'pollinations' || showImageColumn)) {
       
-      const slidesNeedingImages = editedSlides.filter(slide => 
-        slide.imagePrompt && !slide.uploadedImage && !slide.removedImage
+      const slidesNeedingImages = editedSlides.filter(slide =>
+        slide.imagePrompt && !slide.removedImage && (slide.imageNeedsGeneration || !slide.uploadedImage)
       );
       
       if (slidesNeedingImages.length === 0) {
@@ -57,7 +57,9 @@ export const useImageGeneration = ({
           const { generateImageFromGrok } = await import('../../../api');
           
           const imagePromises = editedSlides.map(async (slide) => {
-            if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage) {
+            // Generate image if slide has prompt AND either no uploaded image OR needs regeneration
+            if (slide.id !== undefined && slide.imagePrompt && !slide.removedImage &&
+                (slide.imageNeedsGeneration || !slide.uploadedImage)) {
               try {
                 const imageDataUrl = await generateImageFromGrok(slide.imagePrompt);
                 if (imageDataUrl) {
@@ -81,7 +83,9 @@ export const useImageGeneration = ({
           const { generateImageFromImagen } = await import('../../../api');
           
           const imagePromisesImagen = editedSlides.map(async (slide) => {
-            if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage && !slide.removedImage) {
+            // Generate image if slide has prompt AND either no uploaded image OR needs regeneration
+            if (slide.id !== undefined && slide.imagePrompt && !slide.removedImage &&
+                (slide.imageNeedsGeneration || !slide.uploadedImage)) {
               const promptKey = `${slide.id}-${slide.imagePrompt}`;
               
               if (generatedPromptsRef.current.has(promptKey)) {
@@ -115,7 +119,9 @@ export const useImageGeneration = ({
         } else {
           // Default to Pollinations
           editedSlides.forEach((slide) => {
-            if (slide.id !== undefined && slide.imagePrompt && !slide.uploadedImage) {
+            // Generate image if slide has prompt AND either no uploaded image OR needs regeneration
+            if (slide.id !== undefined && slide.imagePrompt && !slide.removedImage && 
+                (slide.imageNeedsGeneration || !slide.uploadedImage)) {
               const url = getPollinationsImageUrl(slide.imagePrompt);
               urls[slide.id] = url;
             }
@@ -133,7 +139,8 @@ export const useImageGeneration = ({
     }
   }, [
     editedSlides.length,
-    JSON.stringify(editedSlides.map(s => s.imagePrompt)),
+    // include prompt + needs-generation + uploadedImage state so effect re-runs
+    JSON.stringify(editedSlides.map(s => `${s.id}-${s.imagePrompt}-${s.imageNeedsGeneration ? 1 : 0}-${s.uploadedImage ? 1 : 0}`)),
     showImageColumn,
     imageProvider,
     setPreviewImageUrls,
@@ -149,9 +156,13 @@ export const useImageGeneration = ({
       let hasUpdates = false;
       const updatedSlides = prevSlides.map(slide => {
         const previewUrl = previewImageUrls[slide.id];
-        if (previewUrl && !slide.uploadedImage) {
+        // Save if there's a preview URL AND either no uploaded image OR needs regeneration
+        if (previewUrl && (!slide.uploadedImage || slide.imageNeedsGeneration)) {
           hasUpdates = true;
-          return { ...slide, uploadedImage: previewUrl };
+          // Apply generated preview and clear the "needs generation" flag
+          const next = { ...slide, uploadedImage: previewUrl };
+          if (next.imageNeedsGeneration) delete next.imageNeedsGeneration;
+          return next;
         }
         return slide;
       });

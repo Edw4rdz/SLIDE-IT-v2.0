@@ -127,6 +127,7 @@ export default function EditPreview() {
     setCurrentDesign,
     setSelectedTemplateId,
     imageProvider,
+    setImageProvider: state.setImageProvider,
     draftLoaded,
     setDraftLoaded,
     urlsRefreshedRef,
@@ -244,8 +245,20 @@ export default function EditPreview() {
     return () => clearInterval(autoSaveInterval);
   }, [editedSlides, topic, location.state?.convId, currentDesign, imageProvider]);
 
-  // Early return if no slides
-  if (!location.state?.slides && editedSlides.length === 0) {
+  // Save draft when topic changes (with debounce via auto-save)
+  useEffect(() => {
+    const convId = location.state?.convId || topic;
+    const timeoutId = setTimeout(() => {
+      if (editedSlides.length > 0) {
+        saveDraft(editedSlides, topic, convId, currentDesign, imageProvider);
+      }
+    }, 1000); // Debounce: save 1 second after topic stops changing
+    
+    return () => clearTimeout(timeoutId);
+  }, [topic]);
+
+  // Early return if no slides AND draft not loaded yet (wait for draft to load)
+  if (!draftLoaded || (editedSlides.length === 0 && !location.state?.slides)) {
     return <div className="loading-message">Loading slide data... Please wait.</div>;
   }
 

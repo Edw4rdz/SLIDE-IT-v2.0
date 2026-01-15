@@ -13,6 +13,7 @@ export const useDraftManagement = ({
   setCurrentDesign,
   setSelectedTemplateId,
   imageProvider,
+  setImageProvider,
   draftLoaded,
   setDraftLoaded,
   urlsRefreshedRef,
@@ -74,6 +75,11 @@ export const useDraftManagement = ({
                 uploadedImage: slideWithFreshUrl.uploadedImage || null,
                 uploadedImageKey: slideWithFreshUrl.uploadedImageKey || null,
                 tables: [],
+                stickers: slideWithFreshUrl.stickers || [],
+                textBoxes: slideWithFreshUrl.textBoxes || [],
+                imageData: slideWithFreshUrl.imageData || undefined,
+                titleBox: slideWithFreshUrl.titleBox || undefined,
+                bodyBox: slideWithFreshUrl.bodyBox || undefined,
                 styles: slideWithFreshUrl.styles || {
                   titleFont: 'Arial',
                   titleSize: 32,
@@ -90,10 +96,16 @@ export const useDraftManagement = ({
             
             const restoredSlides = await Promise.all(restoredSlidesPromises);
             setEditedSlides(restoredSlides);
+            console.log('[DRAFT] Loaded from draft:', restoredSlides.length, 'slides');
           }
           
           if (draft.topic) {
             setTopic(draft.topic);
+          }
+          
+          if (draft.imageProvider) {
+            setImageProvider(draft.imageProvider);
+            console.log('[DRAFT] Restored imageProvider:', draft.imageProvider);
           }
           
           if (draft.design) {
@@ -102,17 +114,29 @@ export const useDraftManagement = ({
               setSelectedTemplateId(draft.design.id);
             }
           }
+        } else if (location.state?.slides) {
+          // No draft exists, use location.state slides
+          const { initializeSlides } = await import('../utils');
+          const initialSlides = initializeSlides(location.state.slides);
+          setEditedSlides(initialSlides);
+          console.log('[DRAFT] No draft found, loaded from navigation state:', initialSlides.length, 'slides');
         }
         
         setDraftLoaded(true);
       } catch (error) {
         console.error('[DRAFT] Error loading draft:', error);
+        // Fallback to location.state if draft loading fails
+        if (location.state?.slides) {
+          const { initializeSlides } = await import('../utils');
+          const initialSlides = initializeSlides(location.state.slides);
+          setEditedSlides(initialSlides);
+        }
         setDraftLoaded(true);
       }
     };
     
     loadDraft();
-  }, [draftLoaded, setDraftLoaded, location.state?.convId, topic, setEditedSlides, setTopic, setCurrentDesign, setSelectedTemplateId]);
+  }, [draftLoaded, setDraftLoaded, location.state?.convId, location.state?.slides, topic, setEditedSlides, setTopic, setCurrentDesign, setSelectedTemplateId]);
 };
 
 export default useDraftManagement;

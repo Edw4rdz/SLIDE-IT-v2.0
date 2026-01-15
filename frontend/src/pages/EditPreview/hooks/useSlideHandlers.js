@@ -28,15 +28,18 @@ export const useSlideHandlers = ({
   setPreviewSlideIndex
 }) => {
   const handleSlideChange = useCallback((id, field, value) => {
-    setEditedSlides((currentSlides) =>
-      currentSlides.map((s) => {
+    setEditedSlides((currentSlides) => {
+      const updatedSlides = currentSlides.map((s) => {
         if (s.id === id) {
           let updatedSlide = {
             ...s,
             [field]: field === 'bullets' && typeof value === 'string' ? value.split('\n') : value
           };
           if (field === 'imagePrompt') {
-            updatedSlide.uploadedImage = null;
+            // Mark that a new image needs to be generated, but keep the old image visible
+            // until the new one is ready. Don't clear uploadedImage here - it will be
+            // replaced when the new image generation completes in useImageGeneration hook
+            updatedSlide.imageNeedsGeneration = true;
             // Clear preview URL so it regenerates with new prompt
             setPreviewImageUrls(prev => {
               const next = { ...prev };
@@ -47,20 +50,30 @@ export const useSlideHandlers = ({
           return updatedSlide;
         }
         return s;
-      })
-    );
-  }, [setEditedSlides, setPreviewImageUrls]);
+      });
+      // Schedule save after state update completes
+      setTimeout(() => {
+        saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
+      }, 0);
+      return updatedSlides;
+    });
+  }, [setEditedSlides, setPreviewImageUrls, topic, location.state?.convId, currentDesign, imageProvider]);
 
   const handleStyleChange = useCallback((slideId, key, value) => {
-    setEditedSlides(currentSlides =>
-      currentSlides.map(s => {
+    setEditedSlides(currentSlides => {
+      const updatedSlides = currentSlides.map(s => {
         if (s.id !== slideId) return s;
         const newStyles = { ...(s.styles || {}) };
         newStyles[key] = value;
         return { ...s, styles: newStyles };
-      })
-    );
-  }, [setEditedSlides]);
+      });
+      // Schedule save after state update completes
+      setTimeout(() => {
+        saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
+      }, 0);
+      return updatedSlides;
+    });
+  }, [setEditedSlides, topic, location.state?.convId, currentDesign, imageProvider]);
 
   const handleImageUpload = useCallback((event, slideId) => {
     const file = event.target.files[0];
@@ -71,10 +84,11 @@ export const useSlideHandlers = ({
         setEditedSlides(currentSlides => {
           const updatedSlides = currentSlides.map(s =>
             s.id === slideId ? { 
-              ...s, 
-              uploadedImage: base64String, 
+              ...s,
+              uploadedImage: base64String,
               imagePrompt: "",
-              generatedImagePrompt: undefined
+              generatedImagePrompt: undefined,
+              imageNeedsGeneration: false
             } : s
           );
           saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
@@ -90,11 +104,12 @@ export const useSlideHandlers = ({
     setEditedSlides(currentSlides => {
       const updatedSlides = currentSlides.map(s =>
         s.id === slideId ? { 
-          ...s, 
-          uploadedImage: null, 
-          imagePrompt: "", 
+          ...s,
+          uploadedImage: null,
+          imagePrompt: "",
           removedImage: true,
-          generatedImagePrompt: undefined
+          generatedImagePrompt: undefined,
+          imageNeedsGeneration: false
         } : s
       );
       saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
@@ -135,8 +150,15 @@ export const useSlideHandlers = ({
         textAlign: 'left'
       }
     };
-    setEditedSlides(prev => [...prev, newSlide]);
-  }, [setEditedSlides, currentDesign.font]);
+    setEditedSlides(prev => {
+      const updatedSlides = [...prev, newSlide];
+      // Schedule save after state update completes
+      setTimeout(() => {
+        saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
+      }, 0);
+      return updatedSlides;
+    });
+  }, [setEditedSlides, currentDesign.font, topic, location.state?.convId, currentDesign, imageProvider]);
 
   const handleDeleteSlide = useCallback((slideId) => {
     if (editedSlides.length <= 1) {

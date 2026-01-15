@@ -10,11 +10,8 @@ import { DEFAULT_DESIGN } from '../constants';
 export const useEditPreviewState = () => {
   const location = useLocation();
 
-  // Initialize slides from navigation state
-  const initialSlides = initializeSlides(location.state?.slides || []);
-
-  // Core state
-  const [editedSlides, setEditedSlides] = useState(initialSlides);
+  // Core state - initialize with empty array, will load from draft or navigation state
+  const [editedSlides, setEditedSlides] = useState([]);
   const [topic, setTopic] = useState(location.state?.topic || 'My_Presentation');
   const [templates, setTemplates] = useState([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
@@ -176,12 +173,20 @@ export const useEditPreviewState = () => {
       setSelectedTemplateId('');
       setCurrentDesign(DEFAULT_DESIGN);
       localStorage.removeItem('selectedTemplate');
-      setEditedSlides(prevSlides => prevSlides.map(slide => ({
-        ...slide,
-        background: undefined,
-        titleColor: undefined,
-        textColor: undefined
-      })));
+      setEditedSlides(prevSlides => {
+        const updatedSlides = prevSlides.map(slide => ({
+          ...slide,
+          background: undefined,
+          titleColor: undefined,
+          textColor: undefined
+        }));
+        // Schedule save after state update completes
+        setTimeout(() => {
+          const convId = location.state?.convId || location.state?.topic || 'My_Presentation';
+          saveDraft(updatedSlides, location.state?.topic || 'My_Presentation', convId, DEFAULT_DESIGN, 'pollinations');
+        }, 0);
+        return updatedSlides;
+      });
       return;
     }
 
@@ -193,7 +198,7 @@ export const useEditPreviewState = () => {
       localStorage.setItem('selectedTemplate', JSON.stringify(newDesign));
 
       setEditedSlides(prevSlides => {
-        return prevSlides.map((slide, index) => {
+        const updatedSlides = prevSlides.map((slide, index) => {
           if (newDesign.slides && Array.isArray(newDesign.slides) && newDesign.slides.length > 0) {
             const templateSlideIndex = index % newDesign.slides.length;
             const templateSlide = newDesign.slides[templateSlideIndex];
@@ -213,9 +218,17 @@ export const useEditPreviewState = () => {
             textColor: undefined
           };
         });
+        // Schedule save after state update completes
+        setTimeout(() => {
+          const convId = location.state?.convId || location.state?.topic || 'My_Presentation';
+          const topic = location.state?.topic || 'My_Presentation';
+          const imageProvider = location.state?.imageProvider || 'pollinations';
+          saveDraft(updatedSlides, topic, convId, newDesign, imageProvider);
+        }, 0);
+        return updatedSlides;
       });
     }
-  }, [selectedTemplateId]);
+  }, [selectedTemplateId, location.state]);
 
   return {
     // Core state

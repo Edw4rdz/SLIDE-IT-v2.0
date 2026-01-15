@@ -244,6 +244,17 @@ export const useStickerInteractions = ({
     };
 
     const onPointerUp = () => {
+      // Save draft when any drag/resize/rotate operation completes
+      if (draggingSticker || resizingSticker || rotatingSticker || draggingTextBox || resizingTextBox) {
+        setTimeout(() => {
+          setEditedSlides((currentSlides) => {
+            const convId = location.state?.convId || topic;
+            saveDraft(currentSlides, topic, convId, currentDesign, imageProvider);
+            return currentSlides;
+          });
+        }, 0);
+      }
+      
       setDraggingSticker(null);
       setResizingSticker(null);
       setRotatingSticker(null);
@@ -265,20 +276,28 @@ export const useStickerInteractions = ({
     const onKeyDown = (e) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const { slideId, index } = selectedSticker;
-        setEditedSlides((prev) => prev.map((s) => {
-          if (s.id !== slideId) return s;
-          const arr = Array.isArray(s.stickers) ? [...s.stickers] : [];
-          if (index >= 0 && index < arr.length) {
-            arr.splice(index, 1);
-          }
-          return { ...s, stickers: arr };
-        }));
+        setEditedSlides((prev) => {
+          const updated = prev.map((s) => {
+            if (s.id !== slideId) return s;
+            const arr = Array.isArray(s.stickers) ? [...s.stickers] : [];
+            if (index >= 0 && index < arr.length) {
+              arr.splice(index, 1);
+            }
+            return { ...s, stickers: arr };
+          });
+          // Schedule save after state update completes
+          setTimeout(() => {
+            const convId = location.state?.convId || topic;
+            saveDraft(updated, topic, convId, currentDesign, imageProvider);
+          }, 0);
+          return updated;
+        });
         setSelectedSticker(null);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedSticker, setSelectedSticker, setEditedSlides]);
+  }, [selectedSticker, setSelectedSticker, setEditedSlides, topic, location, currentDesign, imageProvider]);
 
   // Deselect sticker on outside click
   useEffect(() => {
