@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaTimes, FaDownload, FaArrowLeft, FaArrowRight, FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTable, FaAngleDoubleUp, FaAngleUp, FaAngleDown, FaAngleDoubleDown, FaTrash, FaPlus, FaImage, FaFont, FaPalette, FaRedo, FaUndo, FaChevronLeft, FaChevronRight, FaMinus } from 'react-icons/fa';
+import { FaTimes, FaDownload,FaUpload, FaTimesCircle, FaSearch, FaAlignLeft, FaAlignCenter, FaAlignRight, FaTrash, FaPlus, FaImage, FaFont, FaPalette, FaRedo, FaChevronLeft, FaChevronRight, FaMinus } from 'react-icons/fa';
 
 const GuideModal = ({ isOpen, onClose }) => {
   const [currentPage, setCurrentPage] = useState(0);
