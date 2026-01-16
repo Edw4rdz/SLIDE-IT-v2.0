@@ -105,6 +105,7 @@ export const useSlideHandlers = ({
       const updatedSlides = currentSlides.map(s =>
         s.id === slideId ? { 
           ...s,
+          lastRemovedImage: s.uploadedImage, // Store the image before removing
           uploadedImage: null,
           imagePrompt: "",
           removedImage: true,
@@ -120,7 +121,12 @@ export const useSlideHandlers = ({
   const handleAddImageBack = useCallback((slideId) => {
     setEditedSlides(currentSlides => {
       const updatedSlides = currentSlides.map(s =>
-        s.id === slideId ? { ...s, removedImage: false } : s
+        s.id === slideId ? { 
+          ...s, 
+          removedImage: false,
+          uploadedImage: s.lastRemovedImage || s.uploadedImage, // Restore the last removed image
+          lastRemovedImage: null // Clear the backup after restoring
+        } : s
       );
       saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
       return updatedSlides;

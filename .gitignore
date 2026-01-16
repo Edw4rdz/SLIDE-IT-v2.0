@@ -47,7 +47,7 @@ firebase-debug.log
 # Service account keys (NEVER COMMIT THESE!)
 **/serviceAccountKey.json
 **/serviceAccountkey.json
-**/*-service-account.json
+**/service-account.json
 
 # Uploads folder
 uploads/
