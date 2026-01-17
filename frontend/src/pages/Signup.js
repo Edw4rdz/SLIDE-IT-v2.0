@@ -48,18 +48,20 @@ export default function Signup() {
   // eslint-disable-next-line no-unused-vars
   const [pendingDocId, setPendingDocId] = useState(null);
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const nameRegex = /^[A-Za-z\s'-]+$/;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const firstNameRegex = /^[A-Za-z\s]+$/;
+  // Allows letters and spaces, optionally one hyphen in between
+  const lastNameRegex = /^[A-Za-z\s]+(?:-[A-Za-z\s]+)?$/;
 
   const validateForm = () => {
     if (!username.trim()) return "Username is required.";
     if (username.length < 3) return "Username must be at least 3 characters.";
 
     if (!firstName.trim()) return "First name is required.";
-    if (!nameRegex.test(firstName)) return "First name contains invalid characters.";
+    if (!firstNameRegex.test(firstName)) return "First name contains invalid characters (letters and spaces only).";
 
     if (!lastName.trim()) return "Last name is required.";
-    if (!nameRegex.test(lastName)) return "Last name contains invalid characters.";
+    if (!lastNameRegex.test(lastName)) return "Last name contains invalid characters (letters, spaces, and max one hyphen).";
 
     if (!birthday) return "Birthday is required.";
     const bDate = new Date(birthday);
@@ -79,6 +81,13 @@ export default function Signup() {
 
     if (!email.trim()) return "Email is required.";
     if (!emailRegex.test(email)) return "Please enter a valid email address.";
+
+    // Allowed domains check
+    const domain = email.split('@')[1];
+    const allowedDomains = ["gmail.com", "yahoo.com"];
+    if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
+       return "Only Gmail and Yahoo addresses are allowed (e.g., name@gmail.com, name@yahoo.com).";
+    }
 
     if (!password) return "Password is required.";
     const info = evaluatePassword(password);

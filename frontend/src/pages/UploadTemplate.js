@@ -105,7 +105,7 @@ export default function UploadTemplate() {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+    if (file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || file.name.endsWith('.pptx')) {
       // Upload PPTX to backend and get design info
       const formData = new FormData();
       formData.append("file", file);
@@ -139,24 +139,9 @@ export default function UploadTemplate() {
         setUploadMessage({ type: 'error', text: errorMsg });
         setTimeout(() => setUploadMessage(null), 3000);
       }
-    } else if (file.type.startsWith('image/')) {
-      // Handle image upload as before
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const newTemplate = {
-          id: `uploaded-${file.name}-${Date.now()}`,
-          name: file.name,
-          thumbnail: ev.target.result,
-          slides: [],
-          uploaded: true,
-        };
-        const updated = [newTemplate, ...uploadedTemplates];
-        setUploadedTemplates(updated);
-        localStorage.setItem(uploadedKey, JSON.stringify(updated));
-        setUploadMessage({ type: 'success', text: 'Template uploaded!' });
-        setTimeout(() => setUploadMessage(null), 2000);
-      };
-      reader.readAsDataURL(file);
+    } else {
+      setUploadMessage({ type: 'error', text: 'Only .pptx files are allowed.' });
+      setTimeout(() => setUploadMessage(null), 3000);
     }
     e.target.value = '';
   };
@@ -253,7 +238,7 @@ export default function UploadTemplate() {
           <div className="upload-controls">
             <input
               type="file"
-              accept=".pptx,image/*"
+              accept=".pptx"
               style={{ display: 'none' }}
               ref={fileInputRef}
               onChange={handleUploadTemplate}

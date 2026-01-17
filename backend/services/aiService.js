@@ -3,6 +3,45 @@ import mammoth from "mammoth"; // For Word docs
 import * as XLSX from "xlsx";   // For Excel files
 import pdf from "pdf-parse";    // For PDFs
 
+// --- Helper: Calculate imageData based on imagePosition ---
+const calculateImageData = (imagePosition) => {
+  if (imagePosition === 'right') {
+    return { x: 0.55, y: 0.18, width: 0.4, height: 0.65 };
+  } else if (imagePosition === 'left') {
+    return { x: 0.05, y: 0.18, width: 0.4, height: 0.65 };
+  } else if (imagePosition === 'center') {
+    return { x: 0.35, y: 0.2, width: 0.3, height: 0.4 };
+  }
+  return { x: 0.55, y: 0.18, width: 0.4, height: 0.65 }; // default right
+};
+
+// --- Helper: Calculate bodyBox based on imagePosition ---
+const calculateBodyBox = (imagePosition) => {
+  if (imagePosition === 'right') {
+    // Text on left side when image is on right
+    return { x: 0.05, y: 0.22, width: 0.48, height: 0.65, zIndex: 100 };
+  } else if (imagePosition === 'left') {
+    // Text on right side when image is on left
+    return { x: 0.47, y: 0.22, width: 0.48, height: 0.65, zIndex: 100 };
+  } else if (imagePosition === 'center') {
+    // Text below center image
+    return { x: 0.05, y: 0.63, width: 0.9, height: 0.32, zIndex: 100 };
+  }
+  return { x: 0.05, y: 0.22, width: 0.48, height: 0.65, zIndex: 100 }; // default
+};
+
+// --- Helper: Calculate titleBox based on imagePosition ---
+const calculateTitleBox = (imagePosition) => {
+  if (imagePosition === 'right') {
+    return { x: 0.05, y: 0.06, width: 0.48, height: 0.14, zIndex: 100 };
+  } else if (imagePosition === 'left') {
+    return { x: 0.47, y: 0.06, width: 0.48, height: 0.14, zIndex: 100 };
+  } else if (imagePosition === 'center') {
+    return { x: 0.05, y: 0.06, width: 0.9, height: 0.12, zIndex: 100 };
+  }
+  return { x: 0.05, y: 0.06, width: 0.48, height: 0.14, zIndex: 100 }; // default
+};
+
 // --- Helper: Clean & Parse JSON Response ---
 export const parseAIResponse = (responseText) => {
   try {
@@ -23,6 +62,11 @@ export const parseAIResponse = (responseText) => {
       else if (pattern === 1) imagePosition = 'left';
       else imagePosition = 'center';
 
+      // Calculate proper layout positioning for images and text
+      const imageData = calculateImageData(imagePosition);
+      const bodyBox = calculateBodyBox(imagePosition);
+      const titleBox = calculateTitleBox(imagePosition);
+
       // Normalize fields with safe fallbacks and ignore 'stickers'
       const title = rawSlide.title || rawSlide.header || '';
       const bullets = Array.isArray(rawSlide.bullets) ? rawSlide.bullets : (rawSlide.points && Array.isArray(rawSlide.points) ? rawSlide.points : []);
@@ -38,7 +82,10 @@ export const parseAIResponse = (responseText) => {
         text,
         bullets,
         imagePrompt,
-        imagePosition
+        imagePosition,
+        imageData,
+        bodyBox,
+        titleBox
       };
     });
   } catch (error) {

@@ -506,6 +506,30 @@ export const generatePptxFromData = async (requestBody) => {
   let imageProviderFinal = null;
   const imageCache = new Map(); // Stores the generated base64 images
   
+  // FIRST: Always process pre-uploaded images (like chart images from Excel)
+  // regardless of includeImages setting
+  for (let idx = 0; idx < slides.length; idx++) {
+    const slide = slides[idx];
+    if (slide.uploadedImage) {
+      try {
+        // If it's already a base64 data URL, use it directly
+        if (slide.uploadedImage.startsWith('data:')) {
+          imageCache.set(idx, slide.uploadedImage);
+          console.log(`[PPTX] Using pre-uploaded base64 image for slide ${idx}`);
+        } else {
+          // Convert URL to base64 for PPTX embedding
+          const b64 = await fetchImageAsBase64(slide.uploadedImage);
+          if (b64) {
+            imageCache.set(idx, b64);
+            console.log(`[PPTX] Fetched and cached pre-uploaded image for slide ${idx}`);
+          }
+        }
+      } catch (e) {
+        console.warn(`[PPTX] Failed to process pre-uploaded image for slide ${idx}:`, e.message);
+      }
+    }
+  }
+
   if (includeImages) {
     console.log(`[PPTX Generation] Pre-generating images in batches...`);
     console.log(`[PPTX] Strategy: Pollinations = 1 slide/batch, Others = 2 slides/batch`);
@@ -531,8 +555,13 @@ export const generatePptxFromData = async (requestBody) => {
       const batchPromises = batch.map(async (slide, batchIndex) => {
         const globalIndex = i + batchIndex;
         
-        // If image is already uploaded/saved, use it
-        if (slide.uploadedImage) {
+        // Skip if image is already in cache (from pre-uploaded images like charts)
+        if (imageCache.has(globalIndex)) {
+          return 'cached';
+        }
+        
+        // If image is already uploaded/saved (URL), fetch and cache it
+        if (slide.uploadedImage && !slide.uploadedImage.startsWith('data:')) {
           try {
              // Convert URL to base64 for PPTX embedding
              const b64 = await fetchImageAsBase64(slide.uploadedImage);

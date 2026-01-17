@@ -157,6 +157,17 @@ export default function AdminDashboard() {
       return notify("Please fill out all fields.", "error");
     }
 
+    // Email Validation (Strict Gmail/Yahoo)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(newUserData.email)) {
+       return notify("Please enter a valid email address.", "error"); 
+    }
+    const domain = newUserData.email.split('@')[1];
+    const allowedDomains = ["gmail.com", "yahoo.com"];
+    if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
+       return notify("Only Gmail and Yahoo addresses are allowed.", "error");
+    }
+
     if (newUserData.password !== newUserData.confirmPassword) {
       return notify("Passwords do not match.", "error");
     }

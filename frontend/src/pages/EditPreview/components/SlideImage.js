@@ -50,14 +50,14 @@ const SlideImage = ({
         setSelectedImage(s.id);
         setSelectedSticker(null);
 
-        const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+        const imgData = s.imageData || { x: 0.55, y: 0.18, width: 0.4, height: 0.65 };
         setDraggingSticker({
           slideId: s.id,
           index: -1,
           startX: ev.clientX,
           startY: ev.clientY,
-          origX: imgData.x || 0.5,
-          origY: imgData.y || 0.15,
+          origX: imgData.x || 0.55,
+          origY: imgData.y || 0.18,
           rect,
           pointerId: ev.pointerId
         });
@@ -69,10 +69,10 @@ const SlideImage = ({
       }}
       style={{
         position: 'absolute',
-        left: `${((s.imageData?.x || 0.5) * 100)}%`,
-        top: `${((s.imageData?.y || 0.15) * 100)}%`,
+        left: `${((s.imageData?.x || 0.55) * 100)}%`,
+        top: `${((s.imageData?.y || 0.18) * 100)}%`,
         width: `${((s.imageData?.width || 0.4) * 100)}%`,
-        height: `${((s.imageData?.height || 0.6) * 100)}%`,
+        height: `${((s.imageData?.height || 0.65) * 100)}%`,
         pointerEvents: 'auto',
         touchAction: 'none',
         cursor: 'move',
@@ -270,17 +270,17 @@ const SlideImage = ({
                 ev.preventDefault();
                 const rect = containerRefs.current[s.id]?.getBoundingClientRect() || { width: 1, height: 1 };
                 try { ev.currentTarget.setPointerCapture && ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
-                const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+                const imgData = s.imageData || { x: 0.55, y: 0.18, width: 0.4, height: 0.65 };
                 setResizingSticker({
                   slideId: s.id,
                   index: -1,
                   mode,
                   startX: ev.clientX,
                   startY: ev.clientY,
-                  origX: imgData.x || 0.5,
-                  origY: imgData.y || 0.15,
+                  origX: imgData.x || 0.55,
+                  origY: imgData.y || 0.18,
                   origW: imgData.width || 0.4,
-                  origH: imgData.height || 0.6,
+                  origH: imgData.height || 0.65,
                   rect,
                   pointerId: ev.pointerId
                 });

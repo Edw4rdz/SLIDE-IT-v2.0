@@ -228,28 +228,22 @@ export const calculateTitleBox = (slide) => {
   }
 
   if (hasImage) {
-    let bodyX_inches = 0.5;
-    let bodyW_inches = 9.0;
-
     if (imagePosition === 'center') {
-      bodyX_inches = 0.5;
-      bodyW_inches = 9.0;
-    } else if (imagePosition === 'left') {
-      bodyX_inches = (0.05 + 0.35 + 0.04) * 10.0;
-      bodyW_inches = 10.0 - bodyX_inches - 0.5;
-    } else {
-      bodyX_inches = 0.5;
-      bodyW_inches = (0.6 - 0.05) * 10.0;
-    }
-
-    finalTitleX = toNormalized(bodyX_inches, SLIDE_WIDTH);
-    finalTitleW = toNormalized(bodyW_inches, SLIDE_WIDTH);
-
-    if (imagePosition === 'center') {
+      finalTitleX = toNormalized(0.5, SLIDE_WIDTH);
+      finalTitleW = toNormalized(9.0, SLIDE_WIDTH);
       finalTitleY = toNormalized(0.35, SLIDE_HEIGHT);
-      finalTitleH = toNormalized(0.56, SLIDE_HEIGHT);
+      finalTitleH = toNormalized(0.7, SLIDE_HEIGHT);
+    } else if (imagePosition === 'left') {
+      // Title on right side when image is on left
+      finalTitleX = toNormalized(4.7, SLIDE_WIDTH);
+      finalTitleW = toNormalized(4.8, SLIDE_WIDTH);
+      finalTitleY = toNormalized(0.35, SLIDE_HEIGHT);
+      finalTitleH = toNormalized(0.8, SLIDE_HEIGHT);
     } else {
-      finalTitleY = toNormalized(0.5, SLIDE_HEIGHT);
+      // Title on left side when image is on right (default)
+      finalTitleX = toNormalized(0.5, SLIDE_WIDTH);
+      finalTitleW = toNormalized(4.8, SLIDE_WIDTH);
+      finalTitleY = toNormalized(0.35, SLIDE_HEIGHT);
       finalTitleH = toNormalized(0.8, SLIDE_HEIGHT);
     }
   } else {
@@ -280,24 +274,29 @@ export const calculateBodyBox = (slide) => {
   let bodyY_inches, bodyH_inches;
 
   if (hasImage) {
-    bodyY_inches = 1.5;
-    bodyH_inches = 3.5;
+    bodyY_inches = 1.25;
+    bodyH_inches = 3.65;
 
     if (imagePosition === 'left') {
-      bodyX_inches = 4.4;
-      bodyW_inches = 5.1;
+      // Text on right side when image is on left
+      bodyX_inches = 4.7;
+      bodyW_inches = 4.8;
     } else if (imagePosition === 'right') {
+      // Text on left side when image is on right
       bodyX_inches = 0.5;
-      bodyW_inches = 5.5;
+      bodyW_inches = 4.8;
     } else {
+      // Center: text below image
       bodyX_inches = 0.5;
       bodyW_inches = 9.0;
+      bodyY_inches = 3.55;
+      bodyH_inches = 1.8;
     }
   } else {
     bodyX_inches = 0.5;
     bodyW_inches = 9.0;
-    bodyY_inches = 1.6;
-    bodyH_inches = 3.6;
+    bodyY_inches = 1.25;
+    bodyH_inches = 4.0;
   }
 
   return {
@@ -372,32 +371,70 @@ export const svgDataUrlToPng = async (svgDataUrl, width = 200, height = 200) => 
  */
 export const initializeSlides = (navigationSlides) => {
   return (navigationSlides || []).map((slide, index) => {
+    // Check if this is a chart slide (has chartData or chartType)
+    const isChartSlide = Boolean(slide.chartData || slide.chartType);
+    
     let imagePosition = slide.imagePosition;
     if (!imagePosition) {
-      const pattern = index % 3;
-      if (pattern === 0) imagePosition = 'right';
-      else if (pattern === 1) imagePosition = 'left';
-      else imagePosition = 'center';
+      // For chart slides, always position chart on right for cleaner layout
+      if (isChartSlide) {
+        imagePosition = 'right';
+      } else {
+        const pattern = index % 3;
+        if (pattern === 0) imagePosition = 'right';
+        else if (pattern === 1) imagePosition = 'left';
+        else imagePosition = 'center';
+      }
     }
 
     let imageData = slide.imageData;
     if (!imageData && imagePosition) {
       if (imagePosition === 'right') {
-        imageData = { x: 0.6, y: 0.2, width: 0.35, height: 0.65 };
+        imageData = { x: 0.55, y: 0.18, width: 0.4, height: 0.65 };
       } else if (imagePosition === 'left') {
-        imageData = { x: 0.05, y: 0.2, width: 0.35, height: 0.65 };
+        imageData = { x: 0.05, y: 0.18, width: 0.4, height: 0.65 };
       } else if (imagePosition === 'center') {
-        imageData = { x: 0.35, y: 0.23, width: 0.3, height: 0.36 };
+        imageData = { x: 0.35, y: 0.2, width: 0.3, height: 0.4 };
       }
     }
 
     let bodyBox = slide.bodyBox;
-    if (!bodyBox && imagePosition === 'center') {
-      bodyBox = { x: 0.05, y: 0.63, width: 0.9, height: 0.32, zIndex: 100 };
+    if (!bodyBox) {
+      if (imagePosition === 'center') {
+        bodyBox = { x: 0.05, y: 0.63, width: 0.9, height: 0.32, zIndex: 100 };
+      } else if (imagePosition === 'right') {
+        // Text on left side when image is on right
+        bodyBox = { x: 0.05, y: 0.22, width: 0.48, height: 0.65, zIndex: 100 };
+      } else if (imagePosition === 'left') {
+        // Text on right side when image is on left
+        bodyBox = { x: 0.47, y: 0.22, width: 0.48, height: 0.65, zIndex: 100 };
+      } else {
+        // Default: full width when no image
+        bodyBox = { x: 0.05, y: 0.22, width: 0.9, height: 0.65, zIndex: 100 };
+      }
     }
 
-    const bodySource = Array.isArray(slide.bullets)
-      ? slide.bullets.filter(Boolean).join(' ')
+    let titleBox = slide.titleBox;
+    if (!titleBox) {
+      if (imagePosition === 'center') {
+        titleBox = { x: 0.05, y: 0.06, width: 0.9, height: 0.12, zIndex: 100 };
+      } else if (imagePosition === 'right') {
+        titleBox = { x: 0.05, y: 0.06, width: 0.48, height: 0.14, zIndex: 100 };
+      } else if (imagePosition === 'left') {
+        titleBox = { x: 0.47, y: 0.06, width: 0.48, height: 0.14, zIndex: 100 };
+      } else {
+        titleBox = { x: 0.05, y: 0.06, width: 0.9, height: 0.14, zIndex: 100 };
+      }
+    }
+
+    // Ensure bullets exist for chart slides with summary
+    let bullets = slide.bullets;
+    if (!bullets && slide.summary && typeof slide.summary === 'string') {
+      bullets = slide.summary.split('.').filter(s => s.trim()).map(s => s.trim() + '.');
+    }
+
+    const bodySource = Array.isArray(bullets)
+      ? bullets.filter(Boolean).join(' ')
       : (typeof slide.text === 'string' ? slide.text : '');
 
     return {
@@ -407,6 +444,8 @@ export const initializeSlides = (navigationSlides) => {
       imagePosition,
       imageData,
       bodyBox,
+      titleBox,
+      bullets: bullets || slide.bullets,
       uploadedImage: slide.uploadedImage || null,
       styles: slide.styles || {
         titleFont: 'Arial',

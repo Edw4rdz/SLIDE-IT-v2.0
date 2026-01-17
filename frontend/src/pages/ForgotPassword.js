@@ -18,6 +18,14 @@ export default function ForgotPassword() {
       return;
     }
 
+    // Strict Domain Validation
+    const domain = email.split('@')[1];
+    const allowedDomains = ["gmail.com", "yahoo.com"];
+    if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
+       setError("Please enter a valid Gmail or Yahoo address.");
+       return;
+    }
+
     setLoading(true);
     try {
       const API_BASE = process.env.REACT_APP_BACKEND_URL 

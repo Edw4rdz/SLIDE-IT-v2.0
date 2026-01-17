@@ -58,11 +58,11 @@ export const useStickerInteractions = ({
 
           // Handle image dragging (index === -1)
           if (index === -1) {
-            const imgData = s.imageData || { x: 0.5, y: 0.15, width: 0.4, height: 0.6 };
+            const imgData = s.imageData || { x: 0.55, y: 0.18, width: 0.4, height: 0.65 };
             const maxX = 1 - (imgData.width || 0.4);
-            const maxY = 1 - (imgData.height || 0.6);
-            const newX = clamp((origX !== undefined ? origX : 0.5) + dx, 0, maxX);
-            const newY = clamp((origY !== undefined ? origY : 0.15) + dy, 0, maxY);
+            const maxY = 1 - (imgData.height || 0.65);
+            const newX = clamp((origX !== undefined ? origX : 0.55) + dx, 0, maxX);
+            const newY = clamp((origY !== undefined ? origY : 0.18) + dy, 0, maxY);
             return { ...s, imageData: { ...imgData, x: newX, y: newY } };
           }
 

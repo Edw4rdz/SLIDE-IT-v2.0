@@ -57,21 +57,24 @@ const DownloadPreviewModal = ({
     const imagePosition = slide.imagePosition || 'right';
 
     let bodyX_inches = 0.5;
-    let bodyW_inches = 9.0;
-    let bodyY_inches = 1.5;
-    let bodyH_inches = 3.5;
+    let bodyW_inches = 4.8;
+    let bodyY_inches = 1.25;
+    let bodyH_inches = 3.65;
 
     if (imagePosition === 'left') {
-      bodyX_inches = 4.4;
-      bodyW_inches = 5.1;
+      // Text on right side when image is on left
+      bodyX_inches = 4.7;
+      bodyW_inches = 4.8;
     } else if (imagePosition === 'right') {
+      // Text on left side when image is on right
       bodyX_inches = 0.5;
-      bodyW_inches = 5.5;
+      bodyW_inches = 4.8;
     } else if (imagePosition === 'center') {
+      // Text below center image
       bodyX_inches = 0.5;
       bodyW_inches = 9.0;
-      bodyY_inches = 3.54375;
-      bodyH_inches = 1.88125;
+      bodyY_inches = 3.55;
+      bodyH_inches = 1.8;
     }
 
     computedBodyBox = {

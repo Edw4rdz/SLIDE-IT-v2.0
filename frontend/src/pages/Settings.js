@@ -8,6 +8,7 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
   signOut,
+  onAuthStateChanged,
 } from "firebase/auth";
 import { db } from "../firebase";
 import { collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc, doc } from "firebase/firestore";
@@ -92,6 +93,37 @@ export default function Settings() {
       return;
     }
 
+    const firstNameRegex = /^[A-Za-z\s]+$/;
+    // Allows letters and spaces, optionally one hyphen in between
+    const lastNameRegex = /^[A-Za-z\s]+(?:-[A-Za-z\s]+)?$/;
+
+    if (!profile.username || !profile.username.trim()) {
+      notify("Username is required.", "error");
+      return;
+    }
+    if (profile.username.length < 3) {
+      notify("Username must be at least 3 characters.", "error");
+      return;
+    }
+
+    if (!profile.firstName || !profile.firstName.trim()) {
+      notify("First name is required.", "error");
+      return;
+    }
+    if (!firstNameRegex.test(profile.firstName)) {
+      notify("First name contains invalid characters (letters and spaces only).", "error");
+      return;
+    }
+
+    if (!profile.lastName || !profile.lastName.trim()) {
+      notify("Last name is required.", "error");
+      return;
+    }
+    if (!lastNameRegex.test(profile.lastName)) {
+      notify("Last name contains invalid characters (letters, spaces, and max one hyphen).", "error");
+      return;
+    }
+
     // Birthday validation (same as sign up)
     if (!profile.birthday) {
       notify("Birthday is required.", "error");
@@ -146,9 +178,9 @@ export default function Settings() {
   };
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      const user = auth.currentUser;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
+        setLoading(false);
         navigate("/login");
         return;
       }
@@ -209,9 +241,9 @@ export default function Settings() {
       } finally {
         setLoading(false);
       }
-    };
+    });
 
-    fetchUserProfile();
+    return () => unsubscribe();
   }, [auth, navigate]);
 
   // Fetch user's conversion count 
@@ -298,6 +330,21 @@ export default function Settings() {
     if (!fbMessage || fbMessage.trim().length < 5) {
       setFbStatus({ type: "error", text: "Please enter a helpful message (min 5 characters)." });
       return;
+    }
+
+    if (fbContactEmail) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(fbContactEmail)) {
+        setFbStatus({ type: "error", text: "Please enter a valid email address." });
+        return;
+      }
+      
+      const domain = fbContactEmail.split('@')[1];
+      const allowedDomains = ["gmail.com", "yahoo.com"];
+      if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
+        setFbStatus({ type: "error", text: "Only Gmail and Yahoo addresses are allowed." });
+        return;
+      }
     }
 
     setFbSubmitting(true);

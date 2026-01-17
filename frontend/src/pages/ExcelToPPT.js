@@ -369,13 +369,22 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
           const lastValue = chartSheet.data[chartSheet.data.length - 1][valueKey];
           summary = `From ${firstLabel} to ${lastLabel}, ${valueKey} changed from ${firstValue} to ${lastValue}.`;
         }
+        // Format summary as bullet points for proper layout
+        const bulletPoints = summary ? summary.split('.').filter(s => s.trim()).map(s => s.trim() + '.') : [];
         chartSlide = {
           id: 0,
           title: chartSheet.sheetName || "Chart Slide",
           uploadedImage: chartSheet.chartImageUrl || chartSheet.uploadedImage || "",
           summary,
+          text: summary,
+          bullets: bulletPoints.length > 0 ? bulletPoints : [summary],
           chartType: chartSheet.chartType || chartTypeToGenerate,
           chartData: chartSheet.data,
+          // Add proper layout positioning for chart slides - chart on right, text on left
+          imagePosition: 'right',
+          imageData: { x: 0.55, y: 0.18, width: 0.4, height: 0.65 },
+          bodyBox: { x: 0.05, y: 0.22, width: 0.48, height: 0.65, zIndex: 100 },
+          titleBox: { x: 0.05, y: 0.06, width: 0.48, height: 0.14, zIndex: 100 },
         };
       }
 
