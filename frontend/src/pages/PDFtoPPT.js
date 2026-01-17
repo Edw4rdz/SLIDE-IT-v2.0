@@ -261,7 +261,7 @@ export default function PDFToPPT() {
                  <button
                    onClick={handleConvert}
                    className="uploadp-btn"
-                   disabled={isLoading || !file} 
+                   disabled={isLoading || !file || convertedSlides} 
                  >
                   {isLoading ? (
                     <div style={{ width: '100%' }}>

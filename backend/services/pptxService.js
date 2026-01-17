@@ -808,14 +808,15 @@ let pptx = new PptxGenJS();
       finalTitleW = slide.titleBox.width * SLIDE_WIDTH_INCHES;
       finalTitleH = slide.titleBox.height * SLIDE_HEIGHT_INCHES;
     } else if (imageBase64) {
-      finalTitleX = bodyX;
-      finalTitleW = bodyW;
+      // Title should always span full width for better readability
+      finalTitleX = 0.5;
+      finalTitleW = 9.0;
       if (imagePosition === 'center') {
         finalTitleY = 0.35;
         finalTitleH = 0.56;
       } else {
-        finalTitleY = 0.5;
-        finalTitleH = 0.8;
+        finalTitleY = 0.25;
+        finalTitleH = 0.9;
       }
     } else {
       finalTitleX = 0.5;
@@ -828,9 +829,22 @@ let pptx = new PptxGenJS();
     let adjustedTitleSize = titleFontSize;
     try {
       const trimmed = titleText.trim();
-      if (trimmed.length > 40) {
-        const shrinkRatio = 40 / trimmed.length;
-        adjustedTitleSize = Math.max(Math.floor(titleFontSize * shrinkRatio), 14);
+      // Calculate how many characters can fit on one line at current font size
+      const avgCharWidthRatio = 0.55;
+      const boxWidthPts = finalTitleW * 72;
+      const charsPerLineAtCurrentSize = Math.floor(boxWidthPts / (titleFontSize * avgCharWidthRatio));
+      
+      // If title is longer than what fits, shrink font to try to fit on 1-2 lines
+      if (trimmed.length > charsPerLineAtCurrentSize) {
+        // Calculate optimal font size to fit in 2 lines max
+        const targetCharsPerLine = Math.ceil(trimmed.length / 2);
+        const optimalFontSize = Math.floor(boxWidthPts / (targetCharsPerLine * avgCharWidthRatio));
+        adjustedTitleSize = Math.max(Math.min(optimalFontSize, titleFontSize), 16);
+      }
+      
+      // Additional shrink for very long titles
+      if (trimmed.length > 60) {
+        adjustedTitleSize = Math.max(Math.floor(adjustedTitleSize * 0.85), 14);
       }
     } catch {
       adjustedTitleSize = titleFontSize;
@@ -854,7 +868,7 @@ let pptx = new PptxGenJS();
         align: titleAlign || (slideLayout === 'title' ? 'center' : 'left'),
         margin: 0,
         lineSpacing: adjustedTitleSize * 1.2,
-        fit: 'resize',
+        shrinkText: true,
         valign: 'top'
       });
     } else {

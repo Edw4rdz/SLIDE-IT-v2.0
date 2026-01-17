@@ -309,7 +309,7 @@ export default function TextToPPT() {
                 <button
                   onClick={handleConvert}
                   className="uploadp-btn"
-                  disabled={isLoading || !file}
+                  disabled={isLoading || !file || convertedSlides}
                 >
                   {isLoading ? (
                     <div style={{ width: '100%' }}>
@@ -321,8 +321,10 @@ export default function TextToPPT() {
                         <span>{progress}% • ETA: {eta || '--:--'}</span>
                       </div>
                     </div>
+                  ) : convertedSlides ? (
+                    "✅ Converted! Edit Now"
                   ) : (
-                    convertedSlides ? "Convert Again" : "Convert to PPT"
+                    "Convert to PPT"
                   )}
                 </button>
                 {convertedSlides && (

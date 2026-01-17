@@ -79,6 +79,7 @@ export default function UploadTemplate() {
   });
   const [activeTab, setActiveTab] = useState('uploaded'); // 'uploaded' or 'prebuilt'
   const [uploadMessage, setUploadMessage] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef();
 
   // Fetch prebuilt templates
@@ -100,50 +101,66 @@ export default function UploadTemplate() {
 
 
 
-  // Handle uploading a template (simple: just store file name and preview)
-  const handleUploadTemplate = async (e) => {
+  // Handle file selection (when user picks a file)
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || file.name.endsWith('.pptx')) {
-      // Upload PPTX to backend and get design info
-      const formData = new FormData();
-      formData.append("file", file);
-      try {
-        const res = await uploadTemplate(formData);
-        const { design, thumbnail } = res.data;
-        // Build slides array with all info from backend
-        const slides = (design?.slides || []).map((slide, idx) => ({
-          id: `slide-${idx + 1}`,
-          title: slide.title || `Slide ${idx + 1}`,
-          text: slide.text || '',
-          background: slide.background || design.globalBackground || "#fff",
-          titleColor: slide.titleColor || design.globalTitleColor || "#000",
-          textColor: slide.textColor || design.globalTextColor || "#333",
-        }));
-        const newTemplate = {
-          id: `uploaded-${file.name}-${Date.now()}`,
-          name: file.name,
-          thumbnail: thumbnail || '',
-          slides,
-          design,
-          uploaded: true,
-        };
-        const updated = [newTemplate, ...uploadedTemplates];
-        setUploadedTemplates(updated);
-        localStorage.setItem(uploadedKey, JSON.stringify(updated));
-        setUploadMessage({ type: 'success', text: 'Template uploaded!' });
-        setTimeout(() => setUploadMessage(null), 2000);
-      } catch (err) {
-        const errorMsg = err.response?.data?.message || err.message || 'Failed to extract template design.';
-        setUploadMessage({ type: 'error', text: errorMsg });
-        setTimeout(() => setUploadMessage(null), 3000);
-      }
+      setSelectedFile(file);
+      setUploadMessage({ type: 'info', text: `Selected: ${file.name}` });
     } else {
+      setSelectedFile(null);
       setUploadMessage({ type: 'error', text: 'Only .pptx files are allowed.' });
       setTimeout(() => setUploadMessage(null), 3000);
     }
     e.target.value = '';
+  };
+
+  // Handle uploading the selected template
+  const handleUploadTemplate = async () => {
+    if (!selectedFile) {
+      setUploadMessage({ type: 'error', text: 'Please choose a file first.' });
+      setTimeout(() => setUploadMessage(null), 3000);
+      return;
+    }
+
+    const file = selectedFile;
+
+    // Upload PPTX to backend and get design info
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await uploadTemplate(formData);
+      const { design, thumbnail } = res.data;
+      // Build slides array with all info from backend
+      const slides = (design?.slides || []).map((slide, idx) => ({
+        id: `slide-${idx + 1}`,
+        title: slide.title || `Slide ${idx + 1}`,
+        text: slide.text || '',
+        background: slide.background || design.globalBackground || "#fff",
+        titleColor: slide.titleColor || design.globalTitleColor || "#000",
+        textColor: slide.textColor || design.globalTextColor || "#333",
+      }));
+      const newTemplate = {
+        id: `uploaded-${file.name}-${Date.now()}`,
+        name: file.name,
+        thumbnail: thumbnail || '',
+        slides,
+        design,
+        uploaded: true,
+      };
+      const updated = [newTemplate, ...uploadedTemplates];
+      setUploadedTemplates(updated);
+      localStorage.setItem(uploadedKey, JSON.stringify(updated));
+      setUploadMessage({ type: 'success', text: 'Template uploaded!' });
+      setSelectedFile(null);
+      setTimeout(() => setUploadMessage(null), 2000);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to extract template design.';
+      setUploadMessage({ type: 'error', text: errorMsg });
+      setTimeout(() => setUploadMessage(null), 3000);
+    }
   };
 
   // Remove uploaded template - show confirmation first
@@ -241,12 +258,12 @@ export default function UploadTemplate() {
               accept=".pptx"
               style={{ display: 'none' }}
               ref={fileInputRef}
-              onChange={handleUploadTemplate}
+              onChange={handleFileSelect}
             />
             <label className="file-input-label" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
               Choose file
             </label>
-            <button className="upload-button" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+            <button className="upload-button" onClick={handleUploadTemplate}>
               <FaUpload style={{ marginRight: 6 }} /> Upload
             </button>
           </div>

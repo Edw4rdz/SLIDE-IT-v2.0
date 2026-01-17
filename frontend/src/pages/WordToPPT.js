@@ -264,7 +264,7 @@ export default function WordToPPT() {
 
                 <button
                   onClick={handleConvert}
-                  disabled={isLoading || !file}
+                  disabled={isLoading || !file || convertedSlides}
                   className="convertw-btn"
                 >
                   {isLoading ? (
@@ -277,8 +277,10 @@ export default function WordToPPT() {
                         <span>{progress}% • ETA: {eta || '--:--'}</span>
                       </div>
                     </div>
+                  ) : convertedSlides ? (
+                    "✅ Converted! Edit Now"
                   ) : (
-                    convertedSlides ? "Convert Again" : "Convert to PPT"
+                    "Convert to PPT"
                   )}
                 </button>
 

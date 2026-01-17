@@ -34,13 +34,9 @@ const BodyBox = ({
 
   const lineHeightEm = 1.2;
   const pxPerPoint = 1.33;
-  const safeMinPt = 8;
 
-  let autoFontSize = requestedFontSize;
-  if (containerRect && lineCount > 0) {
-    const maxPtThatFits = Math.floor(bodyBoxHeightPx / (lineCount * lineHeightEm * pxPerPoint));
-    autoFontSize = Math.max(Math.min(requestedFontSize, maxPtThatFits), safeMinPt);
-  }
+  // Use the user's requested font size directly without auto-shrinking
+  const autoFontSize = requestedFontSize;
 
   const textColor = s.textColor || theme.textColor || '#333';
 

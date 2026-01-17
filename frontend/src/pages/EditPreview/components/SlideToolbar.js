@@ -1,8 +1,108 @@
 import React from 'react';
-import { FaAlignLeft, FaAlignCenter, FaAlignRight, FaUpload } from 'react-icons/fa';
+import { FaAlignLeft, FaAlignCenter, FaAlignRight, FaUpload, FaChevronUp, FaChevronDown } from 'react-icons/fa';
 import { hexToRgba } from '../utils';
 import { FONT_OPTIONS } from '../constants';
 import StickerPicker from './StickerPicker';
+
+// Reusable FontSizeInput component with up/down arrows
+const FontSizeInput = ({ value, onChange, onCommit, minSize = 8, maxSize = 120, step = 2, width = 64 }) => {
+  const handleIncrement = () => {
+    const newVal = Math.min(Number(value) + step, maxSize);
+    onChange(newVal);
+    onCommit(newVal);
+  };
+
+  const handleDecrement = () => {
+    const newVal = Math.max(Number(value) - step, minSize);
+    onChange(newVal);
+    onCommit(newVal);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <style>
+        {`
+          .font-size-input::-webkit-outer-spin-button,
+          .font-size-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+          }
+          .font-size-input {
+            -moz-appearance: textfield;
+          }
+        `}
+      </style>
+      <input
+        type="number"
+        className="font-size-input"
+        value={value}
+        style={{ width, textAlign: 'center' }}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={(e) => {
+          const val = e.target.value;
+          if (val === '' || isNaN(Number(val))) {
+            onCommit(null); // Will use default
+          } else {
+            onCommit(Math.max(minSize, Math.min(maxSize, Number(val))));
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.target.blur();
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            handleIncrement();
+          }
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            handleDecrement();
+          }
+        }}
+        min={minSize}
+        max={maxSize}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <button
+          type="button"
+          onClick={handleIncrement}
+          style={{
+            padding: '2px 4px',
+            fontSize: 8,
+            cursor: 'pointer',
+            border: '1px solid #ccc',
+            borderRadius: 2,
+            background: '#f5f5f5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1
+          }}
+          title="Increase font size"
+        >
+          <FaChevronUp size={8} />
+        </button>
+        <button
+          type="button"
+          onClick={handleDecrement}
+          style={{
+            padding: '2px 4px',
+            fontSize: 8,
+            cursor: 'pointer',
+            border: '1px solid #ccc',
+            borderRadius: 2,
+            background: '#f5f5f5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1
+          }}
+          title="Decrease font size"
+        >
+          <FaChevronDown size={8} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const SlideToolbar = ({
   slide,
@@ -48,29 +148,17 @@ const SlideToolbar = ({
             <option key={font}>{font}</option>
           ))}
         </select>
-        <input
-          type="number"
+        <FontSizeInput
           value={tempFontSizes[`title-${s.id}`] !== undefined ? tempFontSizes[`title-${s.id}`] : (s.styles?.titleSize || 32)}
-          style={{ width: 64 }}
-          onChange={(e) => {
-            const val = e.target.value;
-            setTempFontSizes(prev => ({ ...prev, [`title-${s.id}`]: val }));
-          }}
-          onBlur={(e) => {
-            const val = e.target.value;
-            if (val === '') {
-              handleStyleChange(s.id, 'titleSize', 32);
-            } else {
-              const num = Number(val);
-              if (!isNaN(num)) {
-                handleStyleChange(s.id, 'titleSize', num);
-              }
-            }
+          onChange={(val) => setTempFontSizes(prev => ({ ...prev, [`title-${s.id}`]: val }))}
+          onCommit={(val) => {
+            handleStyleChange(s.id, 'titleSize', val ?? 32);
             setTempFontSizes(prev => ({ ...prev, [`title-${s.id}`]: undefined }));
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.target.blur();
-          }}
+          minSize={1}
+          maxSize={200}
+          step={1}
+          width={50}
         />
         <button
           className="toolbar-button"
@@ -99,29 +187,17 @@ const SlideToolbar = ({
             <option key={font}>{font}</option>
           ))}
         </select>
-        <input
-          type="number"
+        <FontSizeInput
           value={tempFontSizes[`text-${s.id}`] !== undefined ? tempFontSizes[`text-${s.id}`] : (s.styles?.textSize || 16)}
-          style={{ width: 56 }}
-          onChange={(e) => {
-            const val = e.target.value;
-            setTempFontSizes(prev => ({ ...prev, [`text-${s.id}`]: val }));
-          }}
-          onBlur={(e) => {
-            const val = e.target.value;
-            if (val === '') {
-              handleStyleChange(s.id, 'textSize', 16);
-            } else {
-              const num = Number(val);
-              if (!isNaN(num)) {
-                handleStyleChange(s.id, 'textSize', num);
-              }
-            }
+          onChange={(val) => setTempFontSizes(prev => ({ ...prev, [`text-${s.id}`]: val }))}
+          onCommit={(val) => {
+            handleStyleChange(s.id, 'textSize', val ?? 16);
             setTempFontSizes(prev => ({ ...prev, [`text-${s.id}`]: undefined }));
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.target.blur();
-          }}
+          minSize={1}
+          maxSize={200}
+          step={1}
+          width={50}
         />
         <button
           className="toolbar-button"
