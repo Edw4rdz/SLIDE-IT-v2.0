@@ -117,13 +117,27 @@ export const useImageGeneration = ({
           });
           
         } else {
-          // Default to Pollinations
-          editedSlides.forEach((slide) => {
-            // Generate image if slide has prompt AND either no uploaded image OR needs regeneration
-            if (slide.id !== undefined && slide.imagePrompt && !slide.removedImage && 
+          // Default to Pollinations (use backend proxy first, fallback to public URL)
+          const { generateImageFromPollinations } = await import('../../../api');
+          const imagePromises = editedSlides.map(async (slide) => {
+            if (slide.id !== undefined && slide.imagePrompt && !slide.removedImage &&
                 (slide.imageNeedsGeneration || !slide.uploadedImage)) {
-              const url = getPollinationsImageUrl(slide.imagePrompt);
-              urls[slide.id] = url;
+              try {
+                const imageDataUrl = await generateImageFromPollinations(slide.imagePrompt);
+                if (imageDataUrl) return { slideId: slide.id, url: imageDataUrl };
+              } catch (e) {
+                console.warn('[Pollinations] backend proxy failed for slide', slide.id, e?.message || e);
+              }
+              // fallback to public no-auth URL
+              return { slideId: slide.id, url: getPollinationsImageUrl(slide.imagePrompt) };
+            }
+            return null;
+          });
+
+          const results = await Promise.all(imagePromises);
+          results.forEach(result => {
+            if (result && result.slideId !== undefined && result.url) {
+              urls[result.slideId] = result.url;
             }
           });
         }
@@ -212,7 +226,13 @@ export const useImageGeneration = ({
             url = await generateImageFromImagen(u.prompt);
           } catch (e) { console.error("Sticker generation error (Imagen):", e); }
         } else {
-          url = getPollinationsImageUrl(u.prompt);
+          try {
+            const { generateImageFromPollinations } = await import('../../../api');
+            url = await generateImageFromPollinations(u.prompt) || getPollinationsImageUrl(u.prompt);
+          } catch (e) {
+            console.warn('[Pollinations] sticker backend proxy failed:', e?.message || e);
+            url = getPollinationsImageUrl(u.prompt);
+          }
         }
         return { ...u, url };
       }));

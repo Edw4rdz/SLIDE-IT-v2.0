@@ -34,17 +34,64 @@ export async function generatePollinationsImage(prompt, options = {}) {
       nologo: options.nologo !== false // default true
     };
 
-    const response = await pollinationsClient.post('/generate', payload, {
-      timeout: 60000,
-      responseType: 'arraybuffer'
-    });
+    // Primary: use gen.pollinations.ai image endpoint first (authenticated if key present)
+    try {
+      const encodedPrompt = encodeURIComponent(prompt.trim());
+      // Prefer gen host: if user left default api host, map to gen.pollinations.ai
+      let genBase = pollinationsBaseUrl;
+      if (pollinationsBaseUrl.includes('api.pollinations.ai')) {
+        genBase = pollinationsBaseUrl.replace('api.pollinations.ai', 'gen.pollinations.ai');
+      } else if (!/gen\.pollinations\.ai/.test(pollinationsBaseUrl)) {
+        // If a custom host is set and not gen, attempt to use gen.pollinations.ai explicitly
+        genBase = 'https://gen.pollinations.ai';
+      }
 
-    if (response.status === 200 && response.data) {
-      const base64 = Buffer.from(response.data, 'binary').toString('base64');
-      return `data:image/png;base64,${base64}`;
+      const model = options.model || 'zimage';
+      const width = options.width || 1024;
+      const height = options.height || 1024;
+      const url = `${genBase.replace(/\/$/, '')}/image/${encodedPrompt}?model=${encodeURIComponent(model)}&width=${width}&height=${height}`;
+
+      const headers = {};
+      if (pollinationsApiKey) headers['Authorization'] = `Bearer ${pollinationsApiKey}`;
+
+      const res2 = await axios.get(url, { headers, responseType: 'arraybuffer', timeout: 60000 });
+      if (res2.status === 200 && res2.data) {
+        const base642 = Buffer.from(res2.data, 'binary').toString('base64');
+        return `data:image/jpeg;base64,${base642}`;
+      }
+      console.warn('[Pollinations] gen image endpoint returned unexpected status:', res2.status);
+    } catch (errGen) {
+      console.warn('[Pollinations] gen/image primary call failed, will try authenticated /generate then public fallback:', errGen.message);
     }
 
-    throw new Error(`Unexpected response status: ${response.status}`);
+    // Secondary: try authenticated POST /generate (older API style)
+    try {
+      const response = await pollinationsClient.post('/generate', payload, {
+        timeout: 60000,
+        responseType: 'arraybuffer'
+      });
+
+      if (response.status === 200 && response.data) {
+        const base64 = Buffer.from(response.data, 'binary').toString('base64');
+        return `data:image/png;base64,${base64}`;
+      }
+      console.warn('[Pollinations] /generate returned unexpected status:', response.status);
+    } catch (err) {
+      console.warn('[Pollinations] Authenticated /generate failed, will try public image endpoint fallback:', err.message);
+    }
+
+    // Final fallback: use the public (no-auth) image endpoint
+    try {
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt.trim())}`;
+      const resp = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 60000 });
+      if (resp.status === 200 && resp.data) {
+        return Buffer.from(resp.data, 'binary').toString('base64');
+      }
+      throw new Error(`Public image endpoint returned status ${resp.status}`);
+    } catch (finalErr) {
+      console.error('[Pollinations] All generation attempts failed:', finalErr.message);
+      throw finalErr;
+    }
   } catch (error) {
     console.error('[Pollinations] Image generation failed:', error.message);
     throw error;

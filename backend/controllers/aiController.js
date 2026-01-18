@@ -21,13 +21,20 @@ export const generateImagenImageAPI = async (req, res) => {
   }
 };
 import axios from "axios";
-// In-memory cache for image results
+
+import { generatePollinationsImage as generatePollinationsImageAuth, POLLINATIONS_CONFIG } from '../config/pollinationsConfig.js';
+// In-memory cache for image results (prompt -> base64)
+
 const pollinationsImageCache = new Map();
 
 // Helper: Clean prompt
 function cleanPrompt(prompt) {
   if (!prompt) return "";
-  // Take first sentence, then up to 8 words
+  // If an API key is configured prefer the full prompt (better, less generic)
+  if (process.env.POLLINATIONS_API_KEY) {
+    return prompt.trim();
+  }
+  // Fallback: Take first sentence, then up to 8 words for public/no-auth requests
   let firstSentence = prompt.split(/[.!?\n]/)[0];
   let words = firstSentence.trim().split(/\s+/).slice(0, 8);
   return words.join(" ").trim();
@@ -35,6 +42,21 @@ function cleanPrompt(prompt) {
 
 // Helper: Fetch image from Pollinations with retries
 async function fetchPollinationsImage(prompt, retries = 2) {
+  // Prefer authenticated generation if API key is configured
+  if (POLLINATIONS_CONFIG && POLLINATIONS_CONFIG.apiKey) {
+    try {
+      const imageDataUrl = await generatePollinationsImageAuth(prompt, { width: 1024, height: 1024 });
+      if (imageDataUrl && typeof imageDataUrl === 'string') {
+        const base64 = imageDataUrl.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+        return base64;
+      }
+      // if authenticated call returns unexpected data, fall through to free endpoint
+    } catch (authErr) {
+      console.warn('[Pollinations] Authenticated generation failed, falling back to public endpoint:', authErr.message);
+    }
+  }
+
+  // Fallback: use the public (no-auth) image endpoint with retries
   const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {

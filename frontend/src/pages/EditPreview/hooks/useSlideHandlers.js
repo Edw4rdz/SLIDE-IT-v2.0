@@ -78,6 +78,13 @@ export const useSlideHandlers = ({
   const handleImageUpload = useCallback((event, slideId) => {
     const file = event.target.files[0];
     if (file) {
+      // Validate file is an image
+      if (!file.type || !file.type.startsWith('image/')) {
+        notify('Please upload an image file (PNG, JPG).');
+        event.target.value = null;
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result;
