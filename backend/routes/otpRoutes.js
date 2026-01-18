@@ -3,6 +3,7 @@ import {
   sendOTPController,
   verifyOTPController,
   resendOTPController,
+  sendSecurityAlertController,
 } from '../controllers/otpController.js';
 
 const router = express.Router();
@@ -26,5 +27,10 @@ router.post('/verify', verifyOTPController);
 // POST /api/otp/resend
 // Body: { email: string, userName?: string }
 router.post('/resend', resendOTPController);
+
+// Send security alert email
+// POST /api/otp/security-alert
+// Body: { email: string, userName?: string, attempts?: number, lockoutTime?: string }
+router.post('/security-alert', sendSecurityAlertController);
 
 export default router;

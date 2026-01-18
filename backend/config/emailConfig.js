@@ -245,4 +245,177 @@ export const sendWelcomeEmail = async (to, userName = 'User') => {
   return sendEmail(to, subject, html);
 };
 
-export default { sendEmail, sendOTPEmail, sendWelcomeEmail };
+/**
+ * Send security alert email for suspicious login activity
+ * @param {string} to - Recipient email address
+ * @param {string} userName - User's name for personalization
+ * @param {number} attempts - Number of failed login attempts
+ * @param {string} lockoutTime - How long the account is locked
+ * @returns {Promise<Object>} - Email send result
+ */
+export const sendSecurityAlertEmail = async (to, userName = 'User', attempts = 5, lockoutTime = '5 minutes') => {
+  const subject = '⚠️ SLIDE-IT Security Alert - Suspicious Login Activity';
+  
+  const currentTime = new Date().toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background-color: #f4f4f9;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 600px;
+          margin: 40px auto;
+          background-color: #ffffff;
+          border-radius: 10px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }
+        .header {
+          background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+          color: white;
+          padding: 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .greeting {
+          font-size: 18px;
+          color: #333;
+          margin-bottom: 20px;
+        }
+        .alert-box {
+          background-color: #fff3cd;
+          border-left: 4px solid #ffc107;
+          padding: 20px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+        .alert-box h3 {
+          margin: 0 0 10px 0;
+          color: #856404;
+          font-size: 16px;
+        }
+        .alert-box p {
+          margin: 0;
+          color: #856404;
+          font-size: 14px;
+          line-height: 1.6;
+        }
+        .details-box {
+          background-color: #f8f9fa;
+          padding: 20px;
+          border-radius: 8px;
+          margin: 20px 0;
+        }
+        .details-box p {
+          margin: 8px 0;
+          font-size: 14px;
+          color: #555;
+        }
+        .details-box strong {
+          color: #333;
+        }
+        .message {
+          font-size: 15px;
+          color: #555;
+          line-height: 1.6;
+          margin-bottom: 20px;
+        }
+        .action-box {
+          background-color: #d4edda;
+          border-left: 4px solid #28a745;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+        .action-box h3 {
+          margin: 0 0 10px 0;
+          color: #155724;
+          font-size: 16px;
+        }
+        .action-box ul {
+          margin: 0;
+          padding-left: 20px;
+          color: #155724;
+          font-size: 14px;
+        }
+        .action-box li {
+          margin: 5px 0;
+        }
+        .footer {
+          background-color: #f8f9fa;
+          padding: 20px;
+          text-align: center;
+          font-size: 12px;
+          color: #888;
+          border-top: 1px solid #e0e0e0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔒 Security Alert</h1>
+        </div>
+        <div class="content">
+          <div class="greeting">Hello, ${userName}!</div>
+          
+          <div class="alert-box">
+            <h3>⚠️ Suspicious Login Activity Detected</h3>
+            <p>We detected multiple failed login attempts on your SLIDE-IT account. Your account has been temporarily locked for security purposes.</p>
+          </div>
+          
+          <div class="details-box">
+            <p><strong>Failed Attempts:</strong> ${attempts}</p>
+            <p><strong>Account Locked For:</strong> ${lockoutTime}</p>
+            <p><strong>Time of Alert:</strong> ${currentTime}</p>
+          </div>
+          
+          <div class="message">
+            If this was you, please wait for the lockout period to end and try again with the correct password. If you've forgotten your password, you can reset it using the "Forgot Password" option.
+          </div>
+          
+          <div class="action-box">
+            <h3>🛡️ If this wasn't you:</h3>
+            <ul>
+              <li>Reset your password immediately after the lockout ends</li>
+              <li>Enable two-factor authentication if available</li>
+              <li>Check for any unauthorized changes to your account</li>
+              <li>Contact our support team if you need assistance</li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer">
+          <p>This is an automated security alert from SLIDE-IT.</p>
+          <p>&copy; ${new Date().getFullYear()} SLIDE-IT. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(to, subject, html);
+};
+
+export default { sendEmail, sendOTPEmail, sendWelcomeEmail, sendSecurityAlertEmail };

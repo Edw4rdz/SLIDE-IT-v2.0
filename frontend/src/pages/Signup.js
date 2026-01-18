@@ -22,6 +22,15 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // Field-specific validation errors
+  const [fieldErrors, setFieldErrors] = useState({
+    username: "",
+    firstName: "",
+    lastName: "",
+    birthday: "",
+    email: "",
+  });
   
   // Password policy realtime state
   const [pwdInfo, setPwdInfo] = useState({
@@ -53,9 +62,52 @@ export default function Signup() {
   // Allows letters and spaces, optionally one hyphen in between
   const lastNameRegex = /^[A-Za-z\s]+(?:-[A-Za-z\s]+)?$/;
 
+  // Real-time field validation functions
+  const validateUsername = (value) => {
+    if (!value.trim()) return "Username is required.";
+    return "";
+  };
+
+  const validateFirstName = (value) => {
+    if (!value.trim()) return "First name is required.";
+    if (!firstNameRegex.test(value)) return "Letters and spaces only.";
+    return "";
+  };
+
+  const validateLastName = (value) => {
+    if (!value.trim()) return "Last name is required.";
+    if (!lastNameRegex.test(value)) return "Letters, spaces, and max one hyphen.";
+    return "";
+  };
+
+  const validateEmail = (value) => {
+    if (!value.trim()) return "Email is required.";
+    if (!emailRegex.test(value)) return "Please enter a valid email address.";
+    const domain = value.split('@')[1];
+    const allowedDomains = ["gmail.com", "yahoo.com", "myyahoo.com"];
+    if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
+      return "Only Gmail and Yahoo addresses are allowed.";
+    }
+    return "";
+  };
+
+  const validateBirthday = (value) => {
+    if (!value) return "Birthday is required.";
+    const bDate = new Date(value);
+    if (isNaN(bDate.getTime())) return "Invalid birthday.";
+    if (bDate > new Date()) return "Birthday cannot be in the future.";
+    const today = new Date();
+    let age = today.getFullYear() - bDate.getFullYear();
+    const m = today.getMonth() - bDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) {
+      age--;
+    }
+    if (age < 13) return "You must be at least 13 years old.";
+    return "";
+  };
+
   const validateForm = () => {
     if (!username.trim()) return "Username is required.";
-    if (username.length < 3) return "Username must be at least 3 characters.";
 
     if (!firstName.trim()) return "First name is required.";
     if (!firstNameRegex.test(firstName)) return "First name contains invalid characters (letters and spaces only).";
@@ -84,7 +136,7 @@ export default function Signup() {
 
     // Allowed domains check
     const domain = email.split('@')[1];
-    const allowedDomains = ["gmail.com", "yahoo.com"];
+    const allowedDomains = ["gmail.com", "yahoo.com", "myyahoo.com"];
     if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
        return "Only Gmail and Yahoo addresses are allowed (e.g., name@gmail.com, name@yahoo.com).";
     }
@@ -263,33 +315,45 @@ export default function Signup() {
                 {/* Username Group */}
                 <div className="input-group">
                   <label className="input-label">Username</label>
-                  <div className="input-box">
+                  <div className="input-box" style={{ borderColor: fieldErrors.username ? '#dc2626' : undefined }}>
                     <i><FaUser /></i>
                     <input
                       type="text"
                       placeholder="e.g. SlideMaster99"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setUsername(val);
+                        setFieldErrors(prev => ({ ...prev, username: validateUsername(val) }));
+                      }}
+                      onBlur={(e) => setFieldErrors(prev => ({ ...prev, username: validateUsername(e.target.value) }))}
                       style={{ paddingLeft: "35px" }}
                       disabled={loading}
                     />
                   </div>
+                  {fieldErrors.username && <span className="field-error" style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px', display: 'block' }}>{fieldErrors.username}</span>}
                 </div>
 
                 {/* First Name Group */}
                 <div className="input-group">
                   <label className="input-label">First Name</label>
-                  <div className="input-box">
+                  <div className="input-box" style={{ borderColor: fieldErrors.firstName ? '#dc2626' : undefined }}>
                     <i><FaUser /></i>
                     <input
                       type="text"
                       placeholder="e.g. John"
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFirstName(val);
+                        setFieldErrors(prev => ({ ...prev, firstName: validateFirstName(val) }));
+                      }}
+                      onBlur={(e) => setFieldErrors(prev => ({ ...prev, firstName: validateFirstName(e.target.value) }))}
                       style={{ paddingLeft: "35px" }}
                       disabled={loading}
                     />
                   </div>
+                  {fieldErrors.firstName && <span className="field-error" style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px', display: 'block' }}>{fieldErrors.firstName}</span>}
                 </div>
               </div>
 
@@ -299,49 +363,67 @@ export default function Signup() {
                 {/* Last Name Group */}
                 <div className="input-group">
                   <label className="input-label">Last Name</label>
-                  <div className="input-box">
+                  <div className="input-box" style={{ borderColor: fieldErrors.lastName ? '#dc2626' : undefined }}>
                     <i><FaUser /></i>
                     <input
                       type="text"
                       placeholder="e.g. Doe"
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLastName(val);
+                        setFieldErrors(prev => ({ ...prev, lastName: validateLastName(val) }));
+                      }}
+                      onBlur={(e) => setFieldErrors(prev => ({ ...prev, lastName: validateLastName(e.target.value) }))}
                       style={{ paddingLeft: "35px" }}
                       disabled={loading}
                     />
                   </div>
+                  {fieldErrors.lastName && <span className="field-error" style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px', display: 'block' }}>{fieldErrors.lastName}</span>}
                 </div>
 
                 {/* Birthday Group */}
                 <div className="input-group">
                   <label className="input-label">Date of Birth</label>
-                  <div className="input-box">
+                  <div className="input-box" style={{ borderColor: fieldErrors.birthday ? '#dc2626' : undefined }}>
                     <i><FaCalendarAlt /></i>
                     <input
                       type="date"
                       value={birthday}
-                      onChange={(e) => setBirthday(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setBirthday(val);
+                        setFieldErrors(prev => ({ ...prev, birthday: validateBirthday(val) }));
+                      }}
+                      onBlur={(e) => setFieldErrors(prev => ({ ...prev, birthday: validateBirthday(e.target.value) }))}
                       disabled={loading}
                       style={{ paddingLeft: "35px" }}
                     />
                   </div>
+                  {fieldErrors.birthday && <span className="field-error" style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px', display: 'block' }}>{fieldErrors.birthday}</span>}
                 </div>
               </div>
               {/* Row 3: Email (Full Width) */}
               <div className="form-grid one-column" style={{ marginTop: "16px" }}>
                 <div className="input-group">
                   <label className="input-label">Email Address</label>
-                  <div className="input-box">
+                  <div className="input-box" style={{ borderColor: fieldErrors.email ? '#dc2626' : undefined }}>
                     <i><FaEnvelope /></i>
                     <input
                       type="email"
                       placeholder="name@example.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEmail(val);
+                        setFieldErrors(prev => ({ ...prev, email: validateEmail(val) }));
+                      }}
+                      onBlur={(e) => setFieldErrors(prev => ({ ...prev, email: validateEmail(e.target.value) }))}
                       style={{ paddingLeft: "35px" }}
                       disabled={loading}
                     />
                   </div>
+                  {fieldErrors.email && <span className="field-error" style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px', display: 'block' }}>{fieldErrors.email}</span>}
                 </div>
               </div>
 

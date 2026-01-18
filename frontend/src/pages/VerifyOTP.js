@@ -42,15 +42,6 @@ export default function VerifyOTP() {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  // Enable resend button after 60 seconds
-  useEffect(() => {
-    const resendTimer = setTimeout(() => {
-      setCanResend(true);
-    }, 60000); // 1 minute
-
-    return () => clearTimeout(resendTimer);
-  }, []);
-
   // Format time as MM:SS
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -161,15 +152,10 @@ export default function VerifyOTP() {
 
       if (data.success) {
         setSuccess("OTP resent successfully! Check your email.");
-        setTimeLeft(600); // Reset timer to 10 minutes
+        setTimeLeft(300); // Reset timer to 5 minutes
         setCanResend(false);
         setOtp(["", "", "", "", "", ""]); // Clear OTP inputs
         inputRefs.current[0]?.focus();
-        
-        // Re-enable resend after 1 minute
-        setTimeout(() => {
-          setCanResend(true);
-        }, 60000);
       } else {
         setError(data.message || "Failed to resend OTP.");
       }
@@ -305,7 +291,7 @@ export default function VerifyOTP() {
               <div className="resend-divider">
                 <span>or</span>
               </div>
-              <p className="resend-text">Didn't receive the code?</p>
+              <p className="resend-text">Didn't receive the code? Wait for the code to expire before requesting a new one.</p>
               <button
                 onClick={handleResend}
                 disabled={!canResend || resendLoading}

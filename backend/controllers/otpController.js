@@ -1,4 +1,5 @@
 import { sendOTP, verifyOTP, resendOTP } from '../services/otpService.js';
+import { sendSecurityAlertEmail } from '../config/emailConfig.js';
 
 /**
  * OTP Controller
@@ -145,8 +146,66 @@ export const resendOTPController = async (req, res) => {
   }
 };
 
+/**
+ * Send security alert email for suspicious login activity
+ * POST /api/otp/security-alert
+ * Body: { email: string, userName?: string, attempts?: number, lockoutTime?: string }
+ */
+export const sendSecurityAlertController = async (req, res) => {
+  try {
+    const { email, userName, attempts, lockoutTime } = req.body;
+
+    console.log('📥 Security alert request received:', { email, userName, attempts, lockoutTime });
+
+    // Validate input
+    if (!email || typeof email !== 'string') {
+      console.log('❌ Security alert: Email is required');
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required',
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.log('❌ Security alert: Invalid email format');
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format',
+      });
+    }
+
+    console.log(`🔒 Sending security alert email to: ${email}`);
+
+    // Send security alert email
+    const result = await sendSecurityAlertEmail(
+      email, 
+      userName || 'User', 
+      attempts || 5, 
+      lockoutTime || '5 minutes'
+    );
+
+    console.log('✅ Security alert email sent successfully:', result);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Security alert email sent successfully',
+    });
+  } catch (error) {
+    console.error('❌ Error in sendSecurityAlertController:', error);
+    console.error('❌ Stack trace:', error.stack);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to send security alert. Please try again later.',
+      details: error.message,
+    });
+  }
+};
+
 export default {
   sendOTPController,
   verifyOTPController,
   resendOTPController,
+  sendSecurityAlertController,
 };

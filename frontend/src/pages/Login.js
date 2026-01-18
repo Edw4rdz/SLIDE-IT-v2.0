@@ -26,6 +26,11 @@ import {
   runTransaction,
 } from "firebase/firestore";
 
+// API base URL
+const API_BASE = process.env.REACT_APP_BACKEND_URL
+  ? `${process.env.REACT_APP_BACKEND_URL.replace(/\/$/, '')}/api`
+  : "http://localhost:5000/api";
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,10 +38,104 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   
+  // Login attempt tracking for lockout
+  const [failedAttempts, setFailedAttempts] = useState(() => {
+    const stored = localStorage.getItem('loginAttempts');
+    return stored ? JSON.parse(stored) : { count: 0, lockedUntil: null };
+  });
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
+  
   // Role selection modal state
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [pendingUserData, setPendingUserData] = useState(null);
   const [pendingDocId, setPendingDocId] = useState(null);
+
+  // Check lockout status on mount and update countdown
+  React.useEffect(() => {
+    const checkLockout = () => {
+      const stored = localStorage.getItem('loginAttempts');
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.lockedUntil) {
+          const remaining = Math.max(0, data.lockedUntil - Date.now());
+          if (remaining > 0) {
+            setLockoutRemaining(Math.ceil(remaining / 1000));
+          } else {
+            // Lockout expired, reset attempts
+            const reset = { count: 0, lockedUntil: null };
+            localStorage.setItem('loginAttempts', JSON.stringify(reset));
+            setFailedAttempts(reset);
+            setLockoutRemaining(0);
+          }
+        }
+      }
+    };
+
+    checkLockout();
+    const interval = setInterval(checkLockout, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format remaining lockout time
+  const formatLockoutTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Send security alert email
+  const sendSecurityAlert = async (userEmail, userName) => {
+    try {
+      console.log("Sending security alert to:", userEmail);
+      const response = await fetch(`${API_BASE}/otp/security-alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          userName: userName || 'User',
+          attempts: 5,
+          lockoutTime: '5 minutes'
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        console.log("✅ Security alert email sent successfully");
+      } else {
+        console.error("❌ Security alert failed:", data.error);
+      }
+    } catch (err) {
+      console.error("❌ Failed to send security alert:", err);
+    }
+  };
+
+  // Handle failed login attempt
+  const handleFailedAttempt = async (userEmail, userName) => {
+    const newCount = failedAttempts.count + 1;
+    let newData = { count: newCount, lockedUntil: null };
+    
+    if (newCount >= 5) {
+      // Lock account for 5 minutes
+      const lockoutDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
+      newData.lockedUntil = Date.now() + lockoutDuration;
+      setLockoutRemaining(Math.ceil(lockoutDuration / 1000));
+      
+      // Send security alert email
+      await sendSecurityAlert(userEmail, userName);
+      
+      notify("Too many failed attempts. Your account is locked for 5 minutes. A security alert has been sent to your email.");
+    }
+    
+    localStorage.setItem('loginAttempts', JSON.stringify(newData));
+    setFailedAttempts(newData);
+  };
+
+  // Reset failed attempts on successful login
+  const resetFailedAttempts = () => {
+    const reset = { count: 0, lockedUntil: null };
+    localStorage.setItem('loginAttempts', JSON.stringify(reset));
+    setFailedAttempts(reset);
+  };
 
   // <--- 2. Updated this function to track online status
   const updateUserLogin = async (docId) => {
@@ -135,6 +234,12 @@ export default function Login() {
       return;
     }
 
+    // Check if account is locked
+    if (lockoutRemaining > 0) {
+      notify(`Account is locked. Please wait ${formatLockoutTime(lockoutRemaining)} before trying again.`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -143,6 +248,9 @@ export default function Login() {
       const user = userCredential.user;
       let userDataFromDb = null;
       let userDocId = null; 
+
+      // Reset failed attempts on successful login
+      resetFailedAttempts();
 
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("authUID", "==", user.uid));
@@ -210,6 +318,21 @@ export default function Login() {
     } catch (err) {
       console.error("Firebase login error:", err);
       let errorMessage = "Error logging in. Please try again.";
+      let shouldTrackAttempt = false;
+      let userNameForAlert = 'User';
+
+      // Try to get username from database for the alert
+      try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("email", "==", email.toLowerCase()));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const userData = querySnapshot.docs[0].data();
+          userNameForAlert = userData.firstName || userData.username || 'User';
+        }
+      } catch (e) {
+        console.error("Error getting user data for alert:", e);
+      }
 
       // Handle authentication errors
       if (err.code === "auth/invalid-email") {
@@ -227,8 +350,18 @@ export default function Login() {
       } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
         // Check if this is a Google-only user trying to login with password
         errorMessage = await checkGoogleUserLogin(email.toLowerCase(), err);
+        shouldTrackAttempt = true; // Track failed password attempts
       } else {
         errorMessage = `Login failed: ${err.message || "Unknown error"}. Please try again.`;
+      }
+
+      // Track failed attempt for wrong password
+      if (shouldTrackAttempt) {
+        await handleFailedAttempt(email.toLowerCase(), userNameForAlert);
+        const remaining = 5 - (failedAttempts.count + 1);
+        if (remaining > 0 && remaining < 5) {
+          errorMessage += ` (${remaining} attempt${remaining === 1 ? '' : 's'} remaining before lockout)`;
+        }
       }
 
       notify(errorMessage);
@@ -368,6 +501,30 @@ export default function Login() {
 
          <form onSubmit={handleSubmit}>
   
+  {/* Lockout Warning Message */}
+  {lockoutRemaining > 0 && (
+    <div style={{
+      backgroundColor: '#fee2e2',
+      border: '1px solid #fecaca',
+      borderRadius: '8px',
+      padding: '12px 16px',
+      marginBottom: '16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px'
+    }}>
+      <span style={{ fontSize: '20px' }}>🔒</span>
+      <div>
+        <p style={{ margin: 0, color: '#991b1b', fontWeight: '600', fontSize: '14px' }}>
+          Account Temporarily Locked
+        </p>
+        <p style={{ margin: '4px 0 0 0', color: '#b91c1c', fontSize: '13px' }}>
+          Too many failed attempts. Try again in <strong>{formatLockoutTime(lockoutRemaining)}</strong>
+        </p>
+      </div>
+    </div>
+  )}
+
   {/* Email Field Group */}
   <div className="input-group">
     <label htmlFor="email" className="input-label">Email Address</label>
@@ -381,7 +538,7 @@ export default function Login() {
         onChange={(e) => setEmail(e.target.value)}
         required
         style={{ paddingLeft: "50px" }}
-        disabled={loading}
+        disabled={loading || lockoutRemaining > 0}
       />
     </div>
   </div>
@@ -399,7 +556,7 @@ export default function Login() {
         onChange={(e) => setPassword(e.target.value)}
         required
         style={{ paddingLeft: "50px", paddingRight: "45px" }}
-        disabled={loading}
+        disabled={loading || lockoutRemaining > 0}
       />
       {password && (
         <i 
@@ -425,8 +582,8 @@ export default function Login() {
     <a href="/forgot-password">Forgot password?</a>
   </p>
 
-  <button type="submit" className="login-btn" disabled={loading}>
-    {loading ? "Logging in..." : "Login"}
+  <button type="submit" className="login-btn" disabled={loading || lockoutRemaining > 0}>
+    {lockoutRemaining > 0 ? `Locked (${formatLockoutTime(lockoutRemaining)})` : loading ? "Logging in..." : "Login"}
   </button>
 
   <div className="divider">
