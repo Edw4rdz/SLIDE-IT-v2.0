@@ -183,7 +183,7 @@ const SlideToolbar = ({
           value={s.styles?.textFont || 'Arial'}
           onChange={(e) => handleStyleChange(s.id, 'textFont', e.target.value)}
         >
-          {FONT_OPTIONS.slice(0, 13).map(font => (
+          {FONT_OPTIONS.map(font => (
             <option key={font}>{font}</option>
           ))}
         </select>

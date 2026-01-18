@@ -37,9 +37,44 @@ const DownloadPreviewModal = ({
     modalPreviewStyle.backgroundColor = themeBg || '#FFFFFF';
   }
 
-  const bodyFontFamily = (slide.styles?.textFont === 'Courier New')
-    ? '"Courier New", Courier, monospace'
-    : (slide.styles?.textFont || currentDesign.font);
+  // Helper to format font family with proper fallbacks
+  const formatFontFamily = (fontName) => {
+    if (!fontName) return 'Arial, sans-serif';
+    
+    // System fonts that don't need quotes
+    const systemFonts = ['Arial', 'Georgia', 'Verdana', 'Tahoma', 'Impact', 'Helvetica', 'Garamond'];
+    
+    // Fonts that need specific fallbacks
+    const fontFallbacks = {
+      'Courier New': '"Courier New", Courier, monospace',
+      'Times New Roman': '"Times New Roman", Times, serif',
+      'Trebuchet MS': '"Trebuchet MS", sans-serif',
+      'Gill Sans': '"Gill Sans", sans-serif',
+      'Segoe UI': '"Segoe UI", sans-serif',
+      'Comic Sans MS': '"Comic Sans MS", cursive',
+      'Lucida Console': '"Lucida Console", monospace',
+      'Playfair Display': '"Playfair Display", serif',
+      'Merriweather': 'Merriweather, serif',
+    };
+    
+    if (fontFallbacks[fontName]) {
+      return fontFallbacks[fontName];
+    }
+    
+    if (systemFonts.includes(fontName)) {
+      return `${fontName}, sans-serif`;
+    }
+    
+    // Google Fonts and others with spaces need quotes
+    if (fontName.includes(' ')) {
+      return `"${fontName}", sans-serif`;
+    }
+    
+    return `${fontName}, sans-serif`;
+  };
+
+  const bodyFontFamily = formatFontFamily(slide.styles?.textFont || currentDesign.font);
+  const titleFontFamily = formatFontFamily(slide.styles?.titleFont || currentDesign.font);
 
   const textAlignValue = slide.styles?.textAlign || 'left';
   const bodyFontWeight = slide.styles?.textBold ? 700 : 400;
@@ -156,7 +191,7 @@ const DownloadPreviewModal = ({
             }}>
               <h2 style={{
                 fontSize: `${finalTitleFontSize}pt`,
-                fontFamily: slide.styles?.titleFont || currentDesign.font,
+                fontFamily: titleFontFamily,
                 color: titleColor,
                 margin: 0,
                 fontWeight: slide.styles?.titleBold ? 700 : 500,
@@ -179,7 +214,6 @@ const DownloadPreviewModal = ({
               padding: '4px 8px',
               overflow: 'visible',
               color: textColor,
-              fontFamily: bodyFontFamily,
               fontSize: `${slide.styles?.textSize || 16}pt`,
               fontWeight: bodyFontWeight,
               fontStyle: bodyFontStyle,
@@ -187,7 +221,7 @@ const DownloadPreviewModal = ({
               lineHeight: '1.3'
             }}>
               {bulletLines.map((line, i) => (
-                <div key={i} style={{ marginBottom: 6 }}>
+                <div key={i} style={{ marginBottom: 6, fontFamily: bodyFontFamily }}>
                   • {replaceMarkdownBold(line)}
                 </div>
               ))}

@@ -157,6 +157,17 @@ export default function AdminDashboard() {
       return notify("Please fill out all fields.", "error");
     }
 
+    // Name Validation (letters and spaces only, no numbers)
+    const firstNameRegex = /^[A-Za-z\s]+$/;
+    const lastNameRegex = /^[A-Za-z\s]+(?:-[A-Za-z\s]+)?$/;
+    
+    if (!firstNameRegex.test(newUserData.firstName)) {
+      return notify("First name contains invalid characters (letters and spaces only).", "error");
+    }
+    if (!lastNameRegex.test(newUserData.lastName)) {
+      return notify("Last name contains invalid characters (letters, spaces, and max one hyphen).", "error");
+    }
+
     // Email Validation (Strict Gmail/Yahoo)
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(newUserData.email)) {
