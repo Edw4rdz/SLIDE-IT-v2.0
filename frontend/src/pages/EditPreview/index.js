@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaDownload, FaArrowLeft, FaArrowRight, FaSearch, FaQuestionCircle } from 'react-icons/fa';
@@ -187,6 +187,7 @@ export default function EditPreview() {
     handleAddImageBack,
     handleAddSlide,
     handleDeleteSlide,
+    handleReorderSlides,
     confirmDeleteSlide,
     handleAddSticker,
     handleRemoveSticker,
@@ -212,6 +213,40 @@ export default function EditPreview() {
     setShowDownloadPreview,
     setPreviewSlideIndex
   });
+
+  // Drag and drop state for slide reordering
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  // Drag event handlers
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e, toIndex) => {
+    e.preventDefault();
+    const fromIndex = draggedIndex;
+    if (fromIndex !== null && fromIndex !== toIndex) {
+      handleReorderSlides(fromIndex, toIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
 
   // Save draft on ANY navigation away from this page (browser back, system back, page reload, etc.)
   useEffect(() => {
@@ -418,6 +453,13 @@ export default function EditPreview() {
                   setDeleteConfirm({ open: true, slideId });
                 }
               }}
+              // Drag and drop
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+              onDrop={handleDrop}
+              isDragging={draggedIndex === index}
+              isDragOver={dragOverIndex === index && draggedIndex !== index}
               // Refs
               containerRefs={containerRefs}
             />

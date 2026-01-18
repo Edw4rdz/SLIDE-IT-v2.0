@@ -14,7 +14,7 @@ const sanitizeNumber = (raw) => {
   return Number.isFinite(n) ? n : null;
 };
 
-// Choose header row index heuristically: within first N rows, pick the row with most non-empty text cells
+// Choose header row
 const detectHeaderRow = (rows, maxScan = 5) => {
   const scan = rows.slice(0, Math.min(maxScan, rows.length));
   let bestIdx = 0;
@@ -26,7 +26,7 @@ const detectHeaderRow = (rows, maxScan = 5) => {
       if (cell === null || cell === undefined) continue;
       const s = String(cell).trim();
       if (s === '') continue;
-      // prefer textual cells (likely headers)
+      // prefer textual cells
       if (isNaN(Number(s))) score += 2; else score += 0.5;
     }
     if (score > bestScore) {
@@ -46,15 +46,15 @@ const makeHeaderSafe = (h, idx) => {
 
 function suggestChartType(data, labelKey, numericCandidates) {
   if (data.length < 2) return 'table';
-  // Only suggest chart if labelKey is valid and at least one numeric value column exists
+  // Only suggest chart if labelKey is valid
   if (!labelKey || labelKey === '__EMPTY' || !numericCandidates || numericCandidates.length === 0) {
     return 'table';
   }
-  // If only one numeric column, bar or pie is best
+  // If only one numeric column, bar or pie
   if (numericCandidates.length === 1) {
     return 'bar';
   }
-  // If multiple numeric columns, line chart is best
+  // If multiple numeric columns
   if (numericCandidates.length > 1) {
     return 'line';
   }
@@ -62,7 +62,7 @@ function suggestChartType(data, labelKey, numericCandidates) {
 }
 
 export function parseExcelAndSuggestCharts(fileOrBuffer) {
-  // Accept either a file system path (string) or a Buffer (from multer uploads)
+  // Accept either a file system path
   let workbook;
   if (typeof fileOrBuffer === 'string') {
     workbook = XLSX.readFile(fileOrBuffer);
@@ -107,13 +107,12 @@ export function parseExcelAndSuggestCharts(fileOrBuffer) {
       dataRows.push(obj);
     }
 
-    // If no data rows found, try fallback using sheet_to_json (header: default) for best-effort
     let finalData = dataRows;
     if (finalData.length === 0) {
       finalData = XLSX.utils.sheet_to_json(sheet, { defval: null });
     }
 
-    // Determine numeric candidates from finalData
+    // Determines numeric data
     const keys = finalData.length > 0 ? Object.keys(finalData[0]) : headers;
     const numericCandidates = (keys || []).filter(k => {
       return finalData.some(row => {

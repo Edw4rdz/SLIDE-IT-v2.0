@@ -12,7 +12,7 @@ const calculateImageData = (imagePosition) => {
   } else if (imagePosition === 'center') {
     return { x: 0.35, y: 0.2, width: 0.3, height: 0.4 };
   }
-  return { x: 0.55, y: 0.18, width: 0.4, height: 0.65 }; // default right
+  return { x: 0.55, y: 0.18, width: 0.4, height: 0.65 };
 };
 
 // --- Helper: Calculate bodyBox based on imagePosition ---

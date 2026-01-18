@@ -1,4 +1,4 @@
-// Controller: POST /api/generate-imagen-image
+// Controller: generate-imagen-image
 export const generateImagenImageAPI = async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -21,10 +21,10 @@ export const generateImagenImageAPI = async (req, res) => {
   }
 };
 import axios from "axios";
-// In-memory cache for image results (prompt -> base64)
+// In-memory cache for image results
 const pollinationsImageCache = new Map();
 
-// Helper: Clean prompt (first sentence, max 8 words)
+// Helper: Clean prompt
 function cleanPrompt(prompt) {
   if (!prompt) return "";
   // Take first sentence, then up to 8 words
@@ -50,7 +50,7 @@ async function fetchPollinationsImage(prompt, retries = 2) {
   throw new Error("Failed to fetch image from Pollinations");
 }
 
-// Controller: POST /api/generate-image
+// Controller: generate-image-POLLINATIONS
 export const generatePollinationsImage = async (req, res) => {
   try {
     let { prompt } = req.body;
@@ -64,7 +64,7 @@ export const generatePollinationsImage = async (req, res) => {
     }
     // Fetch from Pollinations
     const base64 = await fetchPollinationsImage(cleanedPrompt);
-    // Cache result (limit cache size to 100)
+    // Cache result
     pollinationsImageCache.set(cleanedPrompt, base64);
     if (pollinationsImageCache.size > 100) {
       // Remove oldest entry
@@ -104,7 +104,7 @@ const getFileBuffer = (file) => {
 const coerceSlideCount = (val, fallback = 10) => {
   const n = parseInt(val, 10);
   if (!Number.isFinite(n)) return fallback;
-  return Math.min(Math.max(n, 1), 50); // clamp 1..50
+  return Math.min(Math.max(n, 1), 50);
 };
 
 const buildPlaceholderSlide = (index) => ({
@@ -221,22 +221,20 @@ const handlePptxUploadAndSave = async (slides, params) => {
                 // Upload
                 const s3ImgResult = await uploadToS3(imgBuffer, imgFileName, 'image/png', userId);
 
-                // Try to generate a presigned URL for frontend preview (safer than public URLs)
+                // Try to generate a presigned URL for frontend preview
                 let signedUrl = null;
                 try {
-                  signedUrl = await getSignedUrl(s3ImgResult.key, 3600); // 1 hour
+                  signedUrl = await getSignedUrl(s3ImgResult.key, 3600);
                 } catch (signErr) {
                   console.warn('[S3] Failed to generate signed URL, falling back to public URL:', signErr?.message || signErr);
                   signedUrl = s3ImgResult.url;
                 }
 
-                // UPDATE SLIDE WITH SIGNED URL (frontend should use this for immediate preview)
+                // UPDATE SLIDE WITH SIGNED URL 
                 slides[index].uploadedImage = signedUrl;
-                // Also store the underlying S3 key so long-term retrieval can use signed URLs later
+                // store the underlying S3 key so long-term retrieval can use signed URLs later
                 slides[index].uploadedImageKey = s3ImgResult.key;
                 
-                // Optional: Clear prompt so frontend doesn't try to regenerate
-                // slides[index].imagePrompt = ""; 
                 
                         console.log(`   > Slide ${index} image saved: ${s3ImgResult.url}`);
             } catch (err) {
@@ -258,7 +256,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
             if (historyId) await updateHistory(historyId, { progress: 85 });
 
             // 4. Save to History and Conversions
-            // CRITICAL: We save AFTER the images are uploaded and slides are updated
+            // Save AFTER the images are uploaded and slides are updated
     if (userId) {
       console.log('[Step 4/4] Saving to Database...');
       
@@ -271,7 +269,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
           conversionType,
           includeImages: includeImages || false,
           previewThumb: previewThumb || null,
-          slides: slides, // <--- Now contains the S3 URLs for the images
+          slides: slides,
           imageProviderRequested: imageProvider || null
         };
         const historyRecord = await saveHistory(historyPayload);
@@ -482,7 +480,7 @@ export const generateFromExcel = async (req, res) => {
     const provider = req.body.provider || 'grockai';
     const imageProvider = req.body.imageProvider || 'pollinations';
 
-    // Optional chart data coming from frontend (for first slide) - allow reassignment
+    // Optional chart data coming from frontend (for first slide)
     let chartType = req.body.chartType || null;
     let chartSummary = req.body.chartSummary || null;
     let chartData = null;
@@ -541,7 +539,7 @@ export const generateFromExcel = async (req, res) => {
         if (Array.isArray(suggestions) && suggestions.length > 0) {
           const first = suggestions.find(s => Array.isArray(s.data) && s.data.length >= 2) || suggestions[0];
           if (first && first.data && first.data.length > 0) {
-            // Infer chartType/data (reduced to label/value keys)
+            // chartType/data (reduced to label/value)
             const labelKey = first.suggestedLabelKey || Object.keys(first.data[0] || {})[0];
             const valueKeys = first.suggestedValueKeys && first.suggestedValueKeys.length ? first.suggestedValueKeys : (first.suggestedValueKey ? [first.suggestedValueKey] : (Object.keys(first.data[0] || {}).slice(1) || []));
             chartData = first.data.map(row => {
@@ -629,7 +627,7 @@ export const generateFromTopic = async (req, res) => {
           headers: { 'Content-Type': 'application/json' }
         }
       );
-      // Gemini returns text in geminiRes.data.candidates[0].content.parts[0].text
+      // Gemini returns text
       const geminiText = geminiRes?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       slides = enforceSlideCount(parseAIResponse(geminiText), slideCount);
     } else if (provider === 'openai') {
@@ -798,7 +796,7 @@ export const getFreshPresignedUrl = async (req, res) => {
       return res.status(400).json({ success: false, error: 'S3 key is required' });
     }
     
-    // Generate a fresh presigned URL (1 hour expiry)
+    // Generate a fresh presigned URL
     const url = await getSignedUrl(key, 3600);
     
     res.json({ success: true, url });

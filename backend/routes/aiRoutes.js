@@ -4,17 +4,17 @@ import {
   generateFromPdf,
   generateFromWord,
   generateFromExcel,
-  generateFromTextFile, // <--- Updated import
+  generateFromTextFile,
   generateFromTopic,
-  generatePollinationsImage, // <-- New import
-  generateImagenImageAPI, // <-- New import for Imagen images
+  generatePollinationsImage,
+  generateImagenImageAPI,
   generatePptx,
-  getFreshPresignedUrl // <-- New import for refreshing expired URLs
+  getFreshPresignedUrl
 } from "../controllers/aiController.js";
 
 const router = express.Router();
 
-// Configure Multer (Memory storage is best for serverless/PaaS like Render)
+// Configure Multer
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -30,10 +30,10 @@ router.post("/convert-text", upload.single("file"), generateFromTextFile);
 //Topics to Slides
 router.post("/generate-topics", generateFromTopic);
 
-// Pollinations AI Image Generation (PUBLIC)
+// Pollinations AI Image Generation
 router.post("/generate-image", generatePollinationsImage);
 
-// Imagen AI Image Generation (PUBLIC)
+// Imagen AI Image Generation
 router.post("/generate-imagen-image", generateImagenImageAPI);
 
 // Generate PPTX from slides data

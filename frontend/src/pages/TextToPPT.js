@@ -358,7 +358,7 @@ export default function TextToPPT() {
               <div className="ai-card">
                 <h2>Customize Output</h2>
                 <div className="ai-slider-section">
-                  <label htmlFor="slides">Number of Slides</label>
+                  <label htmlFor="slides">Number of Slides (max 50)</label>
                   <div className="slide-input-group">
                     <button
                       type="button"
@@ -371,6 +371,7 @@ export default function TextToPPT() {
                       type="number"
                       id="slides"
                       min="1"
+                      max="50"
                       value={slides}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -378,12 +379,15 @@ export default function TextToPPT() {
                           setSlides('');
                         } else {
                           const num = parseInt(val);
-                          if (!isNaN(num) && num >= 1) setSlides(num);
+                          if (!isNaN(num) && num >= 1 && num <= 50) setSlides(num);
                         }
                       }}
                       onBlur={(e) => {
-                        if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                        const num = parseInt(e.target.value);
+                        if (e.target.value === '' || isNaN(num) || num < 1) {
                           setSlides(1);
+                        } else if (num > 50) {
+                          setSlides(50);
                         }
                       }}
                       className="slide-input"
@@ -391,7 +395,7 @@ export default function TextToPPT() {
                     <button
                       type="button"
                       className="slide-btn plus"
-                      onClick={() => setSlides((prev) => prev + 1)}
+                      onClick={() => setSlides((prev) => Math.min(50, prev + 1))}
                     >
                       +
                     </button>

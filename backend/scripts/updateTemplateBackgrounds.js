@@ -8,62 +8,61 @@ const TEMPLATE_UPDATES = [
     name: "Classic University Blue",
     contentBackground: ["#E3F2FD", "#BBDEFB", "#90CAF9"], // Light blue gradient for readability
   },
-  // tpl-academic-02 already has gradient - skip
-  // tpl-academic-03 is intentionally white for scientific look - skip
+
   {
     id: "tpl-academic-04",
     name: "Student Friendly Pastel",
-    contentBackground: ["#FFE4E1", "#FFF0F5", "#FFE4F1"], // Same as title for consistency
+    contentBackground: ["#FFE4E1", "#FFF0F5", "#FFE4F1"],
   },
   {
     id: "tpl-academic-05",
     name: "Modern Campus Green",
-    contentBackground: ["#E8F5E9", "#C8E6C9", "#A5D6A7"], // Light green gradient
+    contentBackground: ["#E8F5E9", "#C8E6C9", "#A5D6A7"],
   },
 
-  // Office templates - professional look with subtle gradients
+  // Office templates - professional look
   {
     id: "tpl-office-01",
     name: "Corporate Blue Professional",
-    contentBackground: ["#E3F2FD", "#BBDEFB", "#90CAF9"], // Light blue gradient
+    contentBackground: ["#E3F2FD", "#BBDEFB", "#90CAF9"],
   },
   {
     id: "tpl-office-02",
     name: "Executive Gray Suite",
-    contentBackground: ["#ECEFF1", "#CFD8DC", "#B0BEC5"], // Light gray gradient
+    contentBackground: ["#ECEFF1", "#CFD8DC", "#B0BEC5"],
   },
   {
     id: "tpl-office-03",
     name: "Finance Green Report",
-    contentBackground: ["#E8F5E9", "#C8E6C9", "#A5D6A7"], // Light green gradient
+    contentBackground: ["#E8F5E9", "#C8E6C9", "#A5D6A7"],
   },
   {
     id: "tpl-office-04",
     name: "Modern Startup Orange",
-    contentBackground: ["#FFF3E0", "#FFE0B2", "#FFCC80"], // Light orange gradient
+    contentBackground: ["#FFF3E0", "#FFE0B2", "#FFCC80"],
   },
   {
     id: "tpl-office-05",
     name: "Professional Navy Boardroom",
-    contentBackground: ["#E3F2FD", "#BBDEFB", "#90CAF9"], // Light blue gradient
+    contentBackground: ["#E3F2FD", "#BBDEFB", "#90CAF9"],
   },
-  // tpl-office-06 is minimalist white - keep it white
+  // tpl-office-06 is minimalist white
   {
     id: "tpl-office-07",
     name: "Tech Company Purple",
-    contentBackground: ["#F3E5F5", "#E1BEE7", "#CE93D8"], // Light purple gradient
+    contentBackground: ["#F3E5F5", "#E1BEE7", "#CE93D8"],
   },
 
   // Update existing templates too
   {
     id: "tpl-nature-01",
     name: "Organic Nature Presentation",
-    contentBackground: ["#E8F5E9", "#C8E6C9", "#A5D6A7"], // Light green gradient
+    contentBackground: ["#E8F5E9", "#C8E6C9", "#A5D6A7"],
   },
   {
     id: "tpl-corporate-01",
     name: "Modern Corporate Blue",
-    contentBackground: ["#E3F2FD", "#BBDEFB", "#90CAF9"], // Light blue gradient
+    contentBackground: ["#E3F2FD", "#BBDEFB", "#90CAF9"],
   },
 ];
 

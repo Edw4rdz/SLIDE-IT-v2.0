@@ -8,10 +8,6 @@ import {
 
 const router = express.Router();
 
-/**
- * OTP Routes
- * Base path: /api/otp
- */
 
 // Send OTP to email
 // POST /api/otp/send

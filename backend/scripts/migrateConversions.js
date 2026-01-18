@@ -1,4 +1,3 @@
-// Migration script to move conversions from flat structure to nested structure
 // Old: conversions/{docId} with userId field
 // New: conversions/{authUID}/userconversions/{docId} OR conversions/{authUID}/AI-generated/{docId}
 
@@ -95,7 +94,7 @@ const migrateConversions = async () => {
         // Copy all data to new location
         await newDocRef.set(updatedData);
 
-        // Optional: Delete from old location (comment out if you want to keep backup)
+        // Optional: Delete from old location
         // await doc.ref.delete();
 
         migratedCount++;

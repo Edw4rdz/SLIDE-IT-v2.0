@@ -4,7 +4,7 @@ import admin from "../config/firebaseAdmin.js";
 /**
  * Middleware to verify if a user is an admin.
  * Assumes a Firebase ID Token is passed in the Authorization header.
- * e.g., "Authorization: Bearer <ID_TOKEN>"
+
  */
 export const checkAdmin = async (req, res, next) => {
   try {
@@ -17,7 +17,7 @@ export const checkAdmin = async (req, res, next) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const authUID = decodedToken.uid;
 
-    // 2. Check the user's document in Firestore for the 'isAdmin' flag
+    // 2. Check the user's document in Firestore for the 'isAdmin'
     // We check the 'users' collection for a document where authUID matches
     const userRef = db.collection("users").where("authUID", "==", authUID);
     const userSnap = await userRef.get();
@@ -38,7 +38,7 @@ export const checkAdmin = async (req, res, next) => {
 
     // 3. Verify if the user is an admin
     if (userData.isAdmin === true) {
-      // User is an admin, add user info to request and proceed
+      // if User is an admin, add user info to request and proceed
       req.user = userData;
       next();
     } else {

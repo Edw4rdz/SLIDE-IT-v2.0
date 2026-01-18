@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaGripVertical } from 'react-icons/fa';
 import SlideToolbar from './SlideToolbar';
 import TitleBox from './TitleBox';
 import BodyBox from './BodyBox';
@@ -52,6 +52,13 @@ const SlideCard = ({
   setEditedSlides,
   // Delete slide
   handleDeleteSlide,
+  // Drag and drop
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  onDrop,
+  isDragging,
+  isDragOver,
   // Refs
   containerRefs
 }) => {
@@ -85,7 +92,23 @@ const SlideCard = ({
   }
 
   return (
-    <div key={s.id} className="slide-wrapper" style={{ width: '100%' }}>
+    <div 
+      key={s.id} 
+      className="slide-wrapper" 
+      style={{ 
+        width: '100%',
+        opacity: isDragging ? 0.5 : 1,
+        transform: isDragOver ? 'scale(1.02)' : 'scale(1)',
+        transition: 'transform 0.2s ease, opacity 0.2s ease',
+        border: isDragOver ? '2px dashed #667eea' : '2px solid transparent',
+        borderRadius: '12px',
+      }}
+      draggable
+      onDragStart={(e) => onDragStart(e, index)}
+      onDragOver={(e) => onDragOver(e, index)}
+      onDragEnd={onDragEnd}
+      onDrop={(e) => onDrop(e, index)}
+    >
       {/* Toolbar */}
       <SlideToolbar
         slide={s}
@@ -113,43 +136,78 @@ const SlideCard = ({
         className="slide-preview-card gamma-style"
         style={{ ...previewStyle, color: theme.textColor, fontFamily: theme.font }}
       >
-        {/* Delete Button */}
-        <button
-          className="delete-slide-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDeleteSlide(s.id);
-          }}
-          title="Delete this slide"
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            backgroundColor: '#ef4444',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '50%',
-            width: '36px',
-            height: '36px',
-            cursor: 'pointer',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#dc2626';
-            e.currentTarget.style.transform = 'scale(1.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#ef4444';
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          <FaTrash size={14} />
-        </button>
+        {/* Slide Controls - Drag Handle and Delete */}
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          display: 'flex',
+          gap: '8px',
+          zIndex: 1000,
+        }}>
+          {/* Drag Handle */}
+          <div
+            title="Drag to reorder"
+            style={{
+              backgroundColor: '#6b7280',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              width: '36px',
+              height: '36px',
+              cursor: 'grab',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#4b5563';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#6b7280';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <FaGripVertical size={14} />
+          </div>
+
+          {/* Delete Button */}
+          <button
+            className="delete-slide-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteSlide(s.id);
+            }}
+            title="Delete this slide"
+            style={{
+              backgroundColor: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#dc2626';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#ef4444';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <FaTrash size={14} />
+          </button>
+        </div>
 
         <div className="slide-content-area" style={{ display: 'none' }}></div>
 

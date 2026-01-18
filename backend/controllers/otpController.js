@@ -2,11 +2,6 @@ import { sendOTP, verifyOTP, resendOTP } from '../services/otpService.js';
 import { sendSecurityAlertEmail } from '../config/emailConfig.js';
 
 /**
- * OTP Controller
- * Handles HTTP requests for OTP operations
- */
-
-/**
  * Send OTP to user's email
  * POST /api/otp/send
  * Body: { email: string, userName?: string }
@@ -135,7 +130,7 @@ export const resendOTPController = async (req, res) => {
     if (result.success) {
       return res.status(200).json(result);
     } else {
-      return res.status(429).json(result); // 429 Too Many Requests for rate limiting
+      return res.status(429).json(result); // Too Many Requests for rate limiting
     }
   } catch (error) {
     console.error('❌ Error in resendOTPController:', error);

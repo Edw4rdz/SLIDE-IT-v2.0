@@ -2,8 +2,7 @@ import admin from "../config/firebaseAdmin.js";
 
 /**
  * Middleware to verify Firebase ID Token and attach user info to req.user
- * Works for any authenticated user (not just admin)
- * Usage: router.use(authenticateUser) or as needed per route
+ * Works for any authenticated user
  */
 export const authenticateUser = async (req, res, next) => {
   try {

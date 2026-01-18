@@ -244,7 +244,7 @@ export default function AIGenerator() {
               <div className="ai-card">
   <h2>Customize Presentation</h2>
   <div className="ai-slider-section centered-slide-control">
-    <label htmlFor="slides">Number of Slides</label>
+    <label htmlFor="slides">Number of Slides (max 50)</label>
     <div className="slide-control">
       <button
         className="slide-btn"
@@ -255,6 +255,8 @@ export default function AIGenerator() {
       <input
         type="number"
         id="slides"
+        min="1"
+        max="50"
         value={slides}
         onChange={(e) => {
           const val = e.target.value;
@@ -262,19 +264,22 @@ export default function AIGenerator() {
             setSlides('');
           } else {
             const num = parseInt(val);
-            if (!isNaN(num)) setSlides(num);
+            if (!isNaN(num) && num >= 1 && num <= 50) setSlides(num);
           }
         }}
         onBlur={(e) => {
-          if (e.target.value === '' || parseInt(e.target.value) < 1) {
+          const num = parseInt(e.target.value);
+          if (e.target.value === '' || isNaN(num) || num < 1) {
             setSlides(1);
+          } else if (num > 50) {
+            setSlides(50);
           }
         }}
         className="slide-input"
       />
       <button
         className="slide-btn"
-        onClick={() => setSlides((prev) => prev + 1)}
+        onClick={() => setSlides((prev) => Math.min(50, prev + 1))}
       >
         +
       </button>

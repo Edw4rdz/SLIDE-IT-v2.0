@@ -27,7 +27,7 @@ export const uploadExcelAndSuggest = async (req, res) => {
           const v = row[labelKey];
           return v === null || v === undefined ? '' : String(v);
         });
-        // Ensure dataset values are numbers or null (already sanitized in service), keep as-is but coerce numeric-like strings
+        // Ensure dataset values are numbers or null
         datasets = valueKeys.map(vk => ({
           label: vk,
           data: sheet.data.map(row => {

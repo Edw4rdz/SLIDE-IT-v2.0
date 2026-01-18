@@ -1,16 +1,5 @@
 import { createTransport } from 'nodemailer';
 
-/**
- * Email configuration for sending OTP emails via Gmail SMTP
- * 
- * Setup Instructions:
- * 1. Enable 2-Step Verification in your Google Account
- * 2. Go to: https://myaccount.google.com/apppasswords
- * 3. Generate an App Password for "Mail"
- * 4. Add to your .env file:
- *    EMAIL_USER=your-email@gmail.com
- *    EMAIL_PASS=your-16-digit-app-password
- */
 
 const createTransporter = () => {
   // Validate environment variables
@@ -19,7 +8,7 @@ const createTransporter = () => {
     console.warn('Email functionality will not work until credentials are configured.');
   }
 
-  // Remove spaces from app password (in case user included them)
+  // Remove spaces from app password
   const emailPass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s/g, '') : '';
 
   return createTransport({

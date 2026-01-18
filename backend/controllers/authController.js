@@ -6,8 +6,7 @@ export const login = (req, res) => {
   res.json({ success: true, message: "Dummy login successful" });
 };
 
-// Register (sends welcome email). This endpoint intentionally does NOT create
-// an Auth user here — it only sends the welcome/acknowledgement email after
+// Register (sends welcome email).it only sends the welcome/acknowledgement email after
 // client-side or other service handles actual user creation.
 export const register = async (req, res) => {
   try {
@@ -28,7 +27,7 @@ export const register = async (req, res) => {
   }
 };
 
-// Check if a Firebase Auth user exists by email (uses Admin SDK)
+// Check if a Firebase Auth user exists by email
 export const checkEmailExists = async (req, res) => {
   try {
     const { email } = req.body || {};

@@ -1,4 +1,3 @@
-// backend/services/conversionService.js
 import { db } from "../config/firebaseAdmin.js";
 import { Timestamp } from "firebase-admin/firestore";
 
@@ -32,12 +31,11 @@ const getAuthUIDFromNumericId = async (numericUserId) => {
 
 /**
  * Save a conversion record to Firestore with S3 file information
- * This is separate from 'history' - conversions track the actual files in S3
  * 
  * @param {Object} conversionData - Conversion details
  * @param {string} conversionData.userId - User ID who created the conversion
  * @param {string} conversionData.fileName - Original file name
- * @param {string} conversionData.conversionType - Type of conversion (e.g., 'PDF-to-PPTs')
+ * @param {string} conversionData.conversionType - Type of conversion
  * @param {string} conversionData.s3Url - Public S3 URL to the generated PPTX file
  * @param {string} conversionData.s3Key - S3 key for file management
  * @param {string} conversionData.s3Bucket - S3 bucket name
@@ -128,7 +126,6 @@ export const getConversions = async (userId, authUID = null) => {
 
 /**
  * Delete a conversion record from Firestore
- * Note: This does NOT delete the S3 file - handle that separately with s3Service
  * @param {string} id - Document ID
  * @param {string} userId - User ID for authorization
  * @returns {Promise<Object>}
@@ -180,7 +177,7 @@ export const deleteConversion = async (id, userId, authUID = null) => {
 /**
  * Get a single conversion by ID
  * @param {string} id - Document ID
- * @param {string} userId - User ID for authorization (optional)
+ * @param {string} userId - User ID for authorization
  * @returns {Promise<Object>}
  */
 export const getConversionById = async (id, userId = null, authUID = null) => {
@@ -220,7 +217,7 @@ export const getConversionById = async (id, userId = null, authUID = null) => {
 };
 
 /**
- * Save AI-generated conversion to separate subcollection
+ * Save AI-generated conversion
  * Structure: conversions/{userId}/AI-generated/{docId}
  * @param {Object} conversionData - Conversion details
  * @returns {Promise<Object>} - The created document with ID

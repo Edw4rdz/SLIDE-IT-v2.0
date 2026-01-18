@@ -125,13 +125,13 @@ export const PREBUILT_TEMPLATES = [
       globalTextColor: "#3E4E48",
       layouts: {
         title: {
-          // ✅ CHANGED to an array
+          
           background: ["#A8E063", "#56AB2F", "#235E3B"],
           titleColor: "#FFFFFF", 
           textColor: "#F0F0F0",
         },
         content: {
-          // ✅ This is a solid color, so it STAYS A STRING
+        
           background: "#FFFFFF", 
           titleColor: "#235E3B",
           textColor: "#3E4E48",

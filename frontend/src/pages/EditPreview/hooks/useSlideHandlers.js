@@ -174,6 +174,25 @@ export const useSlideHandlers = ({
     return true;
   }, [editedSlides.length]);
 
+  const handleReorderSlides = useCallback((fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    
+    setEditedSlides(currentSlides => {
+      const updatedSlides = [...currentSlides];
+      const [movedSlide] = updatedSlides.splice(fromIndex, 1);
+      updatedSlides.splice(toIndex, 0, movedSlide);
+      
+      // Save draft after reordering
+      setTimeout(() => {
+        saveDraft(updatedSlides, topic, (location.state?.convId || topic), currentDesign, imageProvider);
+      }, 0);
+      
+      return updatedSlides;
+    });
+    
+    notify('Slide reordered', 'success');
+  }, [setEditedSlides, topic, location.state?.convId, currentDesign, imageProvider]);
+
   const confirmDeleteSlide = useCallback((slideId, setDeleteConfirm) => {
     setDeleteConfirm({ open: false, slideId: null });
     
@@ -337,6 +356,7 @@ export const useSlideHandlers = ({
     handleAddImageBack,
     handleAddSlide,
     handleDeleteSlide,
+    handleReorderSlides,
     confirmDeleteSlide,
     handleAddSticker,
     handleRemoveSticker,

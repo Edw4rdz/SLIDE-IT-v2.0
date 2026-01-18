@@ -1,4 +1,3 @@
-// Script to add Academic/School and Office templates to Firestore
 import { db } from "../config/firebaseAdmin.js";
 
 const ACADEMIC_OFFICE_TEMPLATES = [

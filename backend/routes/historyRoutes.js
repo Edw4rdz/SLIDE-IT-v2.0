@@ -6,7 +6,6 @@ import {
 
 const router = express.Router();
 
-// GET /api/conversions
 // Gets all history items for a user
 router.get("/conversions", handleGetHistory);
 

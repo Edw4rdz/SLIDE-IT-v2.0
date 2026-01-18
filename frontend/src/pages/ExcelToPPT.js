@@ -631,7 +631,7 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
               <div className="ai-card">
                 <h2>Customize Your Presentation</h2>
                 <div className="ai-slider-section centered-slide-control">
-                  <label htmlFor="slidesCount">Number of Slides</label>
+                  <label htmlFor="slidesCount">Number of Slides (max 50)</label>
                   <div className="slide-control">
                     <button
                       className="slide-btn minus"
@@ -644,6 +644,8 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
                     <input
                       type="number"
                       id="slidesCount"
+                      min="1"
+                      max="50"
                       value={slidesCount}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -651,19 +653,22 @@ const [currentConversionId, setCurrentConversionId] = useState(null);
                           setSlidesCount('');
                         } else {
                           const num = parseInt(val);
-                          if (!isNaN(num) && num >= 1) setSlidesCount(num);
+                          if (!isNaN(num) && num >= 1 && num <= 50) setSlidesCount(num);
                         }
                       }}
                       onBlur={(e) => {
-                        if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                        const num = parseInt(e.target.value);
+                        if (e.target.value === '' || isNaN(num) || num < 1) {
                           setSlidesCount(1);
+                        } else if (num > 50) {
+                          setSlidesCount(50);
                         }
                       }}
                       className="slide-input"
                     />
                     <button
                       className="slide-btn plus"
-                      onClick={() => setSlidesCount((prev) => prev + 1)}
+                      onClick={() => setSlidesCount((prev) => Math.min(50, prev + 1))}
                     >
                       +
                     </button>
