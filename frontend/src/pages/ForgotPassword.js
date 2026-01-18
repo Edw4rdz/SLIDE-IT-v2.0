@@ -18,13 +18,13 @@ export default function ForgotPassword() {
       return;
     }
 
-    // Strict Domain Validation
-    const domain = email.split('@')[1];
-    const allowedDomains = ["gmail.com", "yahoo.com"];
-    if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
-       setError("Please enter a valid Gmail or Yahoo address.");
+     // Strict Domain Validation
+     const domain = email.split('@')[1];
+     const allowedDomains = ["gmail.com", "yahoo.com", "myyahoo.com"];
+     if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
+       setError("Please enter a valid Gmail or Yahoo address (e.g., name@gmail.com, name@yahoo.com, name@myyahoo.com).");
        return;
-    }
+     }
 
     setLoading(true);
     try {
