@@ -183,6 +183,9 @@ const handlePptxUploadAndSave = async (slides, params) => {
   console.log(`[UPLOAD FLOW] Starting for ${fileName}`);
   
   try {
+    // Coerce includeImages to boolean (accept 'true'/'false' strings)
+    const includeImagesFlag = (includeImages === true || includeImages === 'true');
+
     // Create a history draft so frontend can poll progress/status
     let historyId = null;
     if (userId) {
@@ -191,7 +194,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
           userId,
           fileName: fileName,
           conversionType,
-          includeImages: includeImages || false,
+          includeImages: includeImagesFlag,
           progress: 0,
           status: 'In Progress',
           slides: []
@@ -214,7 +217,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
         font: 'Arial',
         layouts: {}
       },
-      includeImages: includeImages || false,
+      includeImages: includeImagesFlag,
       imageProvider: imageProvider,
       chartData,
       chartType,
@@ -227,7 +230,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
     if (historyId) await updateHistory(historyId, { progress: 40 });
     // 2. Upload Generated Images to S3
     // This permanently saves the Imagen images so they appear in drafts
-    if (includeImages && Object.keys(generatedImages).length > 0) {
+    if (includeImagesFlag && Object.keys(generatedImages).length > 0) {
         console.log(`[Step 2/4] Uploading ${Object.keys(generatedImages).length} AI images to S3...`);
         
         await Promise.all(Object.entries(generatedImages).map(async ([indexStr, base64Data]) => {
@@ -289,7 +292,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
           userId,
           fileName,
           conversionType,
-          includeImages: includeImages || false,
+          includeImages: includeImagesFlag,
           previewThumb: previewThumb || null,
           slides: slides,
           imageProviderRequested: imageProvider || null
@@ -315,7 +318,7 @@ const handlePptxUploadAndSave = async (slides, params) => {
         s3Bucket: s3Result.bucket,
         fileSize: pptxBuffer.length,
         slideCount: slides.length,
-        includeImages: includeImages || false,
+        includeImages: includeImagesFlag,
         previewThumb: previewThumb || null,
         imageProviderRequested: imageProvider || null,
         imageProviderFinal: imageProviderFinal || null
@@ -784,12 +787,14 @@ export const generatePptx = async (req, res) => {
       return res.status(400).json({ error: "Slides data is required and must be a non-empty array" });
     }
 
-    console.log(`Generating PPTX for ${slides.length} slides with imageProvider: ${imageProvider || 'pollinations'}...`);
+    // Coerce includeImages to boolean (accepts true/false or 'true'/'false')
+    const includeImagesFlag = (includeImages === true || includeImages === 'true');
+    console.log(`Generating PPTX for ${slides.length} slides with imageProvider: ${imageProvider || 'pollinations'}, includeImages: ${includeImagesFlag}`);
 
     const pptxResult = await generatePptxFromData({
       slides,
       design,
-      includeImages: includeImages || false,
+      includeImages: includeImagesFlag,
       imageProvider: imageProvider || 'pollinations'
     });
 

@@ -17,9 +17,15 @@ export const useImageGeneration = ({
   convId,
   currentDesign
 }) => {
-  // Generate preview images
+  // Generate preview images (only when image column is enabled)
   useEffect(() => {
-    if (editedSlides && editedSlides.length > 0 && (imageProvider === 'imagen' || imageProvider === 'grok' || imageProvider === 'pollinations' || showImageColumn)) {
+    if (!showImageColumn) {
+      setPreviewImageUrls({});
+      imageGenerationInProgress.current = false;
+      return;
+    }
+
+    if (editedSlides && editedSlides.length > 0 && (imageProvider === 'imagen' || imageProvider === 'grok' || imageProvider === 'pollinations')) {
       
       const slidesNeedingImages = editedSlides.filter(slide =>
         slide.imagePrompt && !slide.removedImage && (slide.imageNeedsGeneration || !slide.uploadedImage)
@@ -191,8 +197,9 @@ export const useImageGeneration = ({
     });
   }, [previewImageUrls, setEditedSlides, topic, convId, currentDesign, imageProvider]);
 
-  // Auto-generate sticker images
+  // Auto-generate sticker images (only when image column is enabled)
   useEffect(() => {
+    if (!showImageColumn) return;
     if (!editedSlides || editedSlides.length === 0) return;
 
     const generateStickers = async () => {
