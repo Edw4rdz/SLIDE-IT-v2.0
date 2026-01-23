@@ -6,27 +6,15 @@ import { collection, query, orderBy, onSnapshot, limit } from "firebase/firestor
 
 import { 
   fetchAnalytics, 
-  createUser, 
   deleteUser, 
   updateUserRole 
 } from "../adminApi";
 import "../styles/adminDashboard.css"; 
 
-import { FaSignOutAlt, FaPlus } from "react-icons/fa"; 
+import { FaSignOutAlt } from "react-icons/fa"; 
 import { getAuth, signOut } from "firebase/auth";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import ConfirmDialog from "../components/ConfirmDialog";
-
-const INITIAL_NEW_USER_STATE = {
-  username: "",
-  email: "",
-  password: "",
-  confirmPassword: "", // Added confirmPassword
-  firstName: "",
-  lastName: "",
-  birthday: "",
-  isAdmin: false
-};
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -42,27 +30,7 @@ export default function AdminDashboard() {
   // eslint-disable-next-line no-unused-vars
   const [error, setError] = useState(null);
   
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newUserData, setNewUserData] = useState(INITIAL_NEW_USER_STATE);
   const [loadingAction, setLoadingAction] = useState(false);
-  
-  // Password Validation Logic
-  const [showPassword, setShowPassword] = useState(false);
-  const [pwdInfo, setPwdInfo] = useState({
-    length: false,
-    upper: false,
-    lower: false,
-    digit: false,
-    noSpace: true,
-  });
-
-  const evaluatePassword = (pwd) => ({
-    length: typeof pwd === 'string' && pwd.length >= 8,
-    upper: /[A-Z]/.test(pwd || ''),
-    lower: /[a-z]/.test(pwd || ''),
-    digit: /\d/.test(pwd || ''),
-    noSpace: !/\s/.test(pwd || ''),
-  });
   
   // --- Sidebar Logic ---
   const navigate = useNavigate();
@@ -137,85 +105,6 @@ export default function AdminDashboard() {
   }, []);
 
   // --- Handlers ---
-
-  const handleNewUserChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    
-    if (name === 'password') {
-      setPwdInfo(evaluatePassword(value));
-    }
-
-    setNewUserData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-  
-  const handleNewUserSubmit = async (e) => {
-    e.preventDefault();
-    if (!newUserData.email || !newUserData.password || !newUserData.confirmPassword || !newUserData.username || !newUserData.firstName || !newUserData.lastName || !newUserData.birthday) {
-      return notify("Please fill out all fields.", "error");
-    }
-
-    // Name Validation (letters and spaces only, no numbers)
-    const firstNameRegex = /^[A-Za-z\s]+$/;
-    const lastNameRegex = /^[A-Za-z\s]+(?:-[A-Za-z\s]+)?$/;
-    
-    if (!firstNameRegex.test(newUserData.firstName)) {
-      return notify("First name contains invalid characters (letters and spaces only).", "error");
-    }
-    if (!lastNameRegex.test(newUserData.lastName)) {
-      return notify("Last name contains invalid characters (letters, spaces, and max one hyphen).", "error");
-    }
-
-    // Email Validation (Strict Gmail/Yahoo)
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(newUserData.email)) {
-       return notify("Please enter a valid email address.", "error"); 
-    }
-    const domain = newUserData.email.split('@')[1];
-    const allowedDomains = ["gmail.com", "yahoo.com"];
-    if (!domain || !allowedDomains.includes(domain.toLowerCase())) {
-       return notify("Only Gmail and Yahoo addresses are allowed.", "error");
-    }
-
-    if (newUserData.password !== newUserData.confirmPassword) {
-      return notify("Passwords do not match.", "error");
-    }
-
-    // Password Validation
-    const info = evaluatePassword(newUserData.password);
-    if (!info.length) return notify("Password must be at least 8 characters.", "error");
-    if (!info.upper) return notify("Password must include at least one uppercase letter.", "error");
-    if (!info.lower) return notify("Password must include at least one lowercase letter.", "error");
-    if (!info.digit) return notify("Password must include at least one number.", "error");
-    if (!info.noSpace) return notify("Password must not contain spaces.", "error");
-
-    // Age Check (13+)
-    const bDate = new Date(newUserData.birthday);
-    const today = new Date();
-    let age = today.getFullYear() - bDate.getFullYear();
-    const m = today.getMonth() - bDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) {
-      age--;
-    }
-    if (age < 13) {
-      return notify("User must be at least 13 years old.", "error");
-    }
-
-    setLoadingAction(true);
-    try {
-      await createUser(newUserData);
-      setIsModalOpen(false);
-      setNewUserData(INITIAL_NEW_USER_STATE);
-      // Reset pwdInfo for next time
-      setPwdInfo({ length: false, upper: false, lower: false, digit: false, noSpace: true });
-    } catch (err) {
-      notify(`Error creating user: ${err.message}`, "error");
-    } finally {
-      setLoadingAction(false);
-    }
-  };
 
   const [roleConfirm, setRoleConfirm] = useState({ open: false, docId: null, newIsAdmin: false, text: "" });
   const handleRoleChange = (docId, newIsAdmin) => {
@@ -384,9 +273,6 @@ export default function AdminDashboard() {
           <div className="admin-content-card">
             <div className="user-management-header">
               <h2>Real-Time User Monitoring</h2>
-              <button className="add-user-btn" onClick={() => setIsModalOpen(true)}>
-                <FaPlus /> Add New User
-              </button>
             </div>
             
             {loading ? <p>Loading users...</p> : (
@@ -462,155 +348,6 @@ export default function AdminDashboard() {
         </div>
       </main>
 
-      {/* Modal for Creating New User */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h2>Add New User</h2>
-            <form onSubmit={handleNewUserSubmit}>
-              <div className="input-row"> 
-                <div className="input-group">
-                  <label htmlFor="firstName">First Name</label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    value={newUserData.firstName}
-                    onChange={handleNewUserChange}
-                    required
-                  />
-                </div>
-                <div className="input-group">
-                  <label htmlFor="lastName">Last Name</label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    value={newUserData.lastName}
-                    onChange={handleNewUserChange}
-                    required
-                  />
-                </div>
-              </div>
-      
-              <div className="input-group">
-                <label htmlFor="username">Username</label>
-                <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={newUserData.username}
-                  onChange={handleNewUserChange}
-                  required
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="email">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={newUserData.email}
-                  onChange={handleNewUserChange}
-                  required
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="birthday">Birthday</label>
-                <input
-                  type="date" 
-                  id="birthday"
-                  name="birthday"
-                  value={newUserData.birthday}
-                  onChange={handleNewUserChange}
-                  required
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="password">Password</label>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="password"
-                  name="password"
-                  value={newUserData.password}
-                  onChange={handleNewUserChange}
-                  required
-                />
-              </div>
-
-              <div className="input-group">
-                <label htmlFor="confirmPassword">Confirm Password</label>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={newUserData.confirmPassword}
-                  onChange={handleNewUserChange}
-                  required
-                />
-                
-                {/* Password Criteria Checklist */}
-                <div style={{ marginTop: 12, fontSize: 13, color: '#444', lineHeight: 1.45, marginBottom: 12 }}>
-                  <div style={{ marginBottom: 4 }}>Password must contain:</div>
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-                    {[
-                      { key: 'length', label: 'At least 8 characters' },
-                      { key: 'upper', label: 'One uppercase letter (A-Z)' },
-                      { key: 'lower', label: 'One lowercase letter (a-z)' },
-                      { key: 'digit', label: 'One number (0-9)' },
-                      { key: 'noSpace', label: 'No spaces' },
-                    ].map((rule) => (
-                      <li key={rule.key} style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ color: pwdInfo[rule.key] ? '#16a34a' : '#dc2626', fontWeight: 600, minWidth: '15px' }}>
-                          {pwdInfo[rule.key] ? '✓' : '✗'}
-                        </span>
-                        <span style={{ marginLeft: 4 }}>{rule.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="input-group-checkbox" style={{ marginBottom: 0 }}>
-                  <input
-                    type="checkbox"
-                    id="showPassword"
-                    checked={showPassword}
-                    onChange={() => setShowPassword(!showPassword)}
-                  />
-                  <label htmlFor="showPassword">Show Password</label>
-                </div>
-              </div>
-              <div className="input-group-checkbox">
-                <input
-                  type="checkbox"
-                  id="isAdmin"
-                  name="isAdmin"
-                  checked={newUserData.isAdmin}
-                  onChange={handleNewUserChange}
-                />
-                <label htmlFor="isAdmin">Make this user an Admin</label>
-              </div>
-              <div className="modal-actions">
-                <button 
-                  type="button" 
-                  className="btn-secondary" 
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={loadingAction}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn-primary"
-                  disabled={loadingAction}
-                >
-                  {loadingAction ? "Creating..." : "Create User"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {/* Confirm Dialogs */}
       <ConfirmDialog
         open={logoutConfirmOpen}
